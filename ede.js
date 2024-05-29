@@ -20,6 +20,7 @@
     const requireDanmakuPath = "danmaku.min.js"; // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/
     // ------ user configs start ------
     // ------ inner configs start ------
+    const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     let embyItemId = '';
     // const check_interval = 200;
     const chConverTtitle = ['当前状态: 未启用', '当前状态: 转换为简体', '当前状态: 转换为繁体'];
@@ -521,7 +522,7 @@
             if (animeName == null) throw new Error('用户取消确认动画名操作');
         }
 
-        let searchUrl = 'https://api.dandanplay.net/api/v2/search/episodes?anime=' + animeName + '&withRelated=true';
+        let searchUrl = dandanplayApi + '/search/episodes?anime=' + animeName + '&withRelated=true';
         if (is_auto) {
             searchUrl += '&episode=' + episode;
         }
@@ -574,7 +575,7 @@
     }
 
     function getComments(episodeId) {
-        let url = 'https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2/comment/' + episodeId + '?withRelated=true&chConvert=' + window.ede.chConvert;
+        let url = dandanplayApi + '/comment/' + episodeId + '?withRelated=true&chConvert=' + window.ede.chConvert;
         return fetch(url, {
             method: 'GET',
             headers: {
