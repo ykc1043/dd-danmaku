@@ -124,8 +124,8 @@
         innerText: null,
         onclick: () => {
             console.log('切换弹幕过滤等级');
-            let level = window.localStorage.getItem('danmakuFilterLevel');
-            level = ((level ? parseInt(level) : 0) + 1) % 4;
+            let level = parseInt(window.localStorage.getItem('danmakuFilterLevel') ?? 0);
+            level = (level + 1) % 4;
             window.localStorage.setItem('danmakuFilterLevel', level);
             document.querySelector('#filteringDanmaku').children[0].innerText = filter_icons[level];
         },
@@ -424,7 +424,7 @@
         translateButtonOpts.title = chConverTtitle[window.ede.chConvert];
         menubar.appendChild(createButton(translateButtonOpts));
         // 屏蔽等级
-        filterButtonOpts.innerText = filter_icons[parseInt(window.localStorage.getItem('danmakuFilterLevel') ? window.localStorage.getItem('danmakuFilterLevel') : 0)];
+        filterButtonOpts.innerText = filter_icons[parseInt(window.localStorage.getItem('danmakuFilterLevel') ?? 0)];
         menubar.appendChild(createButton(filterButtonOpts));
         // 弹幕信息
         menubar.appendChild(createButton(infoButtonOpts));
@@ -710,7 +710,7 @@
     }
 
     function danmakuFilter(comments) {
-        let level = parseInt(window.localStorage.getItem('danmakuFilterLevel') ? window.localStorage.getItem('danmakuFilterLevel') : 0);
+        let level = parseInt(window.localStorage.getItem('danmakuFilterLevel') ?? 0);
         if (level == 0) {
             return comments;
         }
@@ -764,10 +764,10 @@
         return $obj
             .map(($comment) => {
                 const p = $comment.p;
-                //if (p === null || $comment.childNodes[0] === undefined) return;
+                //if (p === null || $comment.childNodes[0] === undefined) return null;
                 const values = p.split(',');
                 const mode = { 6: 'ltr', 1: 'rtl', 5: 'top', 4: 'bottom' }[values[1]];
-                if (!mode) return;
+                if (!mode) return null;
                 // 弹幕颜色+透明度
                 const color = `000000${Number(values[2]).toString(16)}${fontOpacity}`.slice(-8);
                 return {
@@ -786,7 +786,8 @@
                         lineWidth: 2.0,
                     },
                 };
-            });
+            })
+            .filter((x) => x);
     }
 
     function list2string($obj2) {
