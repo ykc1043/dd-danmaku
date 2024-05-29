@@ -742,32 +742,32 @@
     }
 
     function danmakuParser($obj) {
+        //const fontSize = Number(values[2]) || 25
+        // 弹幕大小
+        const fontSizeMagnification = parseFloat(
+            localStorage.getItem('danmakuFontSizeMagnification')
+        ) || 1;
+        let fontSize = 25;
+        const h3Ele = document.querySelector('.videoOsdTitle')
+        if (h3Ele) {
+            fontSize = parseFloat(getComputedStyle(h3Ele).fontSize.replace('px', '')) * fontSizeMagnification
+        } else {
+            fontSize = Math.round(
+                (window.screen.height > window.screen.width 
+                    ? window.screen.width 
+                    : window.screen.height / 1080) * 18 * fontSizeMagnification
+            );
+        }
+        // 弹幕透明度
+        const fontOpacity = Math.round((parseFloat(localStorage.getItem('danmakuFontOpacity')) || 1.0) * 255).toString(16);
         //const $xml = new DOMParser().parseFromString(string, 'text/xml')
         return $obj
             .map(($comment) => {
                 const p = $comment.p;
-                //if (p === null || $comment.childNodes[0] === undefined) return null
+                //if (p === null || $comment.childNodes[0] === undefined) return;
                 const values = p.split(',');
                 const mode = { 6: 'ltr', 1: 'rtl', 5: 'top', 4: 'bottom' }[values[1]];
-                if (!mode) return null;
-                //const fontSize = Number(values[2]) || 25
-                // 弹幕大小
-                const fontSizeMagnification = parseFloat(
-                    localStorage.getItem('danmakuFontSizeMagnification')
-                ) || 1;
-                let fontSize = 25;
-                const h3Ele = document.querySelector('.videoOsdTitle')
-                if (h3Ele) {
-                    fontSize = parseFloat(getComputedStyle(h3Ele).fontSize.replace('px', '')) * fontSizeMagnification
-                } else {
-                    fontSize = Math.round(
-                        (window.screen.height > window.screen.width 
-                            ? window.screen.width 
-                            : window.screen.height / 1080) * 18 * fontSizeMagnification
-                    );
-                }
-                // 弹幕透明度
-                const fontOpacity = Math.round((parseFloat(localStorage.getItem('danmakuFontOpacity')) || 1.0) * 255).toString(16);
+                if (!mode) return;
                 // 弹幕颜色+透明度
                 const color = `000000${Number(values[2]).toString(16)}${fontOpacity}`.slice(-8);
                 return {
@@ -786,8 +786,7 @@
                         lineWidth: 2.0,
                     },
                 };
-            })
-            .filter((x) => x);
+            });
     }
 
     function list2string($obj2) {
