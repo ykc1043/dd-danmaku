@@ -43,9 +43,9 @@
         class: 'paper-icon-button-light',
         is: 'paper-icon-button-light',
     };
-    // htmlVideoPlayerContainer
-    const appVersion = parseFloat(ApiClient.appVersion());
+    const appVersion = parseFloat(document.querySelector('html').getAttribute('data-appversion').substring(0, 3));
     const isVersionOld = appVersion < 4.8;
+    // htmlVideoPlayerContainer
     let mediaContainerQueryStr = ".graphicContentContainer";
     if (isVersionOld) {
         mediaContainerQueryStr = "div[data-type='video-osd']";
