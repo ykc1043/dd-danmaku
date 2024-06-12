@@ -495,12 +495,16 @@
         } else {
             item = await getEmbyItemInfo();
             if (!item) {
-                console.log("getEmbyItemInfo from pluginManager null");
-                item = await fatchEmbyItemInfo(embyItemId);
-                if (!item) {
-                    return null;
-                }
+                // getEmbyItemInfo from pluginManager null, will next call
+                return null;
             }
+            // if (!item) {
+            //     console.log("getEmbyItemInfo from pluginManager null");
+            //     item = await fatchEmbyItemInfo(embyItemId);
+            //     if (!item) {
+            //         return null;
+            //     }
+            // }
         }
         let _id;
         let animeName;
@@ -832,13 +836,14 @@
     }
 
     // emby/jellyfin CustomEvent
-    // see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L691
-    document.addEventListener("viewbeforeshow", function (e) {
-        console.log("viewbeforeshow", e);
+    // see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
+    document.addEventListener("viewshow", function (e) {
+        console.log("viewshow", e);
         isJellyfin = ApiClient.appName().startsWith("Jellyfin");
         embyItemId = e.detail.params.id ?? embyItemId;
         let isTargetPage = e.detail.type === "video-osd";
-        if (isTargetPage && (!window.ede || (!!window.ede && !window.ede.danmaku))) {
+        // if (isTargetPage && (!window.ede || (!!window.ede && !window.ede.danmaku))) {
+        if (isTargetPage) {
             window.ede = new EDE();
             initUI();
             loadDanmaku(LOAD_TYPE.INIT);
