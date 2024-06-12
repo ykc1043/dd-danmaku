@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.14
+// @version      1.15
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -22,6 +22,7 @@
     // ------ inner configs start ------
     const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     let embyItemId = '';
+    let isJellyfin = false;
     // const check_interval = 200;
     const chConverTtitle = ['当前状态: 未启用', '当前状态: 转换为简体', '当前状态: 转换为繁体'];
     const danmuCache = {};
@@ -43,8 +44,8 @@
         class: 'paper-icon-button-light',
         is: 'paper-icon-button-light',
     };
-    const appVersion = parseFloat(document.querySelector('html').getAttribute('data-appversion').substring(0, 3));
-    const isVersionOld = appVersion < 4.8;
+    const appVersion = parseFloat(document.querySelector('html').getAttribute('data-appversion')?.substring(0, 3));
+    const isVersionOld = appVersion ? appVersion < 4.8 : true;
     // htmlVideoPlayerContainer
     let mediaContainerQueryStr = ".graphicContentContainer";
     if (isVersionOld) {
@@ -171,7 +172,11 @@
     }
 
     function createButton(opt) {
-        let button = document.createElement('button', buttonOptions);
+        // let button = document.createElement('button', buttonOptions);
+        let button = document.createElement('button');
+        for (let key in buttonOptions) {
+            button.setAttribute(key, buttonOptions[key]);
+        }
         button.setAttribute('title', opt.title);
         button.setAttribute('id', opt.id);
         let icon = document.createElement('span');
@@ -187,7 +192,11 @@
      */
     function createResizeButton() {
         // 创建按钮
-        let button = document.createElement('button', buttonOptions);
+        // let button = document.createElement('button', buttonOptions);
+        let button = document.createElement('button');
+        for (let key in buttonOptions) {
+            button.setAttribute(key, buttonOptions[key]);
+        }
         button.setAttribute('title', '弹幕调整');
         button.setAttribute('id', 'danmuStyleSetter');
         //创建按钮图标
@@ -407,8 +416,10 @@
             return;
         }
         console.log('正在初始化UI');
-        // 弹幕按钮容器div
-        let parent = document.querySelector(".videoOsdBottom-maincontrols .videoOsdBottom-buttons");
+        // 弹幕按钮容器 div
+        let ctrQueryStr = ".videoOsdBottom-maincontrols";
+        ctrQueryStr += isJellyfin ? " .buttons" : " .videoOsdBottom-buttons"
+        let parent = document.querySelector(ctrQueryStr);
         let menubar = document.createElement('div');
         menubar.id = 'danmakuCtr';
         if (!window.ede.episode_info) {
@@ -478,12 +489,17 @@
     }
 
     async function getEpisodeInfo(is_auto = true) {
-        let item = await getEmbyItemInfo();
-        if (!item) {
-            console.log("getEmbyItemInfo from pluginManager null");
+        let item;
+        if (isJellyfin) {
             item = await fatchEmbyItemInfo(embyItemId);
+        } else {
+            item = await getEmbyItemInfo();
             if (!item) {
-                return null;
+                console.log("getEmbyItemInfo from pluginManager null");
+                item = await fatchEmbyItemInfo(embyItemId);
+                if (!item) {
+                    return null;
+                }
             }
         }
         let _id;
@@ -611,6 +627,7 @@
         //     await new Promise((resolve) => setTimeout(resolve, 200));
         // }
 
+        mediaContainerQueryStr = isJellyfin ? ".syncPlayContainer" : mediaContainerQueryStr;
         let _container = document.querySelector(mediaContainerQueryStr);
         let _media = document.querySelector(mediaQueryStr);
         if (!_media) throw new Error('用户已退出视频播放');
@@ -748,9 +765,9 @@
             localStorage.getItem('danmakuFontSizeMagnification')
         ) || 1;
         let fontSize = 25;
-        const h3Ele = document.querySelector('.videoOsdTitle')
+        const h3Ele = document.querySelector(isJellyfin ? '.osdTitle' : '.videoOsdTitle');
         if (h3Ele) {
-            fontSize = parseFloat(getComputedStyle(h3Ele).fontSize.replace('px', '')) * fontSizeMagnification
+            fontSize = parseFloat(getComputedStyle(h3Ele).fontSize.replace('px', '')) * fontSizeMagnification;
         } else {
             fontSize = Math.round(
                 (window.screen.height > window.screen.width 
@@ -818,6 +835,7 @@
     // see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L691
     document.addEventListener("viewbeforeshow", function (e) {
         console.log("viewbeforeshow", e);
+        isJellyfin = ApiClient.appName().startsWith("Jellyfin");
         embyItemId = e.detail.params.id ?? embyItemId;
         let isTargetPage = e.detail.type === "video-osd";
         if (isTargetPage && (!window.ede || (!!window.ede && !window.ede.danmaku))) {
