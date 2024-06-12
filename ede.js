@@ -11,6 +11,7 @@
 // @downloadURL  https://cdn.jsdelivr.net/gh/RyoLee/emby-danmaku@gh-pages/ede.user.js
 // @grant        none
 // @match        */web/index.html
+// @match        */web/
 // ==/UserScript==
 
 (async function () {
