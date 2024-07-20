@@ -821,7 +821,7 @@
         window.require(['alert']).then((items) => items[0]?.({text, title, timeout}));
     }
 
-    function initVideoTagAdaper() {
+    function initH5VideoAdapter() {
         let _media = document.querySelector(mediaQueryStr);
         if (_media) {
             return;
@@ -903,7 +903,7 @@
         if (isTargetPage) {
             window.ede = new EDE();
             initUI();
-            initVideoTagAdaper();
+            initH5VideoAdapter();
             loadDanmaku(LOAD_TYPE.INIT);
             initListener();
         }
