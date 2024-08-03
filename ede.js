@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.17
+// @version      1.19
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -26,7 +26,7 @@
     const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     let embyItemId = '';
     let isJellyfin = false;
-    // const check_interval = 200;
+    const check_interval = 200;
     const chConverTtitle = ['当前状态: 未启用', '当前状态: 转换为简体', '当前状态: 转换为繁体'];
     const danmuCache = {};
     const LOAD_TYPE = {
@@ -37,7 +37,8 @@
         SEARCH: 'search',
     };
     // 0:当前状态关闭 1:当前状态打开
-    const danmaku_icons = ['\uE0B9', '\uE7A2'];
+    // const danmaku_icons = ['\uE0B9', '\uE7A2'];
+    const danmaku_icons = ['\uE7A2', '\uE0B9'];
     const search_icon = '\uE881';
     const translate_icon = '\uE927';
     const info_icon = '\uE0E0';
@@ -47,13 +48,16 @@
         class: 'paper-icon-button-light',
         is: 'paper-icon-button-light',
     };
+    // apiClient.isMinServerVersion("4.8.0.56")
     const appVersion = parseFloat(document.querySelector('html').getAttribute('data-appversion')?.substring(0, 3));
     const isVersionOld = appVersion ? appVersion < 4.8 : true;
     // htmlVideoPlayerContainer
-    let mediaContainerQueryStr = ".graphicContentContainer";
+    let mediaContainerQueryStr = '.graphicContentContainer';
     if (isVersionOld) {
-        mediaContainerQueryStr = "div[data-type='video-osd']";
+        mediaContainerQueryStr = 'div[data-type="video-osd"]';
     }
+    const notHide = ':not(.hide)';
+    mediaContainerQueryStr += notHide;
     const mediaQueryStr = 'video';
     const displayButtonOpts = {
         title: '弹幕开关',
@@ -84,7 +88,7 @@
             }
             console.log('手动匹配弹幕');
             // loadDanmaku(LOAD_TYPE.SEARCH);
-            searchEpisodeInfo();
+            createDialog();
         },
     };
     const translateButtonOpts = {
@@ -123,20 +127,100 @@
     };
 
     const filterButtonOpts = {
-        title: '过滤等级(下次加载生效)',
+        title: '弹幕密度等级',
         id: 'filteringDanmaku',
         innerText: null,
-        onclick: () => {
-            console.log('切换弹幕过滤等级');
+        onclick: () => { 
             let level = parseInt(window.localStorage.getItem('danmakuFilterLevel') ?? 0);
             level = (level + 1) % 4;
-            window.localStorage.setItem('danmakuFilterLevel', level);
+            console.log(`切换弹幕密度等级: ${level}`);
+            doDanmakuChange({ danmakuFilterLevel: level });
             document.querySelector('#filteringDanmaku').children[0].innerText = filter_icons[level];
         },
     };
 
     // 手动搜索变量
-    let searchDanmakuOpts = {}
+    let searchDanmakuOpts = {};
+    // 菜单tabs
+    const danmakuTabOpts = [
+        { id: 'danmakuTab0', name: '手动匹配' },
+        { id: 'danmakuTab1', name: '弹幕信息' },
+        { id: 'danmakuTab2', name: '弹幕设置' },
+    ];
+    // 弹幕类型过滤
+    const danmakuTypeFilterOpts = [
+        { id: 'bottom', name: '底部弹幕' },
+        { id: 'top', name: '顶部弹幕' },
+        { id: 'ltr', name: '从左至右' },
+        // { id: 'rtl', name: '从右至左', hidden: true },
+        { id: 'onlyWhite', name: '彩色弹幕' },
+    ];
+    // 弹幕引擎
+    const danmakuEngineDefault = 'dom';
+    const danmakuEngineOpts = [
+        { id: 'canvas', name: 'canvas'},
+        { id: 'dom', name: 'dom'},
+    ];
+    const danmakuChConverOpts = [
+        { id: '0', name: '未启用'},
+        { id: '1', name: '转换为简体'},
+        { id: '2', name: '转换为繁体'},
+    ];
+    const danmakuFilterLevelOpts = [
+        { id: '0', name: '0'},
+        { id: '1', name: '1'},
+        { id: '2', name: '2'},
+        { id: '3', name: '3'},
+    ];
+    const lsKeys = {
+        // createResizeButton
+        danmakuFontSizeMagnification: 'danmakuFontSizeMagnification',
+        danmakuFontOpacity: 'danmakuFontOpacity',
+        danmakuSpeed: 'danmakuSpeed',
+        danmakuTimelineOffset: 'danmakuTimelineOffset',
+        // setButtonEvent
+        danmakuTypeFilter: 'danmakuTypeFilter',
+        danmakuEngine: 'danmakuEngine',
+    };
+    const eleIds = {
+        // initUI
+        danmakuCtr: 'danmakuCtr',
+        // initH5VideoAdapter
+        h5VideoAdapterContainer: 'h5VideoAdapterContainer',
+        // searchEpisodeInfoHtml
+        danmakuSwitch: 'danmakuSwitch',
+        danmakuSearchName: 'danmakuSearchName',
+        danmakuSearchEpisode: 'danmakuSearchEpisode',
+        danmakuEpisodeFlag: 'danmakuEpisodeFlag',
+        danmakuEpisodeDiv: 'danmakuEpisodeDiv',
+        danmakuSwitchEpisode: 'danmakuSwitchEpisode',
+        danmakuEpisodeNumDiv: 'danmakuEpisodeNumDiv',
+        danmakuRemark: 'danmakuRemark',
+        danmakuEpisodeSelect: 'danmakuEpisodeSelect',
+        danmakuEpisodeNumSelect: 'danmakuEpisodeNumSelect',
+        // danmakuSettingHtml
+        danmakuTypeFilterLabel: 'danmakuTypeFilterLabel',
+        danmakuTypeFilterSelect: 'danmakuTypeFilterSelect',
+        danmakuTypeFilterSelectName: 'danmakuTypeFilterSelectName',
+        danmakuEngineSelect: 'danmakuEngineSelect',
+    };
+    // emby ui class
+    const embyLabelClass = 'inputLabel';
+    const embyInputClass = 'txtName txtInput-withlockedfield emby-input emby-input-largerfont emby-input-smaller';
+    const embyIconButtonClass = 'itemAction paper-icon-button-light';
+    const embySelectWrapperClass = 'emby-select-wrapper emby-select-wrapper-smaller';
+    const embyCheckboxListClass = 'checkboxList featureList';
+    // const embySelectClass = 'selectSyncTarget emby-select';
+    const embyTextDivClass = 'txtPath fieldDescription';
+    const embySwitchClass = 'chkAdvanced noautofocus emby-toggle emby-toggle-focusring';
+    const embyTabsMenuClass = 'headerMiddle headerSection sectionTabs headerMiddle-withSectionTabs';
+    const embyTabsDivClass1 = 'tabs-viewmenubar tabs-viewmenubar-backgroundcontainer focusable scrollX hiddenScrollX smoothScrollX scrollFrameX emby-tabs';
+    const embyTabsDivClass2 = 'tabs-viewmenubar-slider emby-tabs-slider padded-left padded-right nohoverfocus scrollSliderX';
+    const embyTabsButtonClass = 'emby-button secondaryText emby-tab-button main-tab-button';
+    const embyInputContainerClass = 'inputContainer';
+    const embySelectStyle = 'font-size: inherit;font-family: inherit;font-weight: inherit;padding-top: 0;padding-bottom: 0;box-sizing: border-box;outline: 0 !important;-webkit-tap-highlight-color: transparent;width: auto;border-radius: .3em;letter-spacing: inherit;padding-inline-start: 1ch;padding-inline-end: 3.6ch;height: 2.4em;';
+    const embyButtonStyle = 'margin: 0 0 0 0.5em;';
+    const embyCheckboxListStyle = 'display: flex;flex-wrap: wrap;';
     // ------ inner configs end ------
 
     // ------ require start ------
@@ -179,6 +263,7 @@
             this.episode_info = null;
             this.ob = null;
             this.loading = false;
+            this.functions = {};
         }
     }
 
@@ -196,6 +281,76 @@
         button.appendChild(icon);
         button.onclick = opt.onclick;
         return button;
+    }
+
+    function createSubPanel(popDiv, label, localStorageKey, inputOpts = {}) {
+        const defaultOpts = { min: 0.1, max: 3, step: 0.1 };
+        inputOpts = { ...defaultOpts, ...inputOpts };
+        // 大小调整SubPanel
+        let subPanelEle = document.createElement('div');
+        subPanelEle.style.display = 'flex';
+        subPanelEle.style.flexDirection = 'column';
+        subPanelEle.style.flexWrap = 'nowrap';
+        subPanelEle.style.justifyContent = 'center';
+        subPanelEle.style.alignItems = 'center';
+        // 滑动条
+        let sliderEle = document.createElement('input');
+        sliderEle.setAttribute('orient', 'vertical');
+        sliderEle.setAttribute('type', 'range');
+        sliderEle.setAttribute('min', String(inputOpts.min));
+        sliderEle.setAttribute('max', String(inputOpts.max));
+        sliderEle.setAttribute('step', String(inputOpts.step));
+        sliderEle.style.width = '30px';
+        sliderEle.style.height = '60px';
+        sliderEle.style.appearance = 'slider-vertical';
+        sliderEle.oninput = () => {
+            inputEle.value = parseFloat(sliderEle.value).toFixed(1);
+        };
+        // 输入框
+        let inputEle = document.createElement('input');
+        inputEle.type = 'text';
+        inputEle.style.width = '30px';
+        inputEle.style.textAlign = 'center';
+        inputEle.oninput = () => {
+            var oldValue = window.localStorage.getItem(localStorageKey) ?? '1.0';
+            var fontSizeMagnification = parseFloat(inputEle.value);
+            if (isNaN(fontSizeMagnification)) {
+                inputEle.value = oldValue;
+                sliderEle.value = oldValue;
+                alert('请输入有效的数字！');
+            } else if (fontSizeMagnification < inputOpts.min
+                || fontSizeMagnification > inputOpts.max
+            ) {
+                inputEle.value = oldValue;
+                sliderEle.value = oldValue;
+                alert(`请输入${inputOpts.min}到${inputOpts.max}之间的数字！`);
+            } else {
+                sliderEle.value = fontSizeMagnification.toFixed(1);
+            }
+        };
+        // 监听 Input 回车结束设置
+        inputEle.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                popDiv.style.display = 'none';
+                if (popDiv.startSetter) {
+                    popDiv.startSetter = undefined;
+                    doDanmakuChange({ localStorageKey: inputEle.value });
+                }
+            }
+        });
+        // 标签
+        let labelEle = document.createElement('span');
+        labelEle.innerText = label;
+
+        // DOM, 将滑动条和输入框和描述添加到 subPanel
+        subPanelEle.appendChild(sliderEle);
+        subPanelEle.appendChild(inputEle);
+        subPanelEle.appendChild(labelEle);
+        // Props, 定义获取元素的方法
+        subPanelEle.getSlider = () => sliderEle;
+        subPanelEle.getInput = () => inputEle;
+        subPanelEle.getLabel = () => labelEle;
+        return subPanelEle;
     }
 
     /** 调整字幕大小和透明度的Button
@@ -229,117 +384,73 @@
         popDiv.style.justifyContent = 'center';
         popDiv.style.alignItems = 'center';
 
-        // 大小调整SubPanel
-        let fontSizeSetPopDiv = document.createElement('div');
-        fontSizeSetPopDiv.style.display = 'flex';
-        fontSizeSetPopDiv.style.flexDirection = 'column';
-        fontSizeSetPopDiv.style.flexWrap = 'nowrap';
-        fontSizeSetPopDiv.style.justifyContent = 'center';
-        fontSizeSetPopDiv.style.alignItems = 'center';
-        // 滑动条
-        let fontSizeSlider = document.createElement('input');
-        fontSizeSlider.setAttribute('orient', 'vertical');
-        fontSizeSlider.setAttribute('type', 'range');
-        fontSizeSlider.setAttribute('min', '0.1');
-        fontSizeSlider.setAttribute('max', '3');
-        fontSizeSlider.setAttribute('step', '0.1');
-        fontSizeSlider.style.width = '30px';
-        fontSizeSlider.style.height = '60px';
-        fontSizeSlider.style.appearance = 'slider-vertical';
-        fontSizeSlider.oninput = () => {
-            fontSizeInput.value = parseFloat(fontSizeSlider.value).toFixed(1);
-        };
-        // 输入框
-        let fontSizeInput = document.createElement('input');
-        fontSizeInput.type = 'text';
-        fontSizeInput.style.width = '30px';
-        fontSizeInput.style.textAlign = 'center';
-        fontSizeInput.oninput = () => {
-            var oldValue = window.localStorage.getItem('danmakuFontSizeMagnification') ?? '1.0';
-            var fontSizeMagnification = parseFloat(fontSizeInput.value);
-            if (isNaN(fontSizeMagnification)) {
-                fontSizeInput.value = oldValue;
-                fontSizeSlider.value = oldValue;
-                alert('请输入有效的数字！');
-            } else if (fontSizeMagnification < 0.1 || fontSizeMagnification > 3) {
-                fontSizeInput.value = oldValue;
-                fontSizeSlider.value = oldValue;
-                alert('请输入0.1到3之间的数字！');
-            } else {
-                fontSizeSlider.value = fontSizeMagnification.toFixed(1);
-            }
-        };
-        // 标签
-        let fontSizeLabel = document.createElement('span');
-        fontSizeLabel.innerText = '大小';
+        // 大小调整 SubPanel
+        const fontSizeSetPopDiv = createSubPanel(popDiv, '大小', lsKeys.danmakuFontSizeMagnification);
+        const fontSizeInput = fontSizeSetPopDiv.getInput();
+        const fontSizeSlider = fontSizeSetPopDiv.getSlider();
 
-        // 透明度调整SubPanel
-        let fontOpacitySetPopDiv = document.createElement('div');
-        fontOpacitySetPopDiv.style.display = 'flex';
-        fontOpacitySetPopDiv.style.flexDirection = 'column';
-        fontOpacitySetPopDiv.style.flexWrap = 'nowrap';
-        fontOpacitySetPopDiv.style.justifyContent = 'center';
-        fontOpacitySetPopDiv.style.alignItems = 'center';
-        // 滑动条
-        let fontOpacitySlider = document.createElement('input');
-        fontOpacitySlider.setAttribute('orient', 'vertical');
-        fontOpacitySlider.setAttribute('type', 'range');
-        fontOpacitySlider.setAttribute('min', '0.1');
-        fontOpacitySlider.setAttribute('max', '1');
-        fontOpacitySlider.setAttribute('step', '0.1');
-        fontOpacitySlider.style.width = '30px';
-        fontOpacitySlider.style.height = '60px';
-        fontOpacitySlider.style.appearance = 'slider-vertical';
-        fontOpacitySlider.oninput = () => {
-            fontOpacityInput.value = parseFloat(fontOpacitySlider.value).toFixed(1);
-        };
-        // 输入框
-        let fontOpacityInput = document.createElement('input');
-        fontOpacityInput.type = 'text';
-        fontOpacityInput.style.width = '30px';
-        fontOpacityInput.style.textAlign = 'center';
-        fontOpacityInput.oninput = () => {
-            var oldValue = window.localStorage.getItem('danmakuFontOpacity') ?? '1.0';
-            var fontOpacity = parseFloat(fontOpacityInput.value);
-            if (isNaN(fontOpacity)) {
-                fontOpacityInput.value = oldValue;
-                fontOpacitySlider.value = oldValue;
-                alert('请输入有效的数字！');
-            } else if (fontOpacity < 0 || fontOpacity > 1) {
-                fontOpacityInput.value = oldValue;
-                fontOpacitySlider.value = oldValue;
-                alert('请输入0到1之间的数字！');
-            } else {
-                fontOpacitySlider.value = fontOpacity.toFixed(1);
-            }
-        };
-        // 标签
-        let fontOpacityLabel = document.createElement('span');
-        fontOpacityLabel.innerText = '透明度';
+        // 透明度调整 SubPanel
+        const fontOpacitySetPopDiv = createSubPanel(popDiv, '透明度', lsKeys.danmakuFontOpacity, { max: 1 });
+        const fontOpacityInput = fontOpacitySetPopDiv.getInput();
+        const fontOpacitySlider = fontOpacitySetPopDiv.getSlider();
+
+        // 基准速度调整 SubPanel
+        const speedSetPopDiv = createSubPanel(popDiv, '速度', lsKeys.danmakuSpeed);
+        const speedInput = speedSetPopDiv.getInput();
+        const speedSlider = speedSetPopDiv.getSlider();
+
+        // 时间轴偏移秒数调整 SubPanel
+        const timelineOffsetSetPopDiv = createSubPanel(popDiv, '轴偏秒', lsKeys.danmakuTimelineOffset, {
+            min: -30, max: 30, step: 1,
+        });
+        const timelineOffsetInput = timelineOffsetSetPopDiv.getInput();
+        const timelineOffsetSlider = timelineOffsetSetPopDiv.getSlider();
+
+        // 所有 danmakuCtr 都没渲染
+        const popDivClientWidth = 2 * parseInt(popDiv.style.padding.replace('px', ''))
+            + parseInt(fontSizeInput.style.width.replace('px', ''))
+            + parseInt(fontOpacityInput.style.width.replace('px', ''))
+            + parseInt(speedInput.style.width.replace('px', ''))
+            + parseInt(timelineOffsetInput.style.width.replace('px', ''))
+            + 30; // this is offset for label
+
+        // icon插入button
+        button.appendChild(icon);
+        popDiv.appendChild(fontSizeSetPopDiv);
+        popDiv.appendChild(fontOpacitySetPopDiv);
+        popDiv.appendChild(speedSetPopDiv);
+        popDiv.appendChild(timelineOffsetSetPopDiv);
+        // 将POP插入body
+        document.body.appendChild(popDiv);
 
         // 监听鼠标点击事件
         button.addEventListener('click', function (event) {
             if (popDiv.style.display == 'none') {
                 // 赋初值
-                let curFontSizeMag = window.localStorage.getItem('danmakuFontSizeMagnification');
-                let curFontOpacity = window.localStorage.getItem('danmakuFontOpacity');
+                let curFontSizeMag = localStorage.getItem(lsKeys.danmakuFontSizeMagnification);
+                let curFontOpacity = localStorage.getItem(lsKeys.danmakuFontOpacity);
+                let curSpeed = localStorage.getItem(lsKeys.danmakuSpeed);
+                let curTimelineOffset = localStorage.getItem(lsKeys.danmakuTimelineOffset);
                 curFontSizeMag = isNaN(parseFloat(curFontSizeMag)) ? '1.0' : curFontSizeMag;
                 curFontOpacity = isNaN(parseFloat(curFontOpacity)) ? '1.0' : curFontOpacity;
+                curSpeed = isNaN(parseFloat(curSpeed)) ? '1.0' : curSpeed;
+                curTimelineOffset = isNaN(parseFloat(curTimelineOffset)) ? '0.0' : curTimelineOffset;
                 fontSizeSlider.value = curFontSizeMag;
                 fontSizeInput.value = curFontSizeMag;
                 fontOpacitySlider.value = curFontOpacity;
                 fontOpacityInput.value = curFontOpacity;
+                speedSlider.value = curSpeed;
+                speedInput.value = curSpeed;
+                timelineOffsetSlider.value = curTimelineOffset;
+                timelineOffsetInput.value = curTimelineOffset;
+
                 // CSS
                 var x = event.clientX - 36 > 0 ? event.clientX - 36 : 0;
                 var y = event.clientY - 160 > 0 ? event.clientY - 160 : 0;
                 // 假如超出屏幕宽度,则将 popDiv 向左移动自身的宽度
-                // alert(x + ",修复前");
-                // alert(window.screen.width);
-                // alert(window.screen.availWidth);
-                // if (x + 86 > window.screen.availWidth) {
-                //     x -= 86; // 86 is current width of popDiv
-                //     alert(x + ",修复后");
-                // }
+                if (x + popDivClientWidth > window.screen.availWidth) {
+                    x -= popDivClientWidth;
+                }
 
                 popDiv.startSetter = '1';
                 popDiv.style.left = x + 'px';
@@ -349,98 +460,80 @@
                 popDiv.style.display = 'none';
                 if (popDiv.startSetter) {
                     popDiv.startSetter = undefined;
-                    doFontResizeAndOpacityChange(fontSizeInput.value, fontOpacityInput.value);
+                    doDanmakuChange({
+                        [lsKeys.danmakuFontSizeMagnification]: fontSizeInput.value,
+                        [lsKeys.danmakuFontOpacity]: fontOpacityInput.value,
+                        [lsKeys.danmakuSpeed]: speedInput.value,
+                        [lsKeys.danmakuTimelineOffset]: timelineOffsetInput.value,
+                    });
                 }
             }
         });
         // 监听页面点击事件
         document.addEventListener('click', function (event) {
             // 检查点击事件的目标元素是否是div或div内的元素
-            if (event.target === popDiv || popDiv.contains(event.target) || event.target === button || button.contains(event.target)) {
+            if (event.target === popDiv || popDiv.contains(event.target) 
+                || event.target === button || button.contains(event.target)
+            ) {
                 return; // 如果是，则不执行下面的代码
             }
             popDiv.style.display = 'none';
             if (popDiv.startSetter) {
                 popDiv.startSetter = undefined;
-                doFontResizeAndOpacityChange(fontSizeInput.value, fontOpacityInput.value);
+                doDanmakuChange({ 
+                    [lsKeys.danmakuFontSizeMagnification]: fontSizeInput.value,
+                    [lsKeys.danmakuFontOpacity]: fontOpacityInput.value,
+                    [lsKeys.danmakuSpeed]: speedInput.value,
+                    [lsKeys.danmakuTimelineOffset]: timelineOffsetInput.value,
+                });
             }
         });
-        // 监听Input回车结束设置
-        fontSizeInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                popDiv.style.display = 'none';
-                if (popDiv.startSetter) {
-                    popDiv.startSetter = undefined;
-                    doFontResizeAndOpacityChange(fontSizeInput.value, fontOpacityInput.value);
-                }
-            }
-        });
-        fontOpacityInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                popDiv.style.display = 'none';
-                if (popDiv.startSetter) {
-                    popDiv.startSetter = undefined;
-                    doFontResizeAndOpacityChange(fontSizeInput.value, fontOpacityInput.value);
-                }
-            }
-        });
-
-        // icon插入button
-        button.appendChild(icon);
-        // 将滑动条和输入框添加到pop
-        fontSizeSetPopDiv.appendChild(fontSizeSlider);
-        fontSizeSetPopDiv.appendChild(fontSizeInput);
-        fontSizeSetPopDiv.appendChild(fontSizeLabel);
-        fontOpacitySetPopDiv.appendChild(fontOpacitySlider);
-        fontOpacitySetPopDiv.appendChild(fontOpacityInput);
-        fontOpacitySetPopDiv.appendChild(fontOpacityLabel);
-        popDiv.appendChild(fontSizeSetPopDiv);
-        popDiv.appendChild(fontOpacitySetPopDiv);
-        // 将POP插入body
-        document.body.appendChild(popDiv);
-
         return button;
     }
-    /** 执行弹幕大小和透明度变换 */
-    function doFontResizeAndOpacityChange(fontSize, fontOpacity) {
-        let oldFontSize = window.localStorage.getItem('danmakuFontSizeMagnification');
-        let oldFontOpacity = window.localStorage.getItem('danmakuFontOpacity');
-        if (fontSize != oldFontSize || fontOpacity != oldFontOpacity) {
-            window.localStorage.setItem('danmakuFontSizeMagnification', fontSize);
-            window.localStorage.setItem('danmakuFontOpacity', fontOpacity);
-            loadDanmaku(LOAD_TYPE.RELOAD);
-        }
-    }
 
-    function initListener() {
-        let container = document.querySelector(mediaQueryStr);
-        // 页面未加载
-        if (!container) {
-            if (window.ede.episode_info) {
-                window.ede.episode_info = null;
+    /**
+     * 热重载弹幕并更新本地存储值,例如执行弹幕大小和透明度变换...
+     * @param {Object} keyValuePairs - 键值对对象,如 {key1: value1, key2: value2}
+     * @param {Function} [callback] - 更新后执行的回调函数
+     */
+    function doDanmakuChange(keyValuePairs, callback) {
+        let flag = false;
+        Object.keys(keyValuePairs).forEach(key => {
+            const oldValue = window.localStorage.getItem(key);
+            const newValue = keyValuePairs[key];
+            if (newValue !== oldValue) {
+                window.localStorage.setItem(key, newValue);
+                flag = true;
             }
-            return;
-        }
-        if (!container.getAttribute('ede_listening')) {
-            console.log('正在初始化Listener');
-            container.setAttribute('ede_listening', true);
-            container.addEventListener('play', loadDanmaku);
-            console.log('Listener初始化完成');
-        }
+        });
+        if (flag) { loadDanmaku(LOAD_TYPE.RELOAD); }
+        if (typeof callback === 'function') { callback(); }
     }
 
     function initUI() {
         // 已初始化
-        if (document.getElementById('danmakuCtr')) {
+        if (document.getElementById(eleIds.danmakuCtr)) {
             return;
         }
         console.log('正在初始化UI');
+        
         // 弹幕按钮容器 div
-        let ctrQueryStr = ".videoOsdBottom-maincontrols";
-        ctrQueryStr += isJellyfin ? " .buttons" : " .videoOsdBottom-buttons"
-        let parent = document.querySelector(ctrQueryStr);
+        // const ctrQueryStr = `.videoOsdBottom-maincontrols ${isJellyfin ? '.buttons' : '.videoOsdBottom-buttons'}`; // this not need setTimeout, but unknown why
+        // .graphicContentContainer:not(.hide) .videoOsdBottom-maincontrols .videoOsdBottom-buttons
+        const ctrQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols ${isJellyfin ? '.buttons' : '.videoOsdBottom-buttons'}`;
+        const parent = document.querySelector(ctrQueryStr);
+
+        // 延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
+        if (!parent) {
+            setTimeout(() => {
+                console.log("retry initUI!");
+                initUI();
+            }, check_interval);
+            return;
+        }
+
         let menubar = document.createElement('div');
-        menubar.id = 'danmakuCtr';
+        menubar.id = eleIds.danmakuCtr;
         if (!window.ede.episode_info) {
             menubar.style.opacity = 0.5;
         }
@@ -463,6 +556,7 @@
         console.log('UI初始化完成');
     }
 
+    // android 不兼容, web 和 Electron 兼容
     function sendNotification(title, msg) {
         const Notification = window.Notification || window.webkitNotifications;
         console.log(msg);
@@ -481,7 +575,7 @@
         }
     }
 
-    function getEmbyItemInfo() {
+    async function getEmbyItemInfo() {
         return window.require(['playbackManager']).then((items) => items?.[0].currentItem());
     }
 
@@ -489,7 +583,28 @@
         return await ApiClient.getItem(ApiClient._serverInfo.UserId, id);
     }
 
-    async function getEpisodeInfo(is_auto = true) {
+    async function fetchSearchEpisodes(anime, episode, withRelated = true) {
+        if (!anime) { throw new Error('anime is required'); }
+        const searchUrl = `${dandanplayApi}/search/episodes?anime=${anime}&withRelated=${withRelated}
+            ${episode ? `&episode=${episode}` : ''}`;
+        const animaInfo = await fetch(searchUrl, {
+            method: 'GET',
+            headers: {
+                'Accept-Encoding': 'gzip',
+                Accept: 'application/json',
+                'User-Agent': navigator.userAgent,
+            },
+        })
+            .then((response) => response.json())
+            .catch((error) => {
+                console.log('查询失败:', error);
+                return null;
+            });
+        console.log('查询成功', animaInfo);
+        return animaInfo;
+    }
+
+    async function getMapByEmbyItemInfo() {
         let item;
         if (isJellyfin) {
             item = await fatchEmbyItemInfo(embyItemId);
@@ -520,41 +635,39 @@
         let _id_key = '_anime_id_rel_' + _id;
         let _name_key = '_anime_name_rel_' + _id;
         let _episode_key = '_episode_id_rel_' + _id + '_' + episode;
-        if (is_auto) {
-            if (window.localStorage.getItem(_episode_key)) {
-                return JSON.parse(window.localStorage.getItem(_episode_key));
-            }
-        }
         if (window.localStorage.getItem(_id_key)) {
             anime_id = window.localStorage.getItem(_id_key);
         }
         if (window.localStorage.getItem(_name_key)) {
             animeName = window.localStorage.getItem(_name_key);
         }
-        if (!is_auto) {
-            animeName = prompt('确认动画名:', animeName);
-            if (animeName == null) throw new Error('用户取消确认动画名操作');
-        }
+        return {
+            _id: _id,
+            _id_key: _id_key,
+            _name_key: _name_key,
+            _episode_key: _episode_key,
+            anime_id: anime_id,
+            episode: episode, // this is episode number, not a index
+            animeName: animeName,
+        };
+    }
 
-        let searchUrl = dandanplayApi + '/search/episodes?anime=' + animeName + '&withRelated=true';
+    async function getEpisodeInfo(is_auto = true) {
+        const itemInfoMap = await getMapByEmbyItemInfo();
+        if (!itemInfoMap) { return null; }
+        const { _episode_key, animeName, anime_id } = itemInfoMap;
+        let { episode } = itemInfoMap;
         if (is_auto) {
-            searchUrl += '&episode=' + episode;
+            if (window.localStorage.getItem(_episode_key)) {
+                return JSON.parse(window.localStorage.getItem(_episode_key));
+            }
         }
-        let animaInfo = await fetch(searchUrl, {
-            method: 'GET',
-            headers: {
-                'Accept-Encoding': 'gzip',
-                Accept: 'application/json',
-                'User-Agent': navigator.userAgent,
-            },
-        })
-            .then((response) => response.json())
-            .catch((error) => {
-                console.log('查询失败:', error);
-                return null;
-            });
-        console.log('查询成功');
-        console.log(animaInfo);
+        // if (!is_auto) {
+        //     animeName = prompt('确认动画名:', animeName);
+        //     if (animeName == null) throw new Error('用户取消确认动画名操作');
+        // }
+
+        let animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
         let selecAnime_id = 1;
         if (anime_id != -1) {
             for (let index = 0; index < animaInfo.animes.length; index++) {
@@ -563,26 +676,28 @@
                 }
             }
         }
-        if (!is_auto) {
-            let anime_lists_str = list2string(animaInfo);
-            console.log(anime_lists_str);
-            selecAnime_id = prompt('选择:\n' + anime_lists_str, selecAnime_id);
-            if (selecAnime_id == null) throw new Error('用户取消选择集数操作');
-            selecAnime_id = parseInt(selecAnime_id) - 1;
-            window.localStorage.setItem(_id_key, animaInfo.animes[selecAnime_id].animeId);
-            window.localStorage.setItem(_name_key, animaInfo.animes[selecAnime_id].animeTitle);
-            let episode_lists_str = ep2string(animaInfo.animes[selecAnime_id].episodes);
-            episode = prompt('确认集数:\n' + episode_lists_str, parseInt(episode));
-            if (episode == null) throw new Error('用户取消确认集数操作');
-            episode = parseInt(episode) - 1;
-        } else {
+        // if (!is_auto) {
+        //     let anime_lists_str = list2string(animaInfo);
+        //     console.log(anime_lists_str);
+        //     selecAnime_id = prompt('选择:\n' + anime_lists_str, selecAnime_id);
+        //     if (selecAnime_id == null) throw new Error('用户取消选择集数操作');
+        //     selecAnime_id = parseInt(selecAnime_id) - 1;
+        //     window.localStorage.setItem(_id_key, animaInfo.animes[selecAnime_id].animeId);
+        //     window.localStorage.setItem(_name_key, animaInfo.animes[selecAnime_id].animeTitle);
+        //     let episode_lists_str = ep2string(animaInfo.animes[selecAnime_id].episodes);
+        //     episode = prompt('确认集数:\n' + episode_lists_str, parseInt(episode));
+        //     if (episode == null) throw new Error('用户取消确认集数操作');
+        //     episode = parseInt(episode) - 1;
+        // } else {
             selecAnime_id = parseInt(selecAnime_id) - 1;
             episode = 0;
-        }
+        // }
         let episodeInfo = {
             episodeId: animaInfo.animes[selecAnime_id].episodes[episode].episodeId,
             animeTitle: animaInfo.animes[selecAnime_id].animeTitle,
-            episodeTitle: animaInfo.animes[selecAnime_id].type == 'tvseries' ? animaInfo.animes[selecAnime_id].episodes[episode].episodeTitle : null,
+            episodeTitle: animaInfo.animes[selecAnime_id].type == 'tvseries'
+                ? animaInfo.animes[selecAnime_id].episodes[episode].episodeTitle
+                : null,
         };
         window.localStorage.setItem(_episode_key, JSON.stringify(episodeInfo));
         return episodeInfo;
@@ -600,11 +715,11 @@
         })
             .then((response) => response.json())
             .then((data) => {
-                console.log('弹幕下载成功: ' + data.comments.length);
+                console.log('弹幕获取成功: ' + data.comments.length);
                 return data.comments;
             })
             .catch((error) => {
-                console.log('获取弹幕失败:', error);
+                console.log('弹幕获取失败:', error);
                 return null;
             });
     }
@@ -625,18 +740,22 @@
         //     await new Promise((resolve) => setTimeout(resolve, 200));
         // }
 
-        mediaContainerQueryStr = isJellyfin ? ".syncPlayContainer" : mediaContainerQueryStr;
+        mediaContainerQueryStr = isJellyfin ? '.syncPlayContainer' : mediaContainerQueryStr;
+
         let _container = document.querySelector(mediaContainerQueryStr);
         let _media = document.querySelector(mediaQueryStr);
         if (!_media) throw new Error('用户已退出视频播放');
         if (!isVersionOld) {
             _media.style.position = 'absolute';
         }
+        // 弹幕基准速度,这里可以根据屏幕尺寸再计算添加倍率,不过还是设备上手调比较简单
+        let _speed = 144 * (parseFloat(localStorage.getItem(lsKeys.danmakuSpeed)) || 1);
         window.ede.danmaku = new Danmaku({
             container: _container,
             media: _media,
             comments: _comments,
-            engine: 'canvas',
+            engine: localStorage.getItem(lsKeys.danmakuEngine) || 'canvas',
+            speed: _speed,
         });
         window.ede.danmakuSwitch == 1 ? window.ede.danmaku.show() : window.ede.danmaku.hide();
         if (window.ede.ob) {
@@ -689,6 +808,7 @@
                             createDanmaku(danmuCache[episodeId])
                                 .then(() => {
                                     console.log('弹幕就位');
+                                    embyToast({ text: `弹幕就位,已加载 ${window.ede.danmaku?.comments.length} 条弹幕` });
                                 })
                                 .catch((err) => {
                                     console.log(err);
@@ -696,9 +816,11 @@
                         } else {
                             getComments(episodeId).then((comments) => {
                                 danmuCache[episodeId] = comments;
+                                window.ede.downloadSum = comments.length;
                                 createDanmaku(comments)
                                     .then(() => {
                                         console.log('弹幕就位');
+                                        embyToast({ text: `弹幕就位,已获取 ${window.ede.downloadSum} 条弹幕` });
                                     })
                                     .catch((err) => {
                                         console.log(err);
@@ -715,8 +837,8 @@
             )
             .then(() => {
                 window.ede.loading = false;
-                if (document.getElementById('danmakuCtr').style.opacity != 1) {
-                    document.getElementById('danmakuCtr').style.opacity = 1;
+                if (document.getElementById(eleIds.danmakuCtr).style.opacity != 1) {
+                    document.getElementById(eleIds.danmakuCtr).style.opacity = 1;
                 }
             })
             .catch((err) => {
@@ -725,6 +847,30 @@
     }
 
     function danmakuFilter(comments) {
+        let _comments = [...comments];
+        _comments = danmakuTypeFilter(_comments);
+        _comments = danmakuDensityLevelFilter(_comments);
+        return _comments;
+    }
+
+    /** 过滤弹幕类型 */
+    function danmakuTypeFilter(comments) {
+        let _comments = [...comments];
+        let idArray = JSON.parse(window.localStorage.getItem(lsKeys.danmakuTypeFilter) ?? '[]');
+        // 彩色过滤,只留下默认的白色
+        if (idArray.includes('onlyWhite')) {
+            _comments = _comments.filter(c => '#ffffff' === c.style.color.toLowerCase().slice(0, 7));
+            idArray.splice(idArray.indexOf('onlyWhite'), 1);
+        }
+        // 过滤特定模式的弹幕
+        if (idArray.length > 0) {
+            _comments = _comments.filter(c => !idArray.includes(c.mode));
+        }
+        return _comments;
+    }
+
+    /** 过滤弹幕密度等级,水平和垂直 */
+    function danmakuDensityLevelFilter(comments) {
         let level = parseInt(window.localStorage.getItem('danmakuFilterLevel') ?? 0);
         if (level == 0) {
             return comments;
@@ -760,7 +906,7 @@
         //const fontSize = Number(values[2]) || 25
         // 弹幕大小
         const fontSizeMagnification = parseFloat(
-            localStorage.getItem('danmakuFontSizeMagnification')
+            localStorage.getItem(lsKeys.danmakuFontSizeMagnification)
         ) || 1;
         let fontSize = 25;
         const h3Ele = document.querySelector(isJellyfin ? '.osdTitle' : '.videoOsdTitle');
@@ -774,7 +920,9 @@
             );
         }
         // 弹幕透明度
-        const fontOpacity = Math.round((parseFloat(localStorage.getItem('danmakuFontOpacity')) || 1.0) * 255).toString(16);
+        const fontOpacity = Math.round((parseFloat(localStorage.getItem(lsKeys.danmakuFontOpacity)) || 1.0) * 255).toString(16);
+        // 时间轴偏移秒数
+        const timelineOffset = parseInt(localStorage.getItem(lsKeys.danmakuTimelineOffset)) || 0;
         //const $xml = new DOMParser().parseFromString(string, 'text/xml')
         return $obj
             .map(($comment) => {
@@ -788,7 +936,7 @@
                 return {
                     text: $comment.m,
                     mode,
-                    time: values[0] * 1,
+                    time: values[0] * 1 + timelineOffset,
                     style: {
                         fontSize: `${fontSize}px`,
                         color: `#${color}`,
@@ -805,326 +953,741 @@
             .filter((x) => x);
     }
 
-    function list2string($obj2) {
-        const $animes = $obj2.animes;
-        let anime_lists = $animes.map(($single_anime) => {
-            return $single_anime.animeTitle + ' 类型:' + $single_anime.typeDescription;
-        });
-        let anime_lists_str = '1:' + anime_lists[0];
-        for (let i = 1; i < anime_lists.length; i++) {
-            anime_lists_str = anime_lists_str + '\n' + (i + 1).toString() + ':' + anime_lists[i];
+    // function list2string($obj2) {
+    //     const $animes = $obj2.animes;
+    //     let anime_lists = $animes.map(($single_anime) => {
+    //         return $single_anime.animeTitle + ' 类型:' + $single_anime.typeDescription;
+    //     });
+    //     let anime_lists_str = '1:' + anime_lists[0];
+    //     for (let i = 1; i < anime_lists.length; i++) {
+    //         anime_lists_str = anime_lists_str + '\n' + (i + 1).toString() + ':' + anime_lists[i];
+    //     }
+    //     return anime_lists_str;
+    // }
+
+    // function ep2string($obj3) {
+    //     const $animes = $obj3;
+    //     let anime_lists = $animes.map(($single_ep) => {
+    //         return $single_ep.episodeTitle;
+    //     });
+    //     let ep_lists_str = '1:' + anime_lists[0];
+    //     for (let i = 1; i < anime_lists.length; i++) {
+    //         ep_lists_str = ep_lists_str + '\n' + (i + 1).toString() + ':' + anime_lists[i];
+    //     }
+    //     return ep_lists_str;
+    // }
+
+    function makeNumHtml(episodes, selectedIndex) {
+        return embySimpleSelectHtml(eleIds.danmakuEpisodeNumSelect, '集数: ', selectedIndex
+            , episodes, 'episodeId', 'episodeTitle');
+    }
+    // 可替换掉
+    function embyCheckboxListHtml(id, checkBoxName, selectedArray, options, onChange, isVertical = false) {
+        if (onChange) {
+            window.ede.functions[onChange.name] = onChange;
         }
-        return anime_lists_str;
+        console.log("selectedArray:", selectedArray)
+        const startHtml = `<div class="${embyCheckboxListClass}" style="${ isVertical ? '' : embyCheckboxListStyle}" id="${id}">`;
+        const optionsHtml = options.map((option, index) => {
+            return `
+            <label class="emby-checkbox-label" style="width: auto;">
+                <input type="checkbox" is="emby-checkbox" class="chkEnableLiveTvAccess emby-checkbox" 
+                    ${selectedArray && selectedArray.indexOf(option.id) > -1 ? 'checked' : ''}
+                    name="${checkBoxName}" value="${option.id}"
+                    ${onChange ? `onchange="window.ede.functions.${onChange.name}(this)"` : ''}>
+                <span class="checkboxLabel">${option.name}</span>
+            </label>`;
+        }).join('');
+        const endHtml = '</div>';
+        return startHtml + optionsHtml + endHtml;
+    }
+    // 可替换掉
+    function danmakuTabsHtml(options, selectedValue, optionValueKey, optionTitleKey, onChange) {
+        if (onChange) {
+            window.ede.functions[onChange.name] = onChange;
+        }
+        const startHtml = `
+            <div is="emby-tabs" data-index="0" class="${embyTabsDivClass1}" style="width: fit-content;">
+                <div class="${embyTabsDivClass2}" style="padding: 0.25em;">
+        `;
+        const tabshtml = options.map((option, index) => {
+            const value = getValueOrInvoke(option, optionValueKey);
+            const title = getValueOrInvoke(option, optionTitleKey);
+            return `<button type="button" is="emby-button" 
+                        class="${value === selectedValue ? embyTabsButtonClass + ' emby-tab-button-active' : embyTabsButtonClass}" 
+                        ${onChange ? 'onclick="window.ede.functions.' + onChange.name + '(\'' + value +'\')"' : ''}
+                        data-index="${index}">${title}</button>`
+        }).join('');
+        const endHtml = `</div></div>`;
+        return startHtml + tabshtml + endHtml;
+    }
+    // 可替换掉
+    function embyCheckboxHtml(id, label, checkFlag = false, style, onChange) {
+        if (onChange) {
+            window.ede.functions[onChange.name] = onChange;
+        }
+        return `
+        <label class="emby-checkbox-label" style="${style ?? 'width: auto;'}">
+            <input id="${id}" type="checkbox" is="emby-checkbox" class=" emby-checkbox"
+                ${checkFlag ? 'checked' : ''}
+                ${onChange ? `onchange="window.ede.functions.${onChange.name}(this)"` : ''}>
+            <span class="checkboxLabel">${label}</span>
+        </label>
+        `;
+    }
+    // 可替换掉
+    function embySimpleButtonHtml(id, label, onClick) {
+        if (onClick) {
+            window.ede.functions[onClick.name] = onClick;
+        }
+        const embyButtonClass = 'btnOption raised emby-button';
+        return `
+        <button id="${id}" type="button" class="${embyButtonClass}" style="${embyButtonStyle}" ${onClick ? `onclick="window.ede.functions.${onClick.name}(this)"` : ''}">
+            <span class="button-text">${label}</span>
+        </button>
+        `;
+    }
+    // 可替换掉
+    function embyTextareaHtml(id, defaultValue, style, rows) {
+        return `
+        <textarea id="${id}" is="emby-textarea" class="txtOverview emby-textarea" 
+            label="" style="${style ?? 'resize:none;'}" rows="${rows ?? '10'}" defaultValue="${defaultValue}">
+        </textarea>
+        `;
+    }
+    // 可替换掉
+    function embySimpleSelectHtml(id, label, selectedIndex, options, optionValueKey, optionTitleKey, onChange) {
+        if (!Number.isInteger(selectedIndex)) {
+            selectedIndex = options.indexOf(selectedIndex);
+        }
+        if (onChange) {
+            window.ede.functions[onChange.name] = onChange;
+        }
+        const startHtml = `<select is="emby-select" class="selectSyncTarget emby-select"
+            style="${embySelectStyle}" label="${label}" id="${id}" ${onChange ? 'onchange="window.ede.functions.' + onChange.name + '(this)"' : ''}>`;
+        const optionsHtml = options.map((option, index) => {
+            const value = getValueOrInvoke(option, optionValueKey);
+            const title = getValueOrInvoke(option, optionTitleKey);
+            return `<option value="${value}" ${index === selectedIndex ? 'selected' : ''}>
+                ${title}</option>`;
+        }).join('');
+        const endHtml = '</select>';
+        return startHtml + optionsHtml + endHtml;
     }
 
-    function ep2string($obj3) {
-        const $animes = $obj3;
-        let anime_lists = $animes.map(($single_ep) => {
-            return $single_ep.episodeTitle;
-        });
-        let ep_lists_str = '1:' + anime_lists[0];
-        for (let i = 1; i < anime_lists.length; i++) {
-            ep_lists_str = ep_lists_str + '\n' + (i + 1).toString() + ':' + anime_lists[i];
-        }
-        return ep_lists_str;
+
+    // ------------ emby-element start --------------
+    function embyButton(id, label, style, onClick) {
+        let button = document.createElement('button', { is: 'emby-button' });
+        button.setAttribute('id', id);
+        button.setAttribute('type', 'button');
+        button.className = 'btnOption raised emby-button';
+        button.style.cssText = style;
+        button.textContent = label;
+        button.addEventListener('click', onClick);
+        return button;
     }
 
-    async function searchEpisodeInfo() {
+    function embyTabs(options, selectedValue, optionValueKey, optionTitleKey, onChange) {
+        let tabs = document.createElement('div', { is: 'emby-tabs' });
+        tabs.setAttribute('data-index', '0');
+        tabs.className = embyTabsDivClass1;
+        tabs.style.width = 'fit-content';
+
+        let tabsSlider = document.createElement('div');
+        tabsSlider.className = embyTabsDivClass2;
+        tabsSlider.style.padding = '0.25em';
+
+        options.forEach((option, index) => {
+            const value = getValueOrInvoke(option, optionValueKey);
+            const title = getValueOrInvoke(option, optionTitleKey);
+            let tabButton = document.createElement('button');
+            tabButton.className = value === selectedValue ? embyTabsButtonClass + ' emby-tab-button-active' : embyTabsButtonClass;
+            tabButton.setAttribute('data-index', index);
+            tabButton.textContent = title;
+            tabsSlider.appendChild(tabButton);
+        });
+
+        tabs.appendChild(tabsSlider);
+        tabs.addEventListener('tabchange', function(event) {
+            // console.log(`Tab changed to index: ${event.detail.selectedTabIndex}`);
+            if (onChange) {
+                onChange(event.detail.selectedTabIndex);
+            }
+        });
+        return tabs;
+    }
+
+    function embySelect(id, label, selected, options, optionValueKey, optionTitleKey, onChange) {
+        if (!Number.isInteger(selected)) {
+            selected = options.indexOf(selected);
+        }
+        const selectElement = document.createElement('select', { is: 'emby-select'});
+        selectElement.setAttribute('id', id);
+        selectElement.setAttribute('label', label);
+        selectElement.setAttribute('style', embySelectStyle);
+        selectElement.setAttribute('class', 'selectSyncTarget emby-select')
+
+        options.forEach((option, index) => {
+            const value = getValueOrInvoke(option, optionValueKey);
+            const title = getValueOrInvoke(option, optionTitleKey);
+            let optionElement = document.createElement('option');
+            optionElement.setAttribute('value', value);
+            if (index === selected) {
+                optionElement.selected = true;
+            }
+            optionElement.textContent = title;
+            selectElement.appendChild(optionElement);
+        });
+
+        selectElement.addEventListener('change', (event) => {
+            if (onChange) {
+                onChange(event.target.value);
+            }
+        });
+        return selectElement;
+    }
+    
+    function embyCheckboxList(id, checkBoxName, selectedArray, options, onChange, isVertical = false) {
+        let checkboxContainer = document.createElement('div');
+        checkboxContainer.setAttribute('class', embyCheckboxListClass);
+        checkboxContainer.setAttribute('style', isVertical ? '' : embyCheckboxListStyle);
+        checkboxContainer.setAttribute('id', id);
+        options.forEach(option => {
+            let checkbox = embyCheckbox(null, checkBoxName, option.name, option.id, 
+                selectedArray.indexOf(option.id) > -1 , onChange);
+            checkboxContainer.appendChild(checkbox);
+        });
+        return checkboxContainer;
+    }
+    
+    function embyCheckbox(id, name, label, value, checked = false, onChange) {
+        let checkboxLabel = document.createElement('label');
+        checkboxLabel.classList.add('emby-checkbox-label');
+        checkboxLabel.setAttribute('style', 'width: auto;');
+        let checkbox = document.createElement('input', { is: 'emby-checkbox' });
+        checkbox.setAttribute('is', 'emby-checkbox');
+        checkbox.setAttribute('type', 'checkbox');
+        if (id) checkbox.setAttribute('id', id);
+        checkbox.setAttribute('name', name);
+        checkbox.setAttribute('value', value);
+        checkbox.checked = checked;
+        checkbox.classList.add('emby-checkbox', 'chkEnableLiveTvAccess');
+        checkbox.addEventListener('change', function(event) {
+            if (onChange) {
+                onChange(event.target.checked);
+            }
+        });
+        let span = document.createElement('span');
+        span.setAttribute('class', 'checkboxLabel');
+        span.innerHTML = label;
+
+
+        checkboxLabel.appendChild(checkbox);
+        checkboxLabel.appendChild(span);
+        return checkboxLabel;
+    }
+
+    function embyTextarea(id, label, value, style, rows, resize = true, readonly = false) {
+        let textarea = document.createElement('textarea', { is: 'emby-textarea' });
+        textarea.setAttribute('id', id);
+        textarea.setAttribute('label', label);
+        textarea.setAttribute('style', style);
+        textarea.setAttribute('rows', rows);
+        textarea.className = 'txtOverview emby-textarea';
+        textarea.readOnly = readonly;
+        textarea.style.resize = resize;
+        textarea.value = value;
+        return textarea;
+    }
+
+    // orient: 'vertical' | 'horizontal' 垂直/水平
+    function embySlider(id, min = 0, max = 100, value = 0, step = 1, orient = 'horizontal', onChange) {
+        let slider = document.createElement('input', { is: 'emby-slider' });
+        slider.setAttribute('type', 'range');
+        slider.setAttribute('id', id);
+        slider.setAttribute('min', min);
+        slider.setAttribute('max', max);
+        slider.setAttribute('value', value);
+        slider.setAttribute('step', step);
+        slider.setAttribute('orient', orient);
+        slider.setAttribute('data-bubble', 'true');  // To show the value bubble
+        slider.setAttribute('data-hoverthumb', 'false');
+        // slider.addEventListener('input', function(event) {
+            // when clicking/sliding, trigger every step
+            // console.log(`Slider value (input): ${event.target.value}`);
+        // });
+        slider.addEventListener('change', function(event) {
+            // Trigger after end of tap/swipe
+            // console.log(`Slider value changed: ${event.target.value}`);
+            if (onChange) {
+                onChange(event.target.value);
+            }
+        });
+        // slider.addEventListener('beginediting', function(event) {
+            // when clicking/sliding, trigger every step
+            // console.log('Slider editing started');
+        // });
+        // slider.addEventListener('endediting', function(event) {
+            // Trigger after end of tap/swipe
+            // console.log('Slider editing ended');
+        // });  
+        return slider;
+    }
+    // after slider append to container, then call this function to set value to slider
+    function embySliderSetValue(slider, value) {
+        slider.value = value;
+        slider.dispatchEvent(new Event('input'));
+    }
+    // ------------- emby-elements end -------------
+
+
+    function afterEmbyDialogCreated() {
+        let typeFilterContainer = embyCheckboxList(eleIds.danmakuTypeFilterSelect, eleIds.danmakuTypeFilterSelectName, localStorage.getItem(lsKeys.danmakuTypeFilter)
+            , danmakuTypeFilterOpts, doDanmakuTypeFilterSelect);
+        let typeFilterDiv = document.getElementById('danmakuTypeFilterDiv');
+        typeFilterDiv.appendChild(typeFilterContainer);
+
+        let slider = embySlider('slider01',0, 20, 0, 1, 'horizontal', (value) => {
+            console.log("onChange slider value:", value);
+        });
+        let sliderDiv = document.getElementById('sliderDiv');
+        sliderDiv.appendChild(slider);
+        embySliderSetValue(slider, 5);
+        let tabs = embyTabs(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineDefault, 'id', 'name', (idx) => console.log("selectedIndex:", idx));
+        let container = document.getElementById('embyTabsContainer');
+        container.appendChild(tabs);
         
-        let item;
-        if (isJellyfin) {
-            item = await fatchEmbyItemInfo(embyItemId);
-        } else {
-            item = await getEmbyItemInfo();
-            if (!item) {
-                // getEmbyItemInfo from playbackManager null, will next called
-                return null;
-            }
-        }
-        let _id;
-        let animeName;
-        let anime_id = -1;
-        let episode;
-        if (item.Type == 'Episode') {
-            _id = item.SeasonId;
-            animeName = item.SeriesName;
-            episode = item.IndexNumber;
-            let session = item.ParentIndexNumber;
-            if (session != 1) {
-                animeName += ' ' + session;
-            }
-        } else {
-            _id = item.Id;
-            animeName = item.Name;
-            episode = 'movie';
-        }
-        let _id_key = '_anime_id_rel_' + _id;
-        let _name_key = '_anime_name_rel_' + _id;
-        let _episode_key = '_episode_id_rel_' + _id + '_' + episode;
-        if (window.localStorage.getItem(_id_key)) {
-            anime_id = window.localStorage.getItem(_id_key);
-        }
-        if (window.localStorage.getItem(_name_key)) {
-            animeName = window.localStorage.getItem(_name_key);
-        }
+        let selectElement = embySelect("select01", "select01Name", "dom", danmakuEngineOpts, "id", "name");
+        let selectDiv = document.getElementById('embySelectContainer');
+        selectDiv.appendChild(selectElement);
 
+        let buttonElement = embyButton("button01", "buttonName", embyButtonStyle, () => console.log("button01 clicked"));
+        let buttonDiv = document.getElementById('embyButtonContainer');
+        buttonDiv.appendChild(buttonElement);
+
+        let textareaElement = embyTextarea("textarea01", "textarea01Name", "textarea01Value", "width: 100%;", 5, true, false);
+        let textareaDiv = document.getElementById('embyTextareaContainer');
+        textareaDiv.appendChild(textareaElement);
+    }
+
+    function getValueOrInvoke(option, keyOrFunc) {
+        return typeof keyOrFunc === 'function' ? keyOrFunc(option) : option[keyOrFunc];
+    }
+
+    function searchEpisodeInfoHtml(animeName) {
+        window.ede.functions.doDanmakuSearchEpisode = doDanmakuSearchEpisode;
+        return `
+        <div>
+            <div>
+                <label class="${embyLabelClass}">标题: </label>
+                <div style="display: flex;">
+                    <input id="${eleIds.danmakuSearchName}" is="emby-input" 
+                        class="${embyInputClass}" value="${animeName}">
+                    <button id="${eleIds.danmakuSearchEpisode}" type="button" title="搜索" aria-label="搜索" 
+                        class="${embyIconButtonClass}" onclick="window.ede.functions.doDanmakuSearchEpisode()">
+                        <i class="md-icon autortl">search</i>
+                    </button>
+                </div>
+            </div>
+            <div id="${eleIds.danmakuEpisodeFlag}" hidden>
+                <label class="${embyLabelClass}">媒体名: </label>
+                <div style="display: flex;">
+                    <div class="${embySelectWrapperClass}" id="${eleIds.danmakuEpisodeDiv}"></div>
+                </div>
+                <label class="${embyLabelClass}">分集名: </label>
+                <div class="${embySelectWrapperClass}" id="${eleIds.danmakuEpisodeNumDiv}"></div>
+                ${embySimpleButtonHtml(eleIds.danmakuSwitchEpisode, '加载弹幕', doDanmakuSwitchEpisode)}
+            </div>
+            <div>
+                <label class="${embyLabelClass}" id="${eleIds.danmakuRemark}"></label>
+            </div>
+        </div>
+        `;
+    }
+
+    function currentDanmakuInfoHtml() {
+        return `
+        <div>
+            <div>
+                <label class="${embyLabelClass}">媒体名: </label>
+                <div class="${embyTextDivClass}">${window.ede.episode_info.animeTitle}</div>
+            </div>
+            ${window.ede.episode_info.episodeTitle ?
+            `<div>
+                <label class="${embyLabelClass}">分集名: </label>
+                <div class="${embyTextDivClass}">${window.ede.episode_info.episodeTitle}</div>
+            </div>`
+            : ''}
+            <div>
+                <label class="${embyLabelClass}">其它信息: </label>
+                <div class="${embyTextDivClass}">
+                    获取总条数: ${window.ede.downloadSum}, 
+                    加载总条数: ${window.ede.danmaku?.comments.length}, 
+                    被过滤条数: ${window.ede.downloadSum - window.ede.danmaku?.comments.length ?? 0}
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    function danmakuSettingHtml() {
+        /* 
+            ${embyCheckboxListHtml(eleIds.danmakuTypeFilterSelect, eleIds.danmakuTypeFilterSelectName, localStorage.getItem(lsKeys.danmakuTypeFilter)
+                    , danmakuTypeFilterOpts, doDanmakuTypeFilterSelect)}
+        
+        */
+        return `
+        <div>
+            <div id="danmakuTypeFilterDiv">
+                <label class="${embyLabelClass}">屏蔽弹幕: </label>
+                
+            </div>
+            <div>
+                <label class="${embyLabelClass}">切换弹幕引擎: </label>
+                <div class="${embySelectWrapperClass}">
+                    ${danmakuTabsHtml(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineDefault, 'id', 'name', doDanmakuEngineSelect)}
+                </div>
+            </div>
+            <div>
+                <label class="${embyLabelClass}">简繁转换: </label>
+                <div class="${embySelectWrapperClass}">
+                    ${danmakuTabsHtml(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange)}
+                </div>
+            </div>
+            <div>
+                <label class="${embyLabelClass}">弹幕屏蔽等级: </label>
+                <div class="${embySelectWrapperClass}">
+                    ${danmakuTabsHtml(danmakuFilterLevelOpts, window.localStorage.getItem('danmakuFilterLevel') ?? 0, 'id', 'name', doDanmakuFilterLevelChange)}
+                </div>
+            </div>
+            <div>
+                ${embyCheckboxHtml(eleIds.danmakuSwitch, '弹幕开关', window.ede.danmakuSwitch == 1, null, doDanmakuSwitch)}
+            </div>
+            <div id='danmuStyleSetterDiv'>
+                <div id='sliderDiv'></div>
+            </div>
+            <div id="checkboxDiv">
+            </div>
+            <div id="embySelectContainer"></div>
+            <div id="embyTabsContainer"></div>
+            <div id="embyButtonContainer"></div>
+            <div id="embyTextareaContainer"></div>
+        </div>
+        `;
+        // ${embySimpleSelectHtml(eleIds.danmakuEngineSelect, '引擎: ', window.ede.danmaku?.engine ?? 'canvas', ['canvas', 'dom'], s => s, s => s, doDanmakuEngineSelect)}
+    }
+
+    // function danmakuFilterKeywordsHtml() {
+    //     return `
+    //     <div>
+    //         <label class="${embyLabelClass}">屏蔽关键词(支持正则): </label>
+    //         <div class="${embyInputContainerClass}" style="display: flex;">
+    //             ${embyCheckboxHtml(eleIds.filterKeywordsEnable, '启用', window.ede?.filterKeywordsEnable ?? false)}
+    //             ${embyTextareaHtml(null, window.ede.filterKeywords ?? '')}
+    //         </div>
+    //     <div/>
+    //     `;
+    // }
+
+    async function createDialog() {
+        const itemInfoMap = await getMapByEmbyItemInfo();
+        const { _id_key, _name_key, _episode_key, anime_id, animeName, episode } = itemInfoMap;
         searchDanmakuOpts = {
             _id_key: _id_key,
             _name_key: _name_key,
             _episode_key: _episode_key,
             anime_id: anime_id,
-            episode: episode,
-            animes: []
+            episode: (parseInt(episode) || 1) - 1, // convert to index
+            animes: [],
         }
-
-        let html = `
-        <div style="text-align: left;">
-            <label class="inputLabel">标题：</label>
-            <div style="display: flex;">
-                <input is="emby-input" id="danmakuSearchName"
-                    class="txtName txtInput-withlockedfield emby-input emby-input-largerfont emby-input-smaller"
-                    value="${animeName}">
-                <button type="button" class="itemAction paper-icon-button-light" title="搜索" aria-label="搜索" id="danmakuSearchEpisode"><i
-                        class="md-icon autortl">search</i></button>
+        
+        const html = `
+            <div class="${embyTabsMenuClass}">
+                ${danmakuTabsHtml(danmakuTabOpts, 'danmakuTab0', 'id', 'name', doDanmakuTabChange)}
             </div>
-            <div id="danmakuEpisodeFlag" hidden>
-                <label class="inputLabel">剧集：</label>
-                <div class="emby-select-wrapper emby-select-wrapper-smaller" id="danmakuEpisodeDiv"></div>
-                <label class="inputLabel">集：</label>
-                <div class="emby-select-wrapper emby-select-wrapper-smaller" id="danmakuEpisodeNumDiv"></div>
+            <div style="text-align: left;" id="danmakuTab0">
+                ${searchEpisodeInfoHtml(animeName)}
             </div>
-            <div>
-                <label class="inputLabel" id="danmakuRemark"></label>
+            <div style="text-align: left;" id="danmakuTab1" hidden>
+                ${currentDanmakuInfoHtml()}
             </div>
-        </div>
+            <div style="text-align: left;" id="danmakuTab2" hidden>
+                ${danmakuSettingHtml()}
+            </div>
         `;
-        embyAlert("", "搜索弹幕", 0, html);
-        // setTimeout(() => {
-        //     document.querySelector("#danmakuSearchEpisode").addEventListener("click", doDanmakuSearchEpisode);
-        // }, 3000);
-        setButtonEvent();
+        embyDialog({ title: null, html, buttons: [{ name: '关闭' }] });
+        setTimeout(() => {
+            afterEmbyDialogCreated();
+        }, 1000);
+        // setButtonEvent();
     }
 
+    function doDanmakuTabChange(val) {
+        danmakuTabOpts.map((obj) => {
+            if (obj.id === val) {
+                document.getElementById(obj.id).hidden = false;
+            } else {
+                document.getElementById(obj.id).hidden = true;
+            }
+        });
+    }
+
+    function doDanmakuSwitch(obj) {
+        console.log('切换弹幕开关');
+        let flag = obj.checked;
+        window.ede.danmakuSwitch = flag ? 1 : 0;
+        window.localStorage.setItem('danmakuSwitch', window.ede.danmakuSwitch);
+        document.querySelector('#displayDanmaku').children[0].innerText = danmaku_icons[window.ede.danmakuSwitch];
+        if (window.ede.danmaku) {
+            flag ? window.ede.danmaku.show() : window.ede.danmaku.hide();
+        }
+    }
 
     async function doDanmakuSearchEpisode() {
-        let embySearch = document.querySelector("#danmakuSearchName");
+        let embySearch = document.getElementById(eleIds.danmakuSearchName);
         if (!embySearch) {
             return;
         }
         let searchName = embySearch.value
-        if (searchName == null) {
-            document.querySelector("#danmakuRemark").innerText = "请填写标题";
-        } else {
-            document.querySelector("#danmakuRemark").innerText = "";
-        }
-        
+        const danmakuRemarkEle = document.getElementById(eleIds.danmakuRemark);
+        danmakuRemarkEle.innerText = searchName ? '' : '请填写标题';
         document.querySelector(".mdl-spinner").classList.remove('hide');
         let anime_id = searchDanmakuOpts.anime_id;
         let episode = searchDanmakuOpts.episode;
         
-        let searchUrl = dandanplayApi + '/search/episodes?anime=' + searchName + '&withRelated=true';
-
-        let animaInfo = await fetch(searchUrl, {
-            method: 'GET',
-            headers: {
-                'Accept-Encoding': 'gzip',
-                Accept: 'application/json',
-                'User-Agent': navigator.userAgent,
-            },
-        })
-            .then((response) => response.json())
-            .catch((error) => {
-                console.log('查询失败:', error);
-                return null;
-            });
-        console.log('查询成功', animaInfo);
-        document.querySelector(".mdl-spinner").classList.add('hide');
+        const animaInfo = await fetchSearchEpisodes(searchName);
+        document.querySelector('.mdl-spinner').classList.add('hide');
         if (!animaInfo || animaInfo.animes.length < 1) {
-            document.querySelector("#danmakuRemark").innerText = "搜索结果为空";
-            document.querySelector('[data-id="ok"]').disabled = true;
-            document.querySelector("#danmakuEpisodeFlag").hidden = true;
+            danmakuRemarkEle.innerText = '搜索结果为空';
+            document.getElementById(eleIds.danmakuSwitchEpisode).disabled = true;
+            document.getElementById(eleIds.danmakuEpisodeFlag).hidden = true;
             return;
         } else {
-            document.querySelector("#danmakuRemark").innerText = "";
-
+            danmakuRemarkEle.innerText = '';
         }
-        let danmakuEpisodeDiv = document.querySelector("#danmakuEpisodeDiv")
-        let danmakuEpisodeNumDiv = document.querySelector("#danmakuEpisodeNumDiv");
-        danmakuEpisodeDiv.innerHTML = "";
-        danmakuEpisodeNumDiv.innerHTML = "";
-        let animes = animaInfo.animes
-        searchDanmakuOpts.animes = animes
+        let danmakuEpisodeDiv = document.getElementById(eleIds.danmakuEpisodeDiv);
+        let danmakuEpisodeNumDiv = document.getElementById(eleIds.danmakuEpisodeNumDiv);
+        danmakuEpisodeDiv.innerHTML = '';
+        danmakuEpisodeNumDiv.innerHTML = '';
+        let animes = animaInfo.animes;
+        searchDanmakuOpts.animes = animes;
+
+        let selectAnimeIdx = animes.findIndex(anime => anime.animeId == anime_id);
+        selectAnimeIdx = selectAnimeIdx !== -1 ? selectAnimeIdx : 0;
+        danmakuEpisodeDiv.innerHTML = embySimpleSelectHtml(eleIds.danmakuEpisodeSelect, '剧集: ', selectAnimeIdx
+            , animes, 'animeId', option => `${option.animeTitle} 类型：${option.typeDescription}`, doDanmakuEpisodeSelect);
         
-        let episodeHtml = `
-            <select is="emby-select" class="selectSyncTarget emby-select"
-                style="font-size: inherit;font-family: inherit;font-weight: inherit;padding-top: 0;padding-bottom: 0;box-sizing: border-box;outline: 0 !important;-webkit-tap-highlight-color: transparent;width: auto;border-radius: .3em;letter-spacing: inherit;padding-inline-start: 1ch;padding-inline-end: 3.6ch;height: 2.4em;"
-                label="剧集：" id="danmakuEpisodeSelect">
-            `;
-        let selecAnimeIdx = 0;
-        for (let index = 0; index < animes.length; index++) {
-            if (animes[index].animeId == anime_id) {
-                selecAnimeIdx = index;
-                episodeHtml += `<option value="${animes[index].animeId}" selected>${animes[index].animeTitle} 类型：${animes[index].typeDescription}</option>`;
-            } else {
-                episodeHtml += `<option value="${animes[index].animeId}">${animes[index].animeTitle} 类型：${animes[index].typeDescription}</option>`;
-            }
-        }
-        episodeHtml +=`</select>`;
-        danmakuEpisodeDiv.innerHTML = episodeHtml;
-        
-
-        danmakuEpisodeNumDiv.innerHTML = makeNumHtml(animes[selecAnimeIdx].episodes, episode);
-        document.querySelector("#danmakuEpisodeFlag").hidden = false
-        document.querySelector("#danmakuEpisodeSelect").addEventListener("click", onChangeDanmakuEpisode);
-        document.querySelector('[data-id="ok"]').disabled = false;
+        danmakuEpisodeNumDiv.innerHTML = makeNumHtml(animes[selectAnimeIdx].episodes, episode);
+        document.getElementById(eleIds.danmakuEpisodeFlag).hidden = false;
+        document.getElementById(eleIds.danmakuSwitchEpisode).disabled = false;
     }
 
-    function makeNumHtml(animesApisodes, episode) {
-        let numHtml = `
-            <select is="emby-select" class="selectSyncTarget emby-select"
-                style="font-size: inherit;font-family: inherit;font-weight: inherit;padding-top: 0;padding-bottom: 0;box-sizing: border-box;outline: 0 !important;-webkit-tap-highlight-color: transparent;width: auto;border-radius: .3em;letter-spacing: inherit;padding-inline-start: 1ch;padding-inline-end: 3.6ch;height: 2.4em;"
-                label="集数：" id="danmakuEpisodeNumSelect">
-            `;
-        for (let index = 0; index < animesApisodes.length; index++) {
-            if (index == episode) {
-                numHtml += `<option value="${animesApisodes[index].episodeId}" selected>${animesApisodes[index].episodeTitle}</option>`;
-            } else {
-                numHtml += `<option value="${animesApisodes[index].episodeId}">${animesApisodes[index].episodeTitle}</option>`;
-            }
-        }
-        numHtml +=`</select>`;
-        return numHtml;
+    /**
+     * see: ../web/modules/dialog/dialog.js
+     * opts have type props: unknown
+     * dialog have buttons prop: [{ type: 'submit', id: 'cancel', name:'取消', description: '无操作', href: 'index.html',  }]
+     */
+    async function embyDialog(opts = {}) {
+        const defaultOpts = { text: '', title: '', timeout: 0, html: '', buttons: [] };
+        opts = { ...defaultOpts, ...opts };
+        return require(['dialog']).then(items => items[0]?.(opts))
+            .catch(error => { console.log(`点击弹出框外部取消: ` + error) });
     }
 
-    function onChangeDanmakuEpisode() {
-        let episodeSelect = document.querySelector("#danmakuEpisodeSelect");
-        let animes = searchDanmakuOpts.animes;
-        let idx = episodeSelect.selectedIndex;
-        let danmakuEpisodeNumDiv = document.querySelector("#danmakuEpisodeNumDiv");
-        danmakuEpisodeNumDiv.innerHTML = makeNumHtml(animes[idx].episodes, episodeSelect.selectedIndex);
+    // see: ../web/modules/common/dialogs/alert.js
+    async function embyAlert(opts = {}) {
+        const defaultOpts = { text: '', title: '', timeout: 0, html: ''};
+        opts = { ...defaultOpts, ...opts };
+        return require(['alert']).then(items => items[0]?.(opts))
+            .catch(error => { console.log(`点击弹出框外部取消: ` + error) });
     }
 
-    function doClickComplete() {
-        let episodeSelect = document.querySelector("#danmakuEpisodeSelect")
-        let episodeNumSelect = document.querySelector("#danmakuEpisodeNumSelect")
+    // see: ../web/modules/toast/toast.js
+    async function embyToast(opts = {}) {
+        const defaultOpts = { text: '', secondaryText: '', icon: '', iconStrikeThrough: false};
+        opts = { ...defaultOpts, ...opts };
+        return require(['toast'], toast => toast(opts));
+    }
+
+    function doDanmakuEpisodeSelect() {
+        const idx = document.getElementById(eleIds.danmakuEpisodeSelect).selectedIndex;
+        document.getElementById(eleIds.danmakuEpisodeNumDiv).innerHTML
+            = makeNumHtml(searchDanmakuOpts.animes[idx].episodes, idx);
+        // const danmakuRemarkEle = document.getElementById(eleIds.danmakuRemark);
+        // danmakuRemarkEle.innerText = '';
+    }
+
+    function doDanmakuSwitchEpisode() {
+        let episodeSelect = document.getElementById(eleIds.danmakuEpisodeSelect);
+        let episodeNumSelect = document.getElementById(eleIds.danmakuEpisodeNumSelect);
 
         let episodeInfo = {
             episodeId: episodeNumSelect.value,
             animeTitle: searchDanmakuOpts.animes[episodeSelect.selectedIndex].animeTitle,
-            episodeTitle: searchDanmakuOpts.animes[episodeSelect.selectedIndex].type == 'tvseries' ?  episodeNumSelect.options[episodeNumSelect.selectedIndex].text: null,
+            episodeTitle: searchDanmakuOpts.animes[episodeSelect.selectedIndex].type == 'tvseries' 
+                ?  episodeNumSelect.options[episodeNumSelect.selectedIndex].text
+                : null,
         }
         window.localStorage.setItem(searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
-
+        console.log(`手动匹配信息:`, episodeInfo);
+        loadDanmaku(LOAD_TYPE.RELOAD);
+        embyToast({ text: `已生效,请手动关闭弹窗` });
     }
 
-    function embyAlert(text = "", title = "", timeout = 1000, html = "") {
-        window.require(['alert']).then((items) => items[0]?.({text, title, timeout, html})).then(() => {
-            doClickComplete();
-        });
-    }
-
-    function setButtonEvent() {
-        const btnElement = document.querySelector("#danmakuSearchEpisode");
-        const btn2 = document.querySelector('[data-id="ok"]');
-        if (btnElement && btn2) {
-            btnElement.addEventListener("click", doDanmakuSearchEpisode);
-            btn2.innerText = "确定";
-            btn2.disabled = true;
-            // console.log('设置事件');
-        } else {
-            // console.log('定时事件');
-            setTimeout(() => {
-                setButtonEvent();
-            }, 200);
+    function doDanmakuEngineSelect(selectedValue) {
+        // let selectedValue = selectedObj.value;
+        if (selectedValue != localStorage.getItem(lsKeys.danmakuEngine)) {
+            localStorage.setItem(lsKeys.danmakuEngine, selectedValue);
+            console.log(`已更改弹幕引擎为: ${selectedValue}`);
+            loadDanmaku(LOAD_TYPE.RELOAD);
+            // embyToast({ text: `已生效,已更改弹幕引擎为: ${selectedValue}` });
         }
-      }
+    }
 
+    function doDanmakuChConverChange(value) {
+        window.ede.chConvert = value;
+        window.localStorage.setItem('chConvert', window.ede.chConvert);
+        document.querySelector('#translateDanmaku')?.setAttribute('title', chConverTtitle[window.ede.chConvert]);
+        loadDanmaku(LOAD_TYPE.REFRESH);
+        console.log(chConverTtitle[window.ede.chConvert]);
+    }
+
+    function doDanmakuFilterLevelChange(value) {
+        let level = parseInt(value);
+        console.log(`切换弹幕密度等级: ${level}`);
+        doDanmakuChange({ danmakuFilterLevel: level });
+        let doc = document.querySelector('#filteringDanmaku')
+        if (doc) {
+            doc.children[0].innerHTML = filter_icons[level];
+        }
+        // document.querySelector('#filteringDanmaku')?.children[0].innerText = filter_icons[level];
+    }
+
+    function doDanmakuTypeFilterSelect() {
+        var obj = document.getElementsByName(eleIds.danmakuTypeFilterSelectName);
+        var checkList = [];
+        for(let k in obj){
+            if(obj[k].checked)
+                checkList.push(obj[k].value);
+        }
+
+        localStorage.setItem(lsKeys.danmakuTypeFilter, JSON.stringify(checkList));
+        console.log(`当前弹幕类型过滤为: ${JSON.stringify(checkList)}`);
+        loadDanmaku(LOAD_TYPE.RELOAD);
+        // embyToast({ text: `已生效,当前弹幕类型过滤为: ${JSON.stringify(danmakuTypeFilter)}` });
+    }
 
     function initH5VideoAdapter() {
         let _media = document.querySelector(mediaQueryStr);
-        if (_media) {
-            return;
-        }
-        console.log('页面上不存在<video>,适配器处理开始');
+        if (_media) { return; }
+        const flag = window.ede.danmaku && window.ede.danmakuSwitch == 1;
+        console.log('页面上不存在 video 标签,适配器处理开始');
         let _container = document.querySelector('.htmlVideoPlayerContainer');
         if (!_container) {
             _container = document.createElement('div');
+            _container.id = eleIds.h5VideoAdapterContainer;
             _container.classList.add('htmlVideoPlayerContainer');
             document.body.insertBefore(_container, document.body.firstChild);
         }
         _media = document.createElement('video');
         _media.classList.add('htmlvideoplayer');
         _media.classList.add('moveUpSubtitles');
-        // _media.style.width = '100%';
         _container.insertBefore(_media, _container.firstChild);
-        if (window.ede.danmaku) {
+        if (flag) {
             console.log('Resizing');
             window.ede.danmaku.hide();
             window.ede.danmaku.show();
             window.ede.danmaku.resize();
         }
         _media.play();
-        window.require(['playbackManager', 'events']).then((items) => {
-            const playbackManager = items?.[0];
-            const events = items?.[1];
+
+        require(['playbackManager', 'events'], (playbackManager, events) => {
             if (!playbackManager || !events) { return; }
             // const currentRuntimeTicks = playbackManager.duration(player);
             const player = playbackManager.getCurrentPlayer();
             // events.on(player, "playbackstart", (e, state) => {
-            //      console.log("nowplaying event: " + e.type);
-            //      console.log("playbackstart");
+            //      console.log("playbackstart event: " + e.type, state);
             //     _media.paused = state.PlayState.IsPaused;
             //     _media.play();
             // }),
 
-            // from emby videoosd.js bindToPlayer events, bug playbackstart not called
+            // from emby videoosd.js bindToPlayer events, but playbackstart not called
             events.on(player, "playbackstop", (e, state) => {
-                console.log("nowplaying event: " + e.type);
-                if (window.ede.danmaku) {
-                    window.ede.danmaku.clear();
-                    console.log('Cleared');
-                }
+                console.log("playbackstop event: " + e.type, state);
             }),
             events.on(player, "pause", (e) => {
-                console.log("nowplaying event: " + e.type);
+                console.log("pause event: " + e.type);
             }),
             events.on(player, "unpause", (e) => {
-                console.log("nowplaying event: " + e.type);
-                if (window.ede.danmaku) {
+                console.log("unpause event: " + e.type);
+                if (flag) {
                     console.log('Resizing');
                     window.ede.danmaku.hide();
                     window.ede.danmaku.show();
                     window.ede.danmaku.resize();
                 }
             }),
+            events.on(player, "statechange", (e, state) => {
+                // see: ../web/modules/playback/mediasession.js
+                console.log("statechange event: " + e.type, state);
+                // embyAlert({ text: `statechange event: ${e.type}, ${JSON.stringify(state)}` });
+            }),
             events.on(player, "timeupdate", (e) => {
-                // console.log("nowplaying event: " + e.type);
                 // conver to seconds from Ticks
                 _media.currentTime = playbackManager.currentTime(player) / 1e7;
                 _media.playbackRate = 1;
             }),
             events.on(player, "mediastreamschange", (e) => {
-                console.log("nowplaying event: " + e.type);
+                console.log("mediastreamschange event: " + e.type);
                 _media.play();
             });
         });
-        console.log('已创建虚拟<video>,适配器处理正确结束');
+        console.log('已创建虚拟 video 标签,适配器处理正确结束');
+        embyToast({ text: `已创建虚拟 video 标签,适配器处理正确结束` });
+    }
+
+    function beforeDestroy() {
+        // 此段销毁不重要,可有可无,仅是规范使用
+        // 清除弹幕,但未销毁 danmaku 实例
+        if (window.ede.danmaku) {
+            window.ede.danmaku.clear();
+            console.log(`已清除弹幕`);
+        }
+        // 销毁自定义的 initH5VideoAdapter
+        const _container = document.getElementById(eleIds.h5VideoAdapterContainer);
+        if (_container) {
+            _container.remove();
+            console.log(`已销毁 initH5VideoAdapter: ${eleIds.h5VideoAdapterContainer}`);
+        }
+        // 以下重要,销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
+        const danmakuCtrEle = document.getElementById(eleIds.danmakuCtr);
+        if (danmakuCtrEle) {
+            danmakuCtrEle.remove();
+            console.log(`已销毁弹幕按钮容器: ${eleIds.danmakuCtr}`);
+        }
     }
 
     // emby/jellyfin CustomEvent
     // see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
-    document.addEventListener("viewshow", function (e) {
-        console.log("viewshow", e);
-        isJellyfin = ApiClient.appName().startsWith("Jellyfin");
+    document.addEventListener('viewshow', function (e) {
+        console.log('viewshow', e);
+        isJellyfin = ApiClient.appName().startsWith('Jellyfin');
         embyItemId = e.detail.params.id ?? embyItemId;
-        let isTargetPage = e.detail.type === "video-osd";
-        // if (isTargetPage && (!window.ede || (!!window.ede && !window.ede.danmaku))) {
+        let isTargetPage = e.detail.type === 'video-osd';
         if (isTargetPage) {
             window.ede = new EDE();
             initUI();
             initH5VideoAdapter();
             loadDanmaku(LOAD_TYPE.INIT);
-            initListener();
+        }
+    });
+
+    document.addEventListener('viewbeforehide', function (e) {
+        console.log('viewbeforehide', e);
+        let isTargetPage = e.detail.type === 'video-osd';
+        if (isTargetPage) {
+            beforeDestroy();
         }
     });
 
