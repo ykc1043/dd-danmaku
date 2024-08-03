@@ -477,6 +477,35 @@
         if (typeof callback === 'function') { callback(); }
     }
 
+    function initListener() {
+        let _media = document.querySelector(mediaQueryStr);
+        // 页面未加载
+        if (!_media) {
+            window.ede.episode_info && (window.ede.episode_info = null);
+            return;
+        }
+        if (_media.getAttribute('ede_listening')) { return; }
+        console.log('正在初始化Listener');
+        _media.setAttribute('ede_listening', true);
+        _media.addEventListener('play', () => {
+            console.log('H5VideoPlayListener: 初始化弹幕信息');
+            loadDanmaku(LOAD_TYPE.INIT);
+        });
+        const flag = window.ede.danmaku && window.ede.danmakuSwitch == 1;
+        playbackEventsOn({
+            'unpause': (e, data) => {
+                console.log('unpause event: ' + e.type);
+                if (flag) {
+                    console.log('Resizing');
+                    window.ede.danmaku.hide();
+                    window.ede.danmaku.show();
+                    window.ede.danmaku.resize();
+                }
+            },
+        });
+        console.log('Listener初始化完成');
+    }
+
     function initUI() {
         // 已初始化
         if (document.getElementById(eleIds.danmakuCtr)) {
@@ -489,6 +518,14 @@
         // .graphicContentContainer:not(.hide) .videoOsdBottom-maincontrols .videoOsdBottom-buttons
         const ctrQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols ${isJellyfin ? '.buttons' : '.videoOsdBottom-buttons'}`;
         const parent = document.querySelector(ctrQueryStr);
+        // 延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
+        if (!parent) {
+            setTimeout(() => {
+                console.log("retry initUI!");
+                initUI();
+            }, check_interval);
+            return;
+        }
         let menubar = document.createElement('div');
         menubar.id = eleIds.danmakuCtr;
         if (!window.ede.episode_info) {
@@ -537,7 +574,7 @@
     }
 
     async function fatchEmbyItemInfo(id) {
-        return await ApiClient.getItem(ApiClient._serverInfo.UserId, id);
+        return await ApiClient.getItem(ApiClient.getCurrentUserId(), id);
     }
 
     async function fetchSearchEpisodes(anime, episode, withRelated = true) {
@@ -606,14 +643,15 @@
             anime_id: anime_id,
             episode: episode, // this is episode number, not a index
             animeName: animeName,
+            seriesOrMovieId: item.SeriesId || item.Id,
         };
     }
 
     async function getEpisodeInfo(is_auto = true) {
         const itemInfoMap = await getMapByEmbyItemInfo();
         if (!itemInfoMap) { return null; }
-        const { _episode_key, animeName, anime_id } = itemInfoMap;
-        let { episode } = itemInfoMap;
+        const { _episode_key, anime_id } = itemInfoMap;
+        let { animeName, episode } = itemInfoMap;
         if (is_auto) {
             if (window.localStorage.getItem(_episode_key)) {
                 return JSON.parse(window.localStorage.getItem(_episode_key));
@@ -625,35 +663,52 @@
         // }
 
         let animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
-        let selecAnime_id = 1;
+        if (is_auto && animaInfo.animes.length == 0) {
+            // from: https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L886
+            console.log(`标题名: ${animeName},自动匹配未查询到结果,将使用原标题名,重试一次`);
+            const seriesOrMovieInfo = await ApiClient.getItem(ApiClient.getCurrentUserId(), itemInfoMap.seriesOrMovieId);
+            if (seriesOrMovieInfo.OriginalTitle) {
+                animeName = seriesOrMovieInfo.OriginalTitle;
+                animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
+                if (animaInfo.animes.length > 0) {
+                    console.log(`使用原标题名: ${animeName},自动匹配成功`);
+                }
+            }
+        }
+        if (animaInfo.animes.length == 0) {
+            console.log(`弹幕查询无结果`);
+            return null;
+        }
+
+        let selectAnime_id = 1;
         if (anime_id != -1) {
             for (let index = 0; index < animaInfo.animes.length; index++) {
                 if (animaInfo.animes[index].animeId == anime_id) {
-                    selecAnime_id = index + 1;
+                    selectAnime_id = index + 1;
                 }
             }
         }
         // if (!is_auto) {
         //     let anime_lists_str = list2string(animaInfo);
         //     console.log(anime_lists_str);
-        //     selecAnime_id = prompt('选择:\n' + anime_lists_str, selecAnime_id);
-        //     if (selecAnime_id == null) throw new Error('用户取消选择集数操作');
-        //     selecAnime_id = parseInt(selecAnime_id) - 1;
-        //     window.localStorage.setItem(_id_key, animaInfo.animes[selecAnime_id].animeId);
-        //     window.localStorage.setItem(_name_key, animaInfo.animes[selecAnime_id].animeTitle);
-        //     let episode_lists_str = ep2string(animaInfo.animes[selecAnime_id].episodes);
+        //     selectAnime_id = prompt('选择:\n' + anime_lists_str, selectAnime_id);
+        //     if (selectAnime_id == null) throw new Error('用户取消选择集数操作');
+        //     selectAnime_id = parseInt(selectAnime_id) - 1;
+        //     window.localStorage.setItem(_id_key, animaInfo.animes[selectAnime_id].animeId);
+        //     window.localStorage.setItem(_name_key, animaInfo.animes[selectAnime_id].animeTitle);
+        //     let episode_lists_str = ep2string(animaInfo.animes[selectAnime_id].episodes);
         //     episode = prompt('确认集数:\n' + episode_lists_str, parseInt(episode));
         //     if (episode == null) throw new Error('用户取消确认集数操作');
         //     episode = parseInt(episode) - 1;
         // } else {
-            selecAnime_id = parseInt(selecAnime_id) - 1;
+            selectAnime_id = parseInt(selectAnime_id) - 1;
             episode = 0;
         // }
         let episodeInfo = {
-            episodeId: animaInfo.animes[selecAnime_id].episodes[episode].episodeId,
-            animeTitle: animaInfo.animes[selecAnime_id].animeTitle,
-            episodeTitle: animaInfo.animes[selecAnime_id].type == 'tvseries'
-                ? animaInfo.animes[selecAnime_id].episodes[episode].episodeTitle
+            episodeId: animaInfo.animes[selectAnime_id].episodes[episode].episodeId,
+            animeTitle: animaInfo.animes[selectAnime_id].animeTitle,
+            episodeTitle: animaInfo.animes[selectAnime_id].type == 'tvseries'
+                ? animaInfo.animes[selectAnime_id].episodes[episode].episodeTitle
                 : null,
         };
         window.localStorage.setItem(_episode_key, JSON.stringify(episodeInfo));
@@ -1243,10 +1298,29 @@
         }
     }
 
+    // from emby videoosd.js bindToPlayer events, warning: not dom event
+    function playbackEventsOn(eventsMap, data = {}) {
+        require(['playbackManager', 'events'], (playbackManager, events) => {
+            if (!playbackManager || !events) { return; }
+            const player = playbackManager.getCurrentPlayer();
+            const playState = playbackManager.getPlayerState().PlayState;
+            console.log(`PlaybackRate: ${playState.PlaybackRate}`);
+            Object.entries(eventsMap).forEach(([eventName, fn]) => {
+                events.off(player, eventName, fn);
+                events.on(player, eventName, (e, ...args) => {
+                    fn(e, ...args, { playbackManager, events, player, playState, ...data });
+                    // 禁止在 timeupdate 回调中打印日志及复杂操作,每秒都会触发一次
+                    if ('timeupdate' != eventName) {
+                        console.log(`playbackEventsOn ${eventName} event: ${fn.name}`);
+                    }
+                });
+            });
+        });
+    }
+
     function initH5VideoAdapter() {
         let _media = document.querySelector(mediaQueryStr);
         if (_media) { return; }
-        const flag = window.ede.danmaku && window.ede.danmakuSwitch == 1;
         console.log('页面上不存在 video 标签,适配器处理开始');
         let _container = document.querySelector('.htmlVideoPlayerContainer');
         if (!_container) {
@@ -1256,57 +1330,19 @@
             document.body.insertBefore(_container, document.body.firstChild);
         }
         _media = document.createElement('video');
-        _media.classList.add('htmlvideoplayer');
-        _media.classList.add('moveUpSubtitles');
+        _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
         _container.insertBefore(_media, _container.firstChild);
-        if (flag) {
-            console.log('Resizing');
-            window.ede.danmaku.hide();
-            window.ede.danmaku.show();
-            window.ede.danmaku.resize();
-        }
         _media.play();
 
-        require(['playbackManager', 'events'], (playbackManager, events) => {
-            if (!playbackManager || !events) { return; }
-            // const currentRuntimeTicks = playbackManager.duration(player);
-            const player = playbackManager.getCurrentPlayer();
-            // events.on(player, "playbackstart", (e, state) => {
-            //      console.log("playbackstart event: " + e.type, state);
-            //     _media.paused = state.PlayState.IsPaused;
-            //     _media.play();
-            // }),
-
-            // from emby videoosd.js bindToPlayer events, but playbackstart not called
-            events.on(player, "playbackstop", (e, state) => {
-                console.log("playbackstop event: " + e.type, state);
-            }),
-            events.on(player, "pause", (e) => {
-                console.log("pause event: " + e.type);
-            }),
-            events.on(player, "unpause", (e) => {
-                console.log("unpause event: " + e.type);
-                if (flag) {
-                    console.log('Resizing');
-                    window.ede.danmaku.hide();
-                    window.ede.danmaku.show();
-                    window.ede.danmaku.resize();
-                }
-            }),
-            events.on(player, "statechange", (e, state) => {
-                // see: ../web/modules/playback/mediasession.js
-                console.log("statechange event: " + e.type, state);
-                // embyAlert({ text: `statechange event: ${e.type}, ${JSON.stringify(state)}` });
-            }),
-            events.on(player, "timeupdate", (e) => {
+        // 需在其它事件中实现,同步 video 适配器播放倍率,有 bug 未实现且只显示半屏,暂时注释
+        // if (!_media.src) {
+        //     _media.playbackRate = data.playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
+        // }
+        playbackEventsOn({
+            'timeupdate': (e, data) => {
                 // conver to seconds from Ticks
-                _media.currentTime = playbackManager.currentTime(player) / 1e7;
-                _media.playbackRate = 1;
-            }),
-            events.on(player, "mediastreamschange", (e) => {
-                console.log("mediastreamschange event: " + e.type);
-                _media.play();
-            });
+                _media.currentTime = data.playbackManager.currentTime(data.player) / 1e7;
+            },
         });
         console.log('已创建虚拟 video 标签,适配器处理正确结束');
         embyToast({ text: `已创建虚拟 video 标签,适配器处理正确结束` });
@@ -1342,12 +1378,10 @@
         let isTargetPage = e.detail.type === 'video-osd';
         if (isTargetPage) {
             window.ede = new EDE();
-            // 依旧需要延时一次,精确 dom query 时播放器 UI 小概率暂未渲染
-            setTimeout(() => {
-                initUI();
-            }, check_interval);
+            initUI();
             initH5VideoAdapter();
-            loadDanmaku(LOAD_TYPE.INIT);
+            // loadDanmaku(LOAD_TYPE.INIT);
+            initListener();
         }
     });
     document.addEventListener('viewbeforehide', function (e) {
