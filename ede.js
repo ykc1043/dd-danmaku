@@ -27,7 +27,7 @@
     const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     let embyItemId = '';
     let isJellyfin = false;
-    const showSettingBtns = false; 是否播放界面下方显示弹幕设置按钮（简繁转换、屏蔽等级、弹幕信息、弹幕大小）
+    const showSettingBtns = false;  // 是否播放界面下方显示弹幕设置按钮（简繁转换、屏蔽等级、弹幕信息、弹幕大小）
     const check_interval = 200;
     const chConverTtitle = ['当前状态: 未启用', '当前状态: 转换为简体', '当前状态: 转换为繁体'];
     const danmuCache = {};
