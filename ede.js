@@ -143,10 +143,10 @@
     // if showSettingBtns = true -- end --
 
     const lsKeys = {
-        // ede
         chConvert: 'chConvert',
         danmakuSwitch: 'danmakuSwitch',
         danmakuFilterLevel: 'danmakuFilterLevel',
+        danmakuHeightRatio: 'danmakuHeightRatio',
         // createResizeButton
         danmakuFontSizeMagnification: 'danmakuFontSizeMagnification',
         danmakuFontOpacity: 'danmakuFontOpacity',
@@ -158,6 +158,7 @@
     };
     const eleIds = {
         danmakuCtr: 'danmakuCtr',
+        danmakuWrapper: 'danmakuWrapper',
         h5VideoAdapterContainer: 'h5VideoAdapterContainer',
         dialogContainer: 'dialogContainer',
         // searchEpisodeInfoHtml
@@ -247,6 +248,12 @@
         { id: '2', name: '2'},
         { id: '3', name: '3'},
     ];
+    const danmakuHeightRatioOpts = [
+        { id: '1', name: '100%'},
+        { id: '0.75', name: '75%'},
+        { id: '0.5', name: '50%'},
+        { id: '0.25', name: '25%'},
+    ];
     const danmakuStyleOffsetBtns = [
         { label: '-30', styleOffset: '-30', iconKey: '&#xe05a;', style: embyOffsetBtnStyle},
         { label: '-10', styleOffset: '-10', iconKey: '&#xe059;', style: embyOffsetBtnStyle},
@@ -288,7 +295,7 @@
 
     class EDE {
         constructor() {
-            this.chConvert = 1;
+            this.chConvert = 0;
             if (window.localStorage.getItem(lsKeys.chConvert)) {
                 this.chConvert = window.localStorage.getItem(lsKeys.chConvert);
             }
@@ -836,17 +843,29 @@
         // }
 
         mediaContainerQueryStr = isJellyfin ? '.syncPlayContainer' : mediaContainerQueryStr;
-
         let _container = document.querySelector(mediaContainerQueryStr);
         let _media = document.querySelector(mediaQueryStr);
         if (!_media) throw new Error('用户已退出视频播放');
         if (!isVersionOld) {
             _media.style.position = 'absolute';
         }
+        // from https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L1104
+        const wrapperTop = 0; // 播放器 UI 顶部阴影
+        let wrapper = document.getElementById(eleIds.danmakuWrapper);
+        wrapper && wrapper.remove();
+        wrapper = document.createElement('div');
+        wrapper.id = eleIds.danmakuWrapper;
+        wrapper.style.position = 'fixed';
+        wrapper.style.width = '100%';
+        wrapper.style.height = `calc(${lsGetOrDefault(lsKeys.danmakuHeightRatio, 1) * 100}% - ${wrapperTop}px)`;
+        // wrapper.style.opacity = lsGetOrDefault(lsKeys.danmakuFontOpacity, 1); // 弹幕整体透明度
+        wrapper.style.top = wrapperTop + 'px';
+        wrapper.style.pointerEvents = 'none';
+        _container.prepend(wrapper);
         // 弹幕基准速度,这里可以根据屏幕尺寸再计算添加倍率,不过还是设备上手调比较简单
-        let _speed = 144 * (parseFloat(localStorage.getItem(lsKeys.danmakuSpeed)) || 1);
+        let _speed = 144 * lsGetOrDefault(lsKeys.danmakuSpeed, 1);
         window.ede.danmaku = new Danmaku({
-            container: _container,
+            container: wrapper,
             media: _media,
             comments: _comments,
             engine: localStorage.getItem(lsKeys.danmakuEngine) || 'canvas',
@@ -905,7 +924,7 @@
                             createDanmaku(danmuCache[episodeId])
                                 .then(() => {
                                     console.log('弹幕就位');
-                                    embyToast({ text: `弹幕就位,已加载 ${window.ede.danmaku?.comments.length} 条弹幕` });
+                                    // embyToast({ text: `弹幕就位,已加载 ${window.ede.danmaku?.comments.length} 条弹幕` });
                                 })
                                 .catch((err) => {
                                     console.log(err);
@@ -1017,7 +1036,7 @@
             );
         }
         // 弹幕透明度
-        const fontOpacity = Math.round((parseFloat(localStorage.getItem(lsKeys.danmakuFontOpacity)) || 1.0) * 255).toString(16);
+        const fontOpacity = Math.round(lsGetOrDefault(lsKeys.danmakuFontOpacity, 1) * 255).toString(16);
         // 时间轴偏移秒数
         const timelineOffset = parseInt(localStorage.getItem(lsKeys.danmakuTimelineOffset)) || 0;
         //const $xml = new DOMParser().parseFromString(string, 'text/xml')
@@ -1191,7 +1210,10 @@
                     <label class="${embyLabelClass}">弹幕屏蔽类型: </label>
                 </div>
                 <div id="${eleIds.danmakuFilterLevelDiv}">
-                    <label class="${embyLabelClass}">弹幕屏蔽等级: </label>
+                    <label class="${embyLabelClass}">弹幕密度等级: </label>
+                </div>
+                <div id="${eleIds.danmakuHeightRatioDiv}">
+                    <label class="${embyLabelClass}">弹幕高度比例: </label>
                 </div>
                 <div id="${eleIds.danmakuChConverDiv}">
                     <label class="${embyLabelClass}">简繁转换: </label>
@@ -1202,20 +1224,23 @@
             </div>
         `;
         container.innerHTML = template.trim();
-        let typeFilterCheckboxList = embyCheckboxList(eleIds.danmakuTypeFilterSelect, eleIds.danmakuTypeFilterSelectName
-            , localStorage.getItem(lsKeys.danmakuTypeFilter), danmakuTypeFilterOpts, doDanmakuTypeFilterSelect);
-        container.querySelector('#' + eleIds.danmakuTypeFilterDiv).appendChild(typeFilterCheckboxList);
-        let engineTabs = embyTabs(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineOpts[0].id
-            , 'id', 'name', doDanmakuEngineSelect);
-        container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
-        let chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
-        container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
-        let filterLevelTabs = embyTabs(danmakuFilterLevelOpts, window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0
-            , 'id', 'name', doDanmakuFilterLevelChange);
-        container.querySelector('#' + eleIds.danmakuFilterLevelDiv).appendChild(filterLevelTabs);
         let switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, eleIds.danmakuSwitch, '弹幕开关', window.ede.danmakuSwitch == 1
             , window.ede.danmakuSwitch == 1, doDanmakuSwitch);
         container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(switchCheckbox);
+        let typeFilterCheckboxList = embyCheckboxList(eleIds.danmakuTypeFilterSelect, eleIds.danmakuTypeFilterSelectName
+            , localStorage.getItem(lsKeys.danmakuTypeFilter), danmakuTypeFilterOpts, doDanmakuTypeFilterSelect);
+        container.querySelector('#' + eleIds.danmakuTypeFilterDiv).appendChild(typeFilterCheckboxList);
+        container.querySelector('#' + eleIds.danmakuHeightRatioDiv).appendChild(
+            embyTabs(danmakuHeightRatioOpts, lsGetOrDefault(lsKeys.danmakuHeightRatio, 1) 
+                , 'id', 'name', danmakuHeightRatioChange));
+        let filterLevelTabs = embyTabs(danmakuFilterLevelOpts, localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0
+            , 'id', 'name', doDanmakuFilterLevelChange);
+        container.querySelector('#' + eleIds.danmakuFilterLevelDiv).appendChild(filterLevelTabs);
+        let chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
+        container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
+        let engineTabs = embyTabs(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineOpts[0].id
+            , 'id', 'name', doDanmakuEngineSelect);
+        container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
     }
 
     function buildDanmakuStyle(containerId) {
@@ -1262,17 +1287,11 @@
         onDanmakuStyleChangeLabel(localStorage.getItem(lsKeys.danmakuTimelineOffset) || '0', styleOffsetOpts);
         danmakuStyleOffsetBtns.forEach(btn => {
             btnContainer.appendChild(embyButton(btn, (event) => {
-                const elementType = event.target.nodeName.toLowerCase();
-                let element = undefined;
-                if (elementType === 'button') {
-                    element = event.target;
-                } else if (elementType === 'i') {
-                    element = event.target.parentElement;
-                }
+                const element = event.target.nodeName.toLowerCase() === 'i' ? event.target.parentElement : event.target;
                 if (element) {
-                    let oldValue = parseFloat(localStorage.getItem(lsKeys.danmakuTimelineOffset) || '0');
+                    let oldValue = lsGetOrDefault(lsKeys.danmakuTimelineOffset, 0);
                     let newValue = oldValue + (parseFloat(element.getAttribute('styleOffset')) || 0);
-                    // 如果 offset 为 0，则 newValue 应该设置为 0
+                    // 如果 offset 为 0,则 newValue 应该设置为 0
                     if (newValue === oldValue) { newValue = 0;}
                     onDanmakuStyleChange(newValue, styleOffsetOpts);
                 }
@@ -1398,6 +1417,12 @@
         }
     }
 
+    function danmakuHeightRatioChange(index) {
+        const valueStr = danmakuHeightRatioOpts[index].id;
+        console.log(`切换弹幕高度比例: ${valueStr}`);
+        doDanmakuChange({ [lsKeys.danmakuHeightRatio]: valueStr });
+    }
+
     function doDanmakuTypeFilterSelect() {
         const checkList = Array.from(document.getElementsByName(eleIds.danmakuTypeFilterSelectName))
             .filter(item => item.checked).map(item => item.value);
@@ -1473,7 +1498,7 @@
             const value = getValueOrInvoke(option, optionValueKey);
             const title = getValueOrInvoke(option, optionTitleKey);
             let tabButton = document.createElement('button');
-            tabButton.className = `${embyTabsButtonClass}${value === selectedValue ? ' emby-tab-button-active' : ''}`;
+            tabButton.className = `${embyTabsButtonClass}${value == selectedValue ? ' emby-tab-button-active' : ''}`;
             tabButton.setAttribute('data-index', index);
             tabButton.textContent = title;
             tabsSlider.appendChild(tabButton);
@@ -1666,6 +1691,10 @@
         return typeof keyOrFunc === 'function' ? keyOrFunc(option) : option[keyOrFunc];
     }
 
+    function lsGetOrDefault(key, defaultValue, formatFn = parseFloat) {
+        return formatFn(localStorage.getItem(key)) || defaultValue;
+    }
+
     // from emby videoosd.js bindToPlayer events, warning: not dom event
     function playbackEventsOn(eventsMap, data = {}) {
         require(['playbackManager', 'events'], (playbackManager, events) => {
@@ -1735,7 +1764,7 @@
             danmakuCtrEle.remove();
             console.log(`已销毁弹幕按钮容器: ${eleIds.danmakuCtr}`);
         }
-        // 以下重要，销毁定时器
+        // 以下重要,销毁定时器
         window.ede.destroyTimeoutIds.forEach(id => clearTimeout(id));
         window.ede.destroyTimeoutIds = [];
     }
