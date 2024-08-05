@@ -1265,14 +1265,7 @@
         let engineTabs = embyTabs(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineOpts[0].id
             , 'id', 'name', doDanmakuEngineSelect);
         container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
-        let chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
-        container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
-        let filterLevelTabs = embyTabs(danmakuFilterLevelOpts, window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0
-            , 'id', 'name', doDanmakuFilterLevelChange);
-        container.querySelector('#' + eleIds.danmakuFilterLevelDiv).appendChild(filterLevelTabs);
-        let switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, eleIds.danmakuSwitch, '弹幕开关', window.ede.danmakuSwitch == 1
-            , window.ede.danmakuSwitch == 1, doDanmakuSwitch);
-        container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(switchCheckbox);
+
         // 屏蔽关键字
         let keywordsContainer = container.querySelector('#' + eleIds.filterKeywordsDiv);
         let enableDiv = keywordsContainer.appendChild(document.createElement('div'));
