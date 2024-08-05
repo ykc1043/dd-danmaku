@@ -3,8 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.19
-// @version      1.19
+// @version      1.20
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -74,7 +73,7 @@
             }
             console.log('切换弹幕开关');
             window.ede.danmakuSwitch = (window.ede.danmakuSwitch + 1) % 2;
-            window.localStorage.setItem('danmakuSwitch', window.ede.danmakuSwitch);
+            window.localStorage.setItem(lsKeys.danmakuSwitch, window.ede.danmakuSwitch);
             document.querySelector('#displayDanmaku').children[0].innerText = danmaku_icons[window.ede.danmakuSwitch];
             if (window.ede.danmaku) {
                 window.ede.danmakuSwitch == 1 ? window.ede.danmaku.show() : window.ede.danmaku.hide();
@@ -104,7 +103,7 @@
             }
             console.log('切换简繁转换');
             window.ede.chConvert = (window.ede.chConvert + 1) % 3;
-            window.localStorage.setItem('chConvert', window.ede.chConvert);
+            window.localStorage.setItem(lsKeys.chConvert, window.ede.chConvert);
             document.querySelector('#translateDanmaku').setAttribute('title', chConverTtitle[window.ede.chConvert]);
             loadDanmaku(LOAD_TYPE.REFRESH);
             console.log(document.querySelector('#translateDanmaku').getAttribute('title'));
@@ -133,18 +132,18 @@
         id: 'filteringDanmaku',
         innerText: null,
         onclick: () => { 
-            let level = parseInt(window.localStorage.getItem('danmakuFilterLevel') ?? 0);
+            let level = parseInt(window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0);
             level = (level + 1) % 4;
             console.log(`切换弹幕密度等级: ${level}`);
             doDanmakuChange({ danmakuFilterLevel: level });
-            document.querySelector('#filteringDanmaku').children[0].innerText = filter_icons[level];
+            document.getElementById(eleIds.filteringDanmaku).children[0].innerText = filter_icons[level];
         },
     };
 
     // 手动搜索变量
     let searchDanmakuOpts = {};
     // 此id等同于danmakuTabOpts内的弹幕信息的id
-    let currentDanmakuInfoContainerId = 'danmakuTab2';
+    const currentDanmakuInfoContainerId = 'danmakuTab2';
     // 菜单tabs
     const danmakuTabOpts = [
         { id: 'danmakuTab0', name: '弹幕设置', buildMethod: buildDanmakuSetting },
@@ -178,6 +177,10 @@
         { id: '3', name: '3'},
     ];
     const lsKeys = {
+        // ede
+        chConvert: 'chConvert',
+        danmakuSwitch: 'danmakuSwitch',
+        danmakuFilterLevel: 'danmakuFilterLevel',
         // createResizeButton
         danmakuFontSizeMagnification: 'danmakuFontSizeMagnification',
         danmakuFontOpacity: 'danmakuFontOpacity',
@@ -188,10 +191,9 @@
         danmakuEngine: 'danmakuEngine',
     };
     const eleIds = {
-        // initUI
         danmakuCtr: 'danmakuCtr',
-        // initH5VideoAdapter
         h5VideoAdapterContainer: 'h5VideoAdapterContainer',
+        dialogContainer: 'dialogContainer',
         // searchEpisodeInfoHtml
         danmakuSwitchDiv: 'danmakuSwitchDiv',
         danmakuSwitch: 'danmakuSwitch',
@@ -207,6 +209,7 @@
         danmakuEpisodeSelect: 'danmakuEpisodeSelect',
         danmakuEpisodeNumSelect: 'danmakuEpisodeNumSelect',
         // danmakuSetting
+        filteringDanmaku: filterButtonOpts.id,
         danmakuTypeFilterDiv: 'danmakuTypeFilterDiv',
         danmakuTypeFilterLabel: 'danmakuTypeFilterLabel',
         danmakuTypeFilterSelect: 'danmakuTypeFilterSelect',
@@ -272,25 +275,24 @@
     class EDE {
         constructor() {
             this.chConvert = 1;
-            if (window.localStorage.getItem('chConvert')) {
-                this.chConvert = window.localStorage.getItem('chConvert');
+            if (window.localStorage.getItem(lsKeys.chConvert)) {
+                this.chConvert = window.localStorage.getItem(lsKeys.chConvert);
             }
             // 0:当前状态关闭 1:当前状态打开
             this.danmakuSwitch = 1;
-            if (window.localStorage.getItem('danmakuSwitch')) {
-                this.danmakuSwitch = parseInt(window.localStorage.getItem('danmakuSwitch'));
+            if (window.localStorage.getItem(lsKeys.danmakuSwitch)) {
+                this.danmakuSwitch = parseInt(window.localStorage.getItem(lsKeys.danmakuSwitch));
             }
             this.danmaku = null;
             this.episode_info = null;
             this.ob = null;
             this.loading = false;
-            this.functions = {};
         }
     }
 
     function createButton(opt) {
         // let button = document.createElement('button', buttonOptions);
-        let createOpts = {}
+        let createOpts = {};
         if (buttonOptions.is) {
             createOpts.is = buttonOptions.is;
         }
@@ -574,7 +576,7 @@
             return;
         }
         console.log('正在初始化UI');
-        
+
         // 弹幕按钮容器 div
         // const ctrQueryStr = `.videoOsdBottom-maincontrols ${isJellyfin ? '.buttons' : '.videoOsdBottom-buttons'}`; // this not need setTimeout, but unknown why
         // .graphicContentContainer:not(.hide) .videoOsdBottom-maincontrols .videoOsdBottom-buttons
@@ -588,7 +590,6 @@
             }, check_interval);
             return;
         }
-
         // 在客户端上存在右侧按钮,在右侧按钮前添加
         const rightButtonsStr = `.videoOsdBottom-buttons-right`;
         const rightButtons = parent.querySelector(rightButtonsStr);
@@ -604,7 +605,6 @@
             parent.append(menubar);
         }
         
-
         // 弹幕开关
         displayButtonOpts.innerText = danmaku_icons[window.ede.danmakuSwitch];
         menubar.appendChild(createButton(displayButtonOpts));
@@ -614,8 +614,8 @@
             // 简繁转换
             translateButtonOpts.title = chConverTtitle[window.ede.chConvert];
             menubar.appendChild(createButton(translateButtonOpts));
-            // 屏蔽等级
-            filterButtonOpts.innerText = filter_icons[parseInt(window.localStorage.getItem('danmakuFilterLevel') ?? 0)];
+            // 屏蔽密度等级
+            filterButtonOpts.innerText = filter_icons[parseInt(window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0)];
             menubar.appendChild(createButton(filterButtonOpts));
             // 弹幕信息
             menubar.appendChild(createButton(infoButtonOpts));
@@ -812,9 +812,7 @@
     }
 
     async function createDanmaku(comments) {
-        if (!comments) {
-            return;
-        }
+        if (!comments) { return; }
         if (window.ede.danmaku != null) {
             window.ede.danmaku.clear();
             window.ede.danmaku.destroy();
@@ -855,6 +853,8 @@
             }
         });
         window.ede.ob.observe(_container);
+        // 设置弹窗内的弹幕信息
+        buildCurrentDanmakuInfo(currentDanmakuInfoContainerId);
     }
 
     function loadDanmaku(loadType = LOAD_TYPE.CHECK) {
@@ -884,8 +884,6 @@
                         reject('当前播放视频未变动');
                     } else {
                         window.ede.episode_info = info;
-                        // 设置弹窗内的弹幕信息
-                        buildCurrentDanmakuInfo(currentDanmakuInfoContainerId);
                         resolve(info.episodeId);
                     }
                 });
@@ -945,8 +943,7 @@
     /** 过滤弹幕类型 */
     function danmakuTypeFilter(comments) {
         let _comments = [...comments];
-        const map = new Map(danmakuTypeFilterOpts.map(opt => [opt.name, opt.id]));
-        let idArray = JSON.parse(window.localStorage.getItem(lsKeys.danmakuTypeFilter) ?? '[]').map(s => map.get(s));
+        let idArray = JSON.parse(window.localStorage.getItem(lsKeys.danmakuTypeFilter) ?? '[]');
         // 彩色过滤,只留下默认的白色
         if (idArray.includes('onlyWhite')) {
             _comments = _comments.filter(c => '#ffffff' === c.style.color.toLowerCase().slice(0, 7));
@@ -961,7 +958,7 @@
 
     /** 过滤弹幕密度等级,水平和垂直 */
     function danmakuDensityLevelFilter(comments) {
-        let level = parseInt(window.localStorage.getItem('danmakuFilterLevel') ?? 0);
+        let level = parseInt(window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0);
         if (level == 0) {
             return comments;
         }
@@ -1068,8 +1065,8 @@
     // }
 
     async function createDialog() {
-        const html = `<div id="dialogContainer"></div>`;
-        embyDialog({ title: null, html, buttons: [{ name: '关闭' }] });
+        const html = `<div id="${eleIds.dialogContainer}"></div>`;
+        embyDialog({ html, buttons: [{ name: '关闭' }] });
         afterEmbyDialogCreated();
     }
 
@@ -1086,7 +1083,7 @@
             animes: [],
         }
 
-        let dialogContainer = document.getElementById('dialogContainer');
+        let dialogContainer = document.getElementById(eleIds.dialogContainer);
         if (!dialogContainer) {
             setTimeout(() => {
                 console.log("retry dialogContainer!");
@@ -1096,7 +1093,9 @@
         }
         let tabsMenuContainer = document.createElement('div');
         tabsMenuContainer.className = embyTabsMenuClass;
-        tabsMenuContainer.appendChild(embyTabs(danmakuTabOpts, danmakuTabOpts[0].id, 'id', 'name', doDanmakuTabChange));
+        tabsMenuContainer.appendChild(embyTabs(danmakuTabOpts, danmakuTabOpts[0].id, 'id', 'name', (index) => {
+            danmakuTabOpts.forEach((obj, i) => document.getElementById(obj.id).hidden = i !== index);
+        }));
         dialogContainer.appendChild(tabsMenuContainer);
 
         danmakuTabOpts.forEach((tab, index) => {
@@ -1143,7 +1142,7 @@
 
     function buildCurrentDanmakuInfo(containerId) {
         let container = document.getElementById(containerId);
-        if (!container || !window.ede.episode_info) return;
+        if (!container || !window.ede.episode_info) { return; }
         let template = `
             <div>
                 <div>
@@ -1191,14 +1190,15 @@
         `;
         container.innerHTML = template.trim();
         let typeFilterCheckboxList = embyCheckboxList(eleIds.danmakuTypeFilterSelect, eleIds.danmakuTypeFilterSelectName
-            , localStorage.getItem(lsKeys.danmakuTypeFilter), danmakuTypeFilterOpts, doDanmakuTypeFilterSelect)
+            , localStorage.getItem(lsKeys.danmakuTypeFilter), danmakuTypeFilterOpts, doDanmakuTypeFilterSelect);
         container.querySelector('#' + eleIds.danmakuTypeFilterDiv).appendChild(typeFilterCheckboxList);
         let engineTabs = embyTabs(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineDefault
             , 'id', 'name', doDanmakuEngineSelect);
         container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
         let chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
         container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
-        let filterLevelTabs = embyTabs(danmakuFilterLevelOpts, window.localStorage.getItem('danmakuFilterLevel') ?? 0, 'id', 'name', doDanmakuFilterLevelChange);
+        let filterLevelTabs = embyTabs(danmakuFilterLevelOpts, window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0
+            , 'id', 'name', doDanmakuFilterLevelChange);
         container.querySelector('#' + eleIds.danmakuFilterLevelDiv).appendChild(filterLevelTabs);
         let switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, eleIds.danmakuSwitch, '弹幕开关', window.ede.danmakuSwitch == 1
             , window.ede.danmakuSwitch == 1, doDanmakuSwitch);
@@ -1262,20 +1262,10 @@
         `;
     } */
 
-    function doDanmakuTabChange(index) {
-        danmakuTabOpts.forEach((obj, i) => {
-            if (i === index) {
-                document.getElementById(obj.id).hidden = false;
-            } else {
-                document.getElementById(obj.id).hidden = true;
-            }
-        });
-    }
-
     function doDanmakuSwitch(flag) {
         console.log('切换弹幕开关');
         window.ede.danmakuSwitch = flag ? 1 : 0;
-        window.localStorage.setItem('danmakuSwitch', window.ede.danmakuSwitch);
+        window.localStorage.setItem(lsKeys.danmakuSwitch, window.ede.danmakuSwitch);
         document.querySelector('#displayDanmaku').children[0].innerText = danmaku_icons[window.ede.danmakuSwitch];
         if (window.ede.danmaku) {
             flag ? window.ede.danmaku.show() : window.ede.danmaku.hide();
@@ -1348,7 +1338,6 @@
         window.localStorage.setItem(searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
         console.log(`手动匹配信息:`, episodeInfo);
         loadDanmaku(LOAD_TYPE.RELOAD);
-        embyToast({ text: `已生效,请手动关闭弹窗` });
     }
 
     function doDanmakuEngineSelect(index) {
@@ -1362,43 +1351,37 @@
     }
 
     function doDanmakuChConverChange(index) {
-        let value = danmakuChConverOpts[index].id;
-        window.ede.chConvert = value;
-        window.localStorage.setItem('chConvert', window.ede.chConvert);
+        window.ede.chConvert = danmakuChConverOpts[index].id;
+        window.localStorage.setItem(lsKeys.chConvert, window.ede.chConvert);
         document.querySelector('#translateDanmaku')?.setAttribute('title', chConverTtitle[window.ede.chConvert]);
         loadDanmaku(LOAD_TYPE.REFRESH);
         console.log(chConverTtitle[window.ede.chConvert]);
     }
 
     function doDanmakuFilterLevelChange(index) {
-        let value = danmakuFilterLevelOpts[index].id;
-        let level = parseInt(value);
+        const level = parseInt(danmakuFilterLevelOpts[index].id);
         console.log(`切换弹幕密度等级: ${level}`);
         doDanmakuChange({ danmakuFilterLevel: level });
-        let doc = document.querySelector('#filteringDanmaku')
+        const doc = document.getElementById(eleIds.filteringDanmaku);
         if (doc) {
             doc.children[0].innerHTML = filter_icons[level];
         }
-        // document.querySelector('#filteringDanmaku')?.children[0].innerText = filter_icons[level];
     }
 
     function doDanmakuTypeFilterSelect() {
-        var obj = document.getElementsByName(eleIds.danmakuTypeFilterSelectName);
-        var checkList = [];
-        for(let k in obj){
-            if(obj[k].checked)
-                checkList.push(obj[k].value);
-        }
+        const checkList = Array.from(document.getElementsByName(eleIds.danmakuTypeFilterSelectName))
+            .filter(item => item.checked).map(item => item.value);
         localStorage.setItem(lsKeys.danmakuTypeFilter, JSON.stringify(checkList));
-        console.log(`当前弹幕类型过滤为: ${JSON.stringify(checkList)}`);
         loadDanmaku(LOAD_TYPE.RELOAD);
-        // embyToast({ text: `已生效,当前弹幕类型过滤为: ${JSON.stringify(danmakuTypeFilter)}` });
+        const idNameMap = new Map(danmakuTypeFilterOpts.map(opt => [opt.id, opt.name]));
+        console.log(`当前弹幕类型过滤为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}`);
+        // embyToast({ text: `已生效,当前弹幕类型过滤为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}` });
     }
 
     function onDanmakuStyleChange(val, props) {
         // reset the label
         onDanmakuStyleChangeLabel(val, props);
-        if (props && props.key) {
+        if (props?.key) {
             const oldValue = window.localStorage.getItem(props.key);
             if (oldValue != val) {
                 window.localStorage.setItem(props.key, val);
@@ -1406,13 +1389,11 @@
                 loadDanmaku(LOAD_TYPE.RELOAD);
             }
         }
-
     }
 
     function onDanmakuStyleChangeLabel(val, props) {
-        if (props && props.labelId) {
-            let label = document.getElementById(props.labelId);
-            label.innerText = val;
+        if (props?.labelId) {
+            document.getElementById(props.labelId).innerText = val;
             console.log(`${props.key} slider to ${val}`);
         }
     }
@@ -1457,18 +1438,15 @@
             const value = getValueOrInvoke(option, optionValueKey);
             const title = getValueOrInvoke(option, optionTitleKey);
             let tabButton = document.createElement('button');
-            tabButton.className = value === selectedValue ? embyTabsButtonClass + ' emby-tab-button-active' : embyTabsButtonClass;
+            tabButton.className = `${embyTabsButtonClass}${value === selectedValue ? ' emby-tab-button-active' : ''}`;
             tabButton.setAttribute('data-index', index);
             tabButton.textContent = title;
             tabsSlider.appendChild(tabButton);
         });
         tabs.appendChild(tabsSlider);
-        tabs.addEventListener('tabchange', function(event) {
-            // console.log(`Tab changed to index: ${event.detail.selectedTabIndex}`);
-            if (onChange) {
-                onChange(event.detail.selectedTabIndex);
-            }
-        });
+        if (onChange) {
+            tabs.addEventListener('tabchange', e => onChange(e.detail.selectedTabIndex));
+        }
         return tabs;
     }
 
@@ -1485,31 +1463,27 @@
             const value = getValueOrInvoke(option, optionValueKey);
             const title = getValueOrInvoke(option, optionTitleKey);
             let optionElement = document.createElement('option');
-            optionElement.setAttribute('value', value);
+            optionElement.value = value;
+            optionElement.textContent = title;
             if (index === selected) {
                 optionElement.selected = true;
             }
-            optionElement.textContent = title;
             selectElement.appendChild(optionElement);
         });
-
-        selectElement.addEventListener('change', (event) => {
-            if (onChange) {
-                onChange(event.target.value);
-            }
-        });
+        if (onChange) {
+            selectElement.addEventListener('change', e => onChange(e.target.value));
+        }
         return selectElement;
     }
     
-    function embyCheckboxList(id, checkBoxName, selectedArray, options, onChange, isVertical = false) {
+    function embyCheckboxList(id, checkBoxName, selectedStrArray, options, onChange, isVertical = false) {
         let checkboxContainer = document.createElement('div');
         checkboxContainer.setAttribute('class', embyCheckboxListClass);
         checkboxContainer.setAttribute('style', isVertical ? '' : embyCheckboxListStyle);
         checkboxContainer.setAttribute('id', id);
         options.forEach(option => {
-            let checkbox = embyCheckbox(null, checkBoxName, option.name, option.id, 
-                selectedArray.indexOf(option.id) > -1 , onChange);
-            checkboxContainer.appendChild(checkbox);
+            checkboxContainer.appendChild(embyCheckbox(null, checkBoxName, option.name, option.id, 
+                selectedStrArray?.indexOf(option.id) > -1 , onChange));
         });
         return checkboxContainer;
     }
@@ -1521,16 +1495,14 @@
         let checkbox = document.createElement('input', { is: 'emby-checkbox' });
         checkbox.setAttribute('is', 'emby-checkbox');
         checkbox.setAttribute('type', 'checkbox');
-        if (id) checkbox.setAttribute('id', id);
+        if (id) { checkbox.setAttribute('id', id); }
         checkbox.setAttribute('name', name);
         checkbox.setAttribute('value', value);
         checkbox.checked = checked;
         checkbox.classList.add('emby-checkbox', 'chkEnableLiveTvAccess');
-        checkbox.addEventListener('change', function(event) {
-            if (onChange) {
-                onChange(event.target.checked);
-            }
-        });
+        if (onChange) {
+            checkbox.addEventListener('change', e => onChange(e.target.checked));
+        }
         let span = document.createElement('span');
         span.setAttribute('class', 'checkboxLabel');
         span.innerHTML = label;
@@ -1559,9 +1531,7 @@
         options = { ...defaultOpts, ...options };
         let slider = document.createElement('input', { is: 'emby-slider' });
         slider.setAttribute('type', 'range');
-        if (props.id) {
-            slider.setAttribute('id', props.id);
-        }
+        if (props.id) { slider.setAttribute('id', props.id); }
         slider.setAttribute('min', options.min);
         slider.setAttribute('max', options.max);
         slider.setAttribute('step', options.step);
@@ -1569,18 +1539,14 @@
         slider.setAttribute('orient', options.orient);
         slider.setAttribute('data-bubble', options.bubble);  // To show the value bubble
         slider.setAttribute('data-hoverthumb', options.hoverthumb);
-        slider.addEventListener('change', function(event) {
+        if (onChange) {
             // Trigger after end of tap/swipe
-            if (onChange) {
-                onChange(event.target.value, props);
-            }
-        });
-        slider.addEventListener('input', function(event) {
-            //when clicking/sliding, trigger every step
-            if (onSliding) {
-                onSliding(event.target.value, props);
-            }
-        });
+            slider.addEventListener('change', e => onChange(e.target.value, props));
+        }
+        if (onSliding) {
+            // when clicking/sliding, trigger every step
+            slider.addEventListener('input', e => onSliding(e.target.value, props));
+        }
         /* slider.addEventListener('beginediting', function(event) {
             // when clicking/sliding, trigger every step
             console.log('Slider editing started');
@@ -1590,45 +1556,37 @@
             console.log('Slider editing ended');
         }); */
         // Add keyboard event listeners to the slider
-        slider.addEventListener('keydown', function (e) {
+        slider.addEventListener('keydown', e => {
             const step = parseFloat(slider.step) || 1;
             const min = parseFloat(slider.min);
             const max = parseFloat(slider.max);
             let value = parseFloat(slider.value);
-            const orient = slider.getAttribute('orient') || 'horizontal';        
+            const orient = slider.getAttribute('orient') || 'horizontal';
             switch (e.key) {
                 case "ArrowLeft":
                 case "ArrowRight":
-                    if (orient === 'horizontal') {
-                        if ((e.key === "ArrowLeft" && value > min) || (e.key === "ArrowRight" && value < max)) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (e.key === "ArrowLeft") {
-                                value = Math.max(value - step, min);
-                            } else if (e.key === "ArrowRight") {
-                                value = Math.min(value + step, max);
-                            }
-                            slider.value = value;
-                            slider.dispatchEvent(new Event('input'));
-                            slider.dispatchEvent(new Event('change'));
-                        }
+                    if (orient === 'horizontal' 
+                            && ((e.key === "ArrowLeft" && value > min) || (e.key === "ArrowRight" && value < max))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        value += e.key === "ArrowLeft" ? -step : step;
+                        value = Math.min(Math.max(value, min), max);
+                        slider.value = value;
+                        slider.dispatchEvent(new Event('input'));
+                        slider.dispatchEvent(new Event('change'));
                     }
                     break;
                 case "ArrowUp":
                 case "ArrowDown":
-                    if (orient === 'vertical') {
-                        if ((e.key === "ArrowDown" && value > min) || (e.key === "ArrowUp" && value < max)) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (e.key === "ArrowUp") {
-                                value = Math.min(value + step, max);
-                            } else if (e.key === "ArrowDown") {
-                                value = Math.max(value - step, min);
-                            }
-                            slider.value = value;
-                            slider.dispatchEvent(new Event('input'));
-                            slider.dispatchEvent(new Event('change'));
-                        }
+                    if (orient === 'vertical' 
+                            && ((e.key === "ArrowDown" && value > min) || (e.key === "ArrowUp" && value < max))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        value += e.key === "ArrowUp" ? step : -step;
+                        value = Math.min(Math.max(value, min), max);
+                        slider.value = value;
+                        slider.dispatchEvent(new Event('input'));
+                        slider.dispatchEvent(new Event('change'));
                     }
                     break;
             }
