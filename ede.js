@@ -155,6 +155,9 @@
         // setButtonEvent
         danmakuTypeFilter: 'danmakuTypeFilter',
         danmakuEngine: 'danmakuEngine',
+        // filterKeywords
+        danmakuFilterKeywords: 'danmakuFilterKeywords',
+        danmakuFilterKeywordsEnable: 'danmakuFilterKeywordsEnable',
     };
     const eleIds = {
         danmakuCtr: 'danmakuCtr',
@@ -228,7 +231,7 @@
         { id: 'danmakuTab0', name: '弹幕设置', buildMethod: buildDanmakuSetting },
         { id: 'danmakuTab1', name: '手动匹配', buildMethod: buildSearchEpisode},
         { id: currentDanmakuInfoContainerId, name: '弹幕信息', buildMethod: buildCurrentDanmakuInfo },
-        { id: 'danmakuTab3', name: '弹幕样式', buildMethod: buildDanmakuStyle },
+        { id: 'danmakuTab3', name: '弹幕屏蔽', buildMethod: buildDanmakuStyle },
     ];
     // 弹幕类型过滤
     const danmakuTypeFilterOpts = [
@@ -301,7 +304,7 @@
 
     class EDE {
         constructor() {
-            this.chConvert = 0;
+            this.chConvert = 1;
             if (window.localStorage.getItem(lsKeys.chConvert)) {
                 this.chConvert = window.localStorage.getItem(lsKeys.chConvert);
             }
@@ -315,8 +318,6 @@
             this.ob = null;
             this.loading = false;
             this.destroyTimeoutIds = [];
-            this.filterKeywords = '';
-            this.filterKeywordsEnable = false;
         }
     }
 
@@ -1029,15 +1030,23 @@
 
     /** 通过屏蔽关键词过滤弹幕 */
     function danmakuKeywordsFilter(comments) {
-        let enbale = window.ede.filterKeywordsEnable;
-        if (!enbale) { return comments;}
-        let _comments = [...comments];
-        let keywords = window.ede.filterKeywords.split(/\r?\n/).map(k => k.trim());
-        if (keywords.length > 0) {
-            _comments = _comments.filter(c => !keywords.some(k => c.text.includes(k)));
-        }
-        return _comments;
+        const enable = localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable);
+        if (enable !== '1') { return comments;}
+        const keywords = localStorage.getItem(lsKeys.danmakuFilterKeywords)?.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
+        if (keywords.length === 0) { return comments;}
+        return comments.filter(comment => {
+            return !keywords.some(keyword => {
+                try {
+                    const regex = new RegExp(keyword);
+                    return regex.test(comment.text);
+                } catch (error) {
+                    console.error(`Invalid regular expression: ${keyword}. Using plain text filter.`);
+                    return comment.text.includes(keyword);
+                }
+            });
+        });
     }
+
 
     function danmakuParser($obj) {
         //const fontSize = Number(values[2]) || 25
@@ -1227,70 +1236,15 @@
         let template =  `
             <div>
                 <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;"></div>
-                <div id="${eleIds.danmakuTypeFilterDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">弹幕屏蔽类型: </label>
-                </div>
-                <div id="${eleIds.danmakuFilterLevelDiv}">
-                    <label class="${embyLabelClass}">弹幕密度等级: </label>
-                </div>
-                <div id="${eleIds.danmakuHeightRatioDiv}">
-                    <label class="${embyLabelClass}">弹幕高度比例: </label>
-                </div>
                 <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
                     <label class="${embyLabelClass}">简繁转换: </label>
                 </div>
                 <div id="${eleIds.danmakuEngineDiv}" style="margin-bottom: 0.2em;">
                     <label class="${embyLabelClass}">切换弹幕引擎: </label>
                 </div>
-                <div id="${eleIds.filterKeywordsDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">屏蔽关键字: </label>
-                </div>
             </div>
-        `;
-        container.innerHTML = template.trim();
-        let switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, eleIds.danmakuSwitch, '弹幕开关', window.ede.danmakuSwitch == 1
-            , window.ede.danmakuSwitch == 1, doDanmakuSwitch);
-        container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(switchCheckbox);
-        let typeFilterCheckboxList = embyCheckboxList(eleIds.danmakuTypeFilterSelect, eleIds.danmakuTypeFilterSelectName
-            , localStorage.getItem(lsKeys.danmakuTypeFilter), danmakuTypeFilterOpts, doDanmakuTypeFilterSelect);
-        container.querySelector('#' + eleIds.danmakuTypeFilterDiv).appendChild(typeFilterCheckboxList);
-        container.querySelector('#' + eleIds.danmakuHeightRatioDiv).appendChild(
-            embyTabs(danmakuHeightRatioOpts, lsGetOrDefault(lsKeys.danmakuHeightRatio, 1) 
-                , 'id', 'name', danmakuHeightRatioChange));
-        let filterLevelTabs = embyTabs(danmakuFilterLevelOpts, localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0
-            , 'id', 'name', doDanmakuFilterLevelChange);
-        container.querySelector('#' + eleIds.danmakuFilterLevelDiv).appendChild(filterLevelTabs);
-        let chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
-        container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
-        let engineTabs = embyTabs(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineOpts[0].id
-            , 'id', 'name', doDanmakuEngineSelect);
-        container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
-
-        // 屏蔽关键字
-        let keywordsContainer = container.querySelector('#' + eleIds.filterKeywordsDiv);
-        let enableDiv = keywordsContainer.appendChild(document.createElement('div'));
-        let keywordsBtn = embyButton({id: eleIds.filterKeywordsBtn,label: '加载关键词过滤', iconKey: 'check'}, doDanmakuFilterKeywordsBtnClick);
-        keywordsBtn.disabled = true;
-        enableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 90%;');
-        enableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', '', window.ede.filterKeywordsEnable
-            , (flag) => updateFilterKeywordsBtn(keywordsBtn, flag, document.getElementById(eleIds.filterKeywordsId).value.trim())));
-        enableDiv.appendChild(document.createElement('div'))
-                .appendChild(keywordsBtn);
-        keywordsContainer.appendChild(document.createElement('div'))
-            .appendChild(embyTextarea(eleIds.filterKeywordsId, window.ede.filterKeywords,'width: 90%;margin-top: 0.2em;', 8, true, false
-                , (event) => updateFilterKeywordsBtn(keywordsBtn, document.getElementById(eleIds.filterKeywordsEnableId).checked, event.target.value.trim())));
-        let label = document.createElement('label');
-        label.innerText = '关键词过滤，支持正则匹配，多个关键词用换行分隔';
-        label.className = 'fieldDescription';
-        keywordsContainer.appendChild(document.createElement('div'))
-            .appendChild(label);
-        
-    }
-
-    function buildDanmakuStyle(containerId) {
-        let container = document.getElementById(containerId);
-        let template = `
-            <div style="${embySliderListStyle}">
+            <div>
+                <label class="${embyLabelClass}">弹幕样式: </label>
                 <div style="${embySliderStyle}">
                     <label class="${embyLabelClass}" style="${embySliderLabelStyle}">大小: </label>
                     <div id="${eleIds.danmakuSizeDiv}" style="width: 15.5em; text-align: center;"></div>
@@ -1314,6 +1268,16 @@
             </div>
         `;
         container.innerHTML = template.trim();
+        let switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, eleIds.danmakuSwitch, '弹幕开关', window.ede.danmakuSwitch == 1
+            , window.ede.danmakuSwitch == 1, doDanmakuSwitch);
+        container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(switchCheckbox);
+        
+        let chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
+        container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
+        let engineTabs = embyTabs(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineOpts[0].id
+            , 'id', 'name', doDanmakuEngineSelect);
+        container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
+        //滑块
         let sizeSlider = embySlider({ labelId: eleIds.danmakuSizeLabel, key: lsKeys.danmakuFontSizeMagnification}
             , {}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
         let alphaSlider = embySlider({ labelId: eleIds.danmakuAlphaLabel, key: lsKeys.danmakuFontOpacity}
@@ -1341,6 +1305,54 @@
                 }
             }));
         });
+    }
+
+    function buildDanmakuStyle(containerId) {
+        let container = document.getElementById(containerId);
+        let template = `
+            <div>
+                <div id="${eleIds.danmakuTypeFilterDiv}" style="margin-bottom: 0.2em;">
+                    <label class="${embyLabelClass}">屏蔽类型: </label>
+                </div>
+                <div id="${eleIds.danmakuFilterLevelDiv}">
+                    <label class="${embyLabelClass}">密度等级: </label>
+                </div>
+                <div id="${eleIds.danmakuHeightRatioDiv}">
+                    <label class="${embyLabelClass}">弹幕高度比例: </label>
+                </div>
+                <div id="${eleIds.filterKeywordsDiv}" style="margin-bottom: 0.2em;">
+                    <label class="${embyLabelClass}">屏蔽关键字: </label>
+                </div>
+            </div>
+        `;
+        container.innerHTML = template.trim();
+        let typeFilterCheckboxList = embyCheckboxList(eleIds.danmakuTypeFilterSelect, eleIds.danmakuTypeFilterSelectName
+            , localStorage.getItem(lsKeys.danmakuTypeFilter), danmakuTypeFilterOpts, doDanmakuTypeFilterSelect);
+        container.querySelector('#' + eleIds.danmakuTypeFilterDiv).appendChild(typeFilterCheckboxList);
+        container.querySelector('#' + eleIds.danmakuHeightRatioDiv).appendChild(
+            embyTabs(danmakuHeightRatioOpts, lsGetOrDefault(lsKeys.danmakuHeightRatio, 1) 
+                , 'id', 'name', danmakuHeightRatioChange));
+        let filterLevelTabs = embyTabs(danmakuFilterLevelOpts, localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0
+            , 'id', 'name', doDanmakuFilterLevelChange);
+        container.querySelector('#' + eleIds.danmakuFilterLevelDiv).appendChild(filterLevelTabs);
+        // 屏蔽关键字
+        let keywordsContainer = container.querySelector('#' + eleIds.filterKeywordsDiv);
+        let enableDiv = keywordsContainer.appendChild(document.createElement('div'));
+        let keywordsBtn = embyButton({id: eleIds.filterKeywordsBtn,label: '加载关键词过滤', iconKey: 'check'}, doDanmakuFilterKeywordsBtnClick);
+        keywordsBtn.disabled = true;
+        enableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 90%;');
+        enableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', '', localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable) ?? '0'
+            , (flag) => updateFilterKeywordsBtn(keywordsBtn, flag, document.getElementById(eleIds.filterKeywordsId).value.trim())));
+        enableDiv.appendChild(document.createElement('div'))
+                .appendChild(keywordsBtn);
+        keywordsContainer.appendChild(document.createElement('div'))
+            .appendChild(embyTextarea(eleIds.filterKeywordsId, localStorage.getItem(lsKeys.danmakuFilterKeywords) ?? '','width: 90%;margin-top: 0.2em;', 8, true, false
+                , (event) => updateFilterKeywordsBtn(keywordsBtn, document.getElementById(eleIds.filterKeywordsEnableId).checked, event.target.value.trim())));
+        let label = document.createElement('label');
+        label.innerText = '关键词过滤，支持正则匹配，多个关键词用换行分隔';
+        label.className = 'fieldDescription';
+        keywordsContainer.appendChild(document.createElement('div'))
+            .appendChild(label);
     }
     
 
@@ -1487,16 +1499,18 @@
     }
 
     function doDanmakuFilterKeywordsBtnClick(event) {
-        console.log('keywordsBtn.click', event);
-        event.target.style = '';
-        event.target.disabled = true;
-        let keywords = document.getElementById(eleIds.filterKeywordsId).value.trim();
-        let enable = document.getElementById(eleIds.filterKeywordsEnableId).checked;
-        if (enable !== window.ede.filterKeywordsEnable) {
-            window.ede.filterKeywordsEnable = enable;
+        const btn = event.target.nodeName.toLowerCase() === 'i' ? event.target.parentElement : event.target;
+        if (btn) {
+            btn.style = '';
+            btn.disabled = true;
         }
-        if (keywords !== window.ede.filterKeywords) {
-            window.ede.filterKeywords = keywords;
+        let keywords = document.getElementById(eleIds.filterKeywordsId).value.trim();
+        let enable = document.getElementById(eleIds.filterKeywordsEnableId).checked ? '1': '0';
+        if (enable !== localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable)) {
+            localStorage.setItem(lsKeys.danmakuFilterKeywordsEnable, enable);
+        }
+        if (keywords !== localStorage.getItem(lsKeys.danmakuFilterKeywords)) {
+            localStorage.setItem(lsKeys.danmakuFilterKeywords, keywords);
         } else if (keywords === '') {
             return;
         }
@@ -1504,7 +1518,8 @@
     }
 
     function updateFilterKeywordsBtn(btn, flag, keywords) {
-        const isSame = flag === window.ede.filterKeywordsEnable && keywords === window.ede.filterKeywords;
+        const isSame = (flag ? '1': '0') === localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable) 
+            && keywords === localStorage.getItem(lsKeys.danmakuFilterKeywords);
         btn.style = isSame ? '' : embyCheckGreenStyle;
         btn.disabled = isSame;
     }
