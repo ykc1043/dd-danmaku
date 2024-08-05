@@ -193,6 +193,11 @@
         danmakuSpeedLabel: 'danmakuSpeedLabel',
         danmakuOffsetDiv: 'danmakuOffsetDiv',
         danmakuOffsetLabel: 'danmakuOffsetLabel',
+        // filterKeywords
+        filterKeywordsEnableId: 'filterKeywordsEnableId',
+        filterKeywordsId: 'filterKeywordsId',
+        filterKeywordsDiv: 'filterKeywordsDiv',
+        filterKeywordsBtn: 'filterKeywordsBtn',
     };
     // emby ui class
     const embyLabelClass = 'inputLabel';
@@ -211,6 +216,7 @@
     const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;';
     const embySliderLabelStyle = 'width:4em;';
     const embyOffsetBtnStyle = 'margin: 0;padding: 0;';
+    const embyCheckGreenStyle = 'color: #388e3c;';
 
     // 手动搜索变量
     let searchDanmakuOpts = {};
@@ -302,6 +308,8 @@
             this.ob = null;
             this.loading = false;
             this.destroyTimeoutIds = [];
+            this.filterKeywords = '';
+            this.filterKeywordsEnable = false;
         }
     }
 
@@ -947,6 +955,7 @@
         let _comments = [...comments];
         _comments = danmakuTypeFilter(_comments);
         _comments = danmakuDensityLevelFilter(_comments);
+        _comments = danmakuKeywordsFilter(_comments);
         return _comments;
     }
 
@@ -997,6 +1006,18 @@
             }
         }
         return arr_comments.flat();
+    }
+
+    /** 通过屏蔽关键词过滤弹幕 */
+    function danmakuKeywordsFilter(comments) {
+        let enbale = window.ede.filterKeywordsEnable;
+        if (!enbale) { return comments;}
+        let _comments = [...comments];
+        let keywords = window.ede.filterKeywords.split(/\r?\n/).map(k => k.trim());
+        if (keywords.length > 0) {
+            _comments = _comments.filter(c => !keywords.some(k => c.text.includes(k)));
+        }
+        return _comments;
     }
 
     function danmakuParser($obj) {
@@ -1145,7 +1166,7 @@
         let searchBtn = embyButton({id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: 'search'}, doDanmakuSearchEpisode);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchInput);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchBtn);
-        let loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: 'check', style: 'color: #388e3c;'}
+        let loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: 'check', style: embyCheckGreenStyle}
             , doDanmakuSwitchEpisode);
         container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(loadBtn);
     }
@@ -1186,18 +1207,21 @@
         let container = document.getElementById(containerId);
         let template =  `
             <div>
-                <div id="${eleIds.danmakuSwitchDiv}"></div>
-                <div id="${eleIds.danmakuTypeFilterDiv}">
+                <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;"></div>
+                <div id="${eleIds.danmakuTypeFilterDiv}" style="margin-bottom: 0.2em;">
                     <label class="${embyLabelClass}">弹幕屏蔽类型: </label>
                 </div>
-                <div id="${eleIds.danmakuFilterLevelDiv}">
+                <div id="${eleIds.danmakuFilterLevelDiv}" style="margin-bottom: 0.2em;">
                     <label class="${embyLabelClass}">弹幕屏蔽等级: </label>
                 </div>
-                <div id="${eleIds.danmakuChConverDiv}">
+                <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
                     <label class="${embyLabelClass}">简繁转换: </label>
                 </div>
-                <div id="${eleIds.danmakuEngineDiv}">
+                <div id="${eleIds.danmakuEngineDiv}" style="margin-bottom: 0.2em;">
                     <label class="${embyLabelClass}">切换弹幕引擎: </label>
+                </div>
+                <div id="${eleIds.filterKeywordsDiv}" style="margin-bottom: 0.2em;">
+                    <label class="${embyLabelClass}">屏蔽关键字: </label>
                 </div>
             </div>
         `;
@@ -1216,6 +1240,25 @@
         let switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, eleIds.danmakuSwitch, '弹幕开关', window.ede.danmakuSwitch == 1
             , window.ede.danmakuSwitch == 1, doDanmakuSwitch);
         container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(switchCheckbox);
+        // 屏蔽关键字
+        let keywordsContainer = container.querySelector('#' + eleIds.filterKeywordsDiv);
+        let enableDiv = keywordsContainer.appendChild(document.createElement('div'));
+        let keywordsBtn = embyButton({id: eleIds.filterKeywordsBtn,label: '加载关键词过滤', iconKey: 'check'}, doDanmakuFilterKeywordsBtnClick);
+        keywordsBtn.disabled = true;
+        enableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 90%;');
+        enableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', '', window.ede.filterKeywordsEnable
+            , (flag) => updateFilterKeywordsBtn(keywordsBtn, flag, document.getElementById(eleIds.filterKeywordsId).value.trim())));
+        enableDiv.appendChild(document.createElement('div'))
+                .appendChild(keywordsBtn);
+        keywordsContainer.appendChild(document.createElement('div'))
+            .appendChild(embyTextarea(eleIds.filterKeywordsId, window.ede.filterKeywords,'width: 90%;margin-top: 0.2em;', 8, true, false
+                , (event) => updateFilterKeywordsBtn(keywordsBtn, document.getElementById(eleIds.filterKeywordsEnableId).checked, event.target.value.trim())));
+        let label = document.createElement('label');
+        label.innerText = '关键词过滤，支持正则匹配，多个关键词用换行分隔';
+        label.className = 'fieldDescription';
+        keywordsContainer.appendChild(document.createElement('div'))
+            .appendChild(label);
+        
     }
 
     function buildDanmakuStyle(containerId) {
@@ -1280,17 +1323,6 @@
         });
     }
     
-    /* function danmakuFilterKeywordsHtml() {
-        return `
-        <div>
-            <label class="${embyLabelClass}">屏蔽关键词(支持正则): </label>
-            <div class="${embyInputContainerClass}" style="display: flex;">
-                ${embyCheckboxHtml(eleIds.filterKeywordsEnable, '启用', window.ede?.filterKeywordsEnable ?? false)}
-                ${embyTextareaHtml(null, window.ede.filterKeywords ?? '')}
-            </div>
-        <div/>
-        `;
-    } */
 
     function doDanmakuSwitch(flag) {
         console.log('切换弹幕开关');
@@ -1428,6 +1460,29 @@
         }
     }
 
+    function doDanmakuFilterKeywordsBtnClick(event) {
+        console.log('keywordsBtn.click', event);
+        event.target.style = '';
+        event.target.disabled = true;
+        let keywords = document.getElementById(eleIds.filterKeywordsId).value.trim();
+        let enable = document.getElementById(eleIds.filterKeywordsEnableId).checked;
+        if (enable !== window.ede.filterKeywordsEnable) {
+            window.ede.filterKeywordsEnable = enable;
+        }
+        if (keywords !== window.ede.filterKeywords) {
+            window.ede.filterKeywords = keywords;
+        } else if (keywords === '') {
+            return;
+        }
+        loadDanmaku(LOAD_TYPE.RELOAD);
+    }
+
+    function updateFilterKeywordsBtn(btn, flag, keywords) {
+        const isSame = flag === window.ede.filterKeywordsEnable && keywords === window.ede.filterKeywords;
+        btn.style = isSame ? '' : embyCheckGreenStyle;
+        btn.disabled = isSame;
+    }
+
     function embyInput(id, style, value, onChange) {
         let input = document.createElement('input', { is: 'emby-input' });
         input.setAttribute('id', id);
@@ -1546,16 +1601,16 @@
         return checkboxLabel;
     }
 
-    function embyTextarea(id, label, value, style, rows, resize = true, readonly = false) {
+    function embyTextarea(id, value, style, rows = 10, resize = true, readonly = false, onBlur) {
         let textarea = document.createElement('textarea', { is: 'emby-textarea' });
         textarea.setAttribute('id', id);
-        textarea.setAttribute('label', label);
         textarea.setAttribute('style', style);
         textarea.setAttribute('rows', rows);
         textarea.className = 'txtOverview emby-textarea';
         textarea.readOnly = readonly;
         textarea.style.resize = resize;
         textarea.value = value;
+        if (typeof onBlur === 'function') { textarea.addEventListener('blur', onBlur)};
         return textarea;
     }
 
