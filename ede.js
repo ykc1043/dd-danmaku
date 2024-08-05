@@ -1341,7 +1341,7 @@
         let keywordsBtn = embyButton({id: eleIds.filterKeywordsBtn,label: '加载关键词过滤', iconKey: 'check'}, doDanmakuFilterKeywordsBtnClick);
         keywordsBtn.disabled = true;
         enableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 90%;');
-        enableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', '', localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable) ?? '0'
+        enableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', '', (localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable) ?? '0') === '1'
             , (flag) => updateFilterKeywordsBtn(keywordsBtn, flag, document.getElementById(eleIds.filterKeywordsId).value.trim())));
         enableDiv.appendChild(document.createElement('div'))
                 .appendChild(keywordsBtn);
