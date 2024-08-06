@@ -162,7 +162,7 @@
     const eleIds = {
         danmakuCtr: 'danmakuCtr',
         danmakuWrapper: 'danmakuWrapper',
-        h5VideoAdapterContainer: 'h5VideoAdapterContainer',
+        h5VideoAdapter: 'h5VideoAdapter',
         dialogContainer: 'dialogContainer',
         // searchEpisodeInfoHtml
         danmakuSwitchDiv: 'danmakuSwitchDiv',
@@ -580,18 +580,6 @@
             console.log('H5VideoPlayListener: 初始化弹幕信息');
             loadDanmaku(LOAD_TYPE.INIT);
         });
-        const flag = window.ede.danmaku && window.ede.danmakuSwitch == 1;
-        playbackEventsOn({
-            'unpause': (e, data) => {
-                console.log('unpause event: ' + e.type);
-                if (flag) {
-                    console.log('Resizing');
-                    window.ede.danmaku.hide();
-                    window.ede.danmaku.show();
-                    window.ede.danmaku.resize();
-                }
-            },
-        });
         console.log('Listener初始化完成');
     }
 
@@ -891,6 +879,14 @@
             }
         });
         window.ede.ob.observe(_container);
+        // 自定义的 initH5VideoAdapter 下,解决暂停时暂停的弹幕再次加载会自动恢复问题
+        if (!_media.src) {
+            require(['playbackManager'], (playbackManager) => {
+                if (playbackManager.getPlayerState().PlayState.IsPaused) {
+                    _media.dispatchEvent(new Event('pause'));
+                }
+            });
+        }
         // 设置弹窗内的弹幕信息
         buildCurrentDanmakuInfo(currentDanmakuInfoContainerId);
     }
@@ -1790,16 +1786,10 @@
         let _media = document.querySelector(mediaQueryStr);
         if (_media) { return; }
         console.log('页面上不存在 video 标签,适配器处理开始');
-        let _container = document.querySelector('.htmlVideoPlayerContainer');
-        if (!_container) {
-            _container = document.createElement('div');
-            _container.id = eleIds.h5VideoAdapterContainer;
-            _container.classList.add('htmlVideoPlayerContainer');
-            document.body.insertBefore(_container, document.body.firstChild);
-        }
         _media = document.createElement('video');
+        _media.id = eleIds.h5VideoAdapter;
         _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
-        _container.insertBefore(_media, _container.firstChild);
+        document.body.prepend(_media);
         _media.play();
 
         // 需在其它事件中实现,同步 video 适配器播放倍率,有 bug 未实现且只显示半屏,暂时注释
@@ -1807,10 +1797,10 @@
         //     _media.playbackRate = data.playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
         // }
         playbackEventsOn({
-            'timeupdate': (e, data) => {
-                // conver to seconds from Ticks
-                _media.currentTime = data.playbackManager.currentTime(data.player) / 1e7;
-            },
+            // conver to seconds from Ticks
+            'timeupdate': (e, data) => _media.currentTime = data.playbackManager.currentTime(data.player) / 1e7,
+            'pause': (e, data) => _media.dispatchEvent(new Event('pause')),
+            'unpause': (e, data) => _media.dispatchEvent(new Event('play')),
         });
         console.log('已创建虚拟 video 标签,适配器处理正确结束');
         embyToast({ text: `已创建虚拟 video 标签,适配器处理正确结束` });
@@ -1819,22 +1809,10 @@
     function beforeDestroy() {
         // 此段销毁不重要,可有可无,仅是规范使用
         // 清除弹幕,但未销毁 danmaku 实例
-        if (window.ede.danmaku) {
-            window.ede.danmaku.clear();
-            console.log(`已清除弹幕`);
-        }
-        // 销毁自定义的 initH5VideoAdapter
-        const _container = document.getElementById(eleIds.h5VideoAdapterContainer);
-        if (_container) {
-            _container.remove();
-            console.log(`已销毁 initH5VideoAdapter: ${eleIds.h5VideoAdapterContainer}`);
-        }
+        if (window.ede.danmaku) { window.ede.danmaku.clear(); }
         // 以下重要,销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
         const danmakuCtrEle = document.getElementById(eleIds.danmakuCtr);
-        if (danmakuCtrEle) {
-            danmakuCtrEle.remove();
-            console.log(`已销毁弹幕按钮容器: ${eleIds.danmakuCtr}`);
-        }
+        if (danmakuCtrEle) { danmakuCtrEle.remove(); }
         // 以下重要,销毁定时器
         window.ede.destroyTimeoutIds.forEach(id => clearTimeout(id));
         window.ede.destroyTimeoutIds = [];
@@ -1845,8 +1823,7 @@
         console.log('viewshow', e);
         isJellyfin = ApiClient.appName().startsWith('Jellyfin');
         embyItemId = e.detail.params.id ?? embyItemId;
-        let isTargetPage = e.detail.type === 'video-osd';
-        if (isTargetPage) {
+        if (e.detail.type === 'video-osd') {
             window.ede = new EDE();
             initUI();
             initH5VideoAdapter();
@@ -1856,10 +1833,7 @@
     });
     document.addEventListener('viewbeforehide', function (e) {
         console.log('viewbeforehide', e);
-        let isTargetPage = e.detail.type === 'video-osd';
-        if (isTargetPage) {
-            beforeDestroy();
-        }
+        if ( e.detail.type === 'video-osd') { beforeDestroy(); }
     });
 
 })();
