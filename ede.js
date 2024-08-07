@@ -73,7 +73,7 @@
             }
             console.log('切换弹幕开关');
             window.ede.danmakuSwitch = (window.ede.danmakuSwitch + 1) % 2;
-            window.localStorage.setItem(lsKeys.danmakuSwitch, window.ede.danmakuSwitch);
+            lsSetItem(lsKeys.switch.id, window.ede.danmakuSwitch);
             document.querySelector('#displayDanmaku').children[0].innerText = danmaku_icons[window.ede.danmakuSwitch];
             if (window.ede.danmaku) {
                 window.ede.danmakuSwitch == 1 ? window.ede.danmaku.show() : window.ede.danmaku.hide();
@@ -104,7 +104,7 @@
             }
             console.log('切换简繁转换');
             window.ede.chConvert = (window.ede.chConvert + 1) % 3;
-            window.localStorage.setItem(lsKeys.chConvert, window.ede.chConvert);
+            lsSetItem(lsKeys.chConvert.id, window.ede.chConvert);
             document.querySelector('#translateDanmaku').setAttribute('title', chConverTtitle[window.ede.chConvert]);
             loadDanmaku(LOAD_TYPE.REFRESH);
             console.log(document.querySelector('#translateDanmaku').getAttribute('title'));
@@ -132,31 +132,31 @@
         title: '弹幕密度等级',
         id: 'filteringDanmaku',
         innerText: null,
-        onclick: () => {
-            let level = parseInt(window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0);
+        onclick: () => { 
+            let level = lsGetItem(lsKeys.filterLevel.id);
             level = (level + 1) % 4;
             console.log(`切换弹幕密度等级: ${level}`);
-            doDanmakuChange({ danmakuFilterLevel: level });
+            if (lsCheckSet(lsKeys.filterLevel.id, level)) { loadDanmaku(LOAD_TYPE.RELOAD); }
             document.getElementById(eleIds.filteringDanmaku).children[0].innerText = filter_icons[level];
         },
     };
     // if showSettingBtns = true -- end --
 
     const lsKeys = {
-        chConvert: 'chConvert',
-        danmakuSwitch: 'danmakuSwitch',
-        danmakuFilterLevel: 'danmakuFilterLevel',
-        danmakuHeightRatio: 'danmakuHeightRatio',
-        danmakuFontSizeMagnification: 'danmakuFontSizeMagnification',
-        danmakuFontOpacity: 'danmakuFontOpacity',
-        danmakuSpeed: 'danmakuSpeed',
-        danmakuTimelineOffset: 'danmakuTimelineOffset',
-        danmakuTypeFilter: 'danmakuTypeFilter',
-        danmakuSourceFilter: 'danmakuSourceFilter',
-        danmakuShowSource: 'danmakuShowSource',
-        danmakuEngine: 'danmakuEngine',
-        danmakuFilterKeywords: 'danmakuFilterKeywords',
-        danmakuFilterKeywordsEnable: 'danmakuFilterKeywordsEnable',
+        chConvert: { id: 'danmakuChConvert', defaultValue: 1}, 
+        switch: { id: 'danmakuSwitch', defaultValue: 1},
+        filterLevel: { id: 'danmakuFilterLevel', defaultValue: 0},
+        heightRatio: { id: 'danmakuHeightRatio', defaultValue: 1},
+        fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1},
+        fontOpacity: { id: 'danmakuFontOpacity', defaultValue: 1},
+        speed: { id: 'danmakuSpeed', defaultValue: 1},
+        timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0},
+        typeFilter: { id: 'danmakuTypeFilter', defaultValue: []},
+        sourceFilter: { id: 'danmakuSourceFilter', defaultValue: []},
+        showSource: { id: 'danmakuShowSource', defaultValue: []},
+        engine: { id: 'danmakuEngine', defaultValue: 'canvas'},
+        filterKeywords: { id: 'danmakuFilterKeywords', defaultValue: ''},
+        filterKeywordsEnable: { id: 'danmakuFilterKeywordsEnable', defaultValue: true},
     };
     const eleIds = {
         danmakuCtr: 'danmakuCtr',
@@ -217,9 +217,8 @@
     const embyTabsButtonClass = 'emby-button secondaryText emby-tab-button main-tab-button';
     const embySelectStyle = 'font-size: inherit;font-family: inherit;font-weight: inherit;padding-top: 0;padding-bottom: 0;box-sizing: border-box;outline: 0 !important;-webkit-tap-highlight-color: transparent;width: auto;border-radius: .3em;letter-spacing: inherit;padding-inline-start: 1ch;padding-inline-end: 3.6ch;height: 2.4em;';
     const embyCheckboxListStyle = 'display: flex;flex-wrap: wrap;';
-    const embySliderListStyle = 'display: flex;flex-direction: column;justify-content: center;align-items: center;';
-    const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;';
-    const embySliderLabelStyle = 'width:4em;';
+    const embySliderListStyle = 'display: flex;flex-direction: column;justify-content: center;align-items: center;';//容器内元素垂直排列,横向居中 
+    const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;';//容器内元素横向并排,垂直居中
     const embyOffsetBtnStyle = 'margin: 0;padding: 0;';
     const embyCheckGreenStyle = 'color: #388e3c;';
 
@@ -243,6 +242,7 @@
         { id: 'onlyWhite', name: '彩色弹幕' },
     ];
     const danmakuSource = {
+        AcFun: { id: 'AcFun', name: 'A站(AcFun)' },
         BiliBili: { id: 'BiliBili', name: 'B站(BiliBili)' },
         Gamer: { id: 'Gamer', name: '巴哈(Gamer)' },
         Blank: { id: 'Blank', name: '弹弹(Blank)' }, // 无弹幕来源的默认值
@@ -315,15 +315,9 @@
 
     class EDE {
         constructor() {
-            this.chConvert = 1;
-            if (window.localStorage.getItem(lsKeys.chConvert)) {
-                this.chConvert = window.localStorage.getItem(lsKeys.chConvert);
-            }
+            this.chConvert = lsGetItem(lsKeys.chConvert.id);
             // 0:当前状态关闭 1:当前状态打开
-            this.danmakuSwitch = 1;
-            if (window.localStorage.getItem(lsKeys.danmakuSwitch)) {
-                this.danmakuSwitch = parseInt(window.localStorage.getItem(lsKeys.danmakuSwitch));
-            }
+            this.danmakuSwitch = lsGetItem(lsKeys.switch.id);
             this.danmaku = null;
             this.episode_info = null;
             this.ob = null;
@@ -378,20 +372,20 @@
         inputEle.style.width = '30px';
         inputEle.style.textAlign = 'center';
         inputEle.oninput = () => {
-            var oldValue = window.localStorage.getItem(localStorageKey) ?? '1.0';
-            var fontSizeMagnification = parseFloat(inputEle.value);
-            if (isNaN(fontSizeMagnification)) {
+            var oldValue = lsGetItem(localStorageKey);
+            var fontSizeRate = parseFloat(inputEle.value);
+            if (isNaN(fontSizeRate)) {
                 inputEle.value = oldValue;
                 sliderEle.value = oldValue;
                 alert('请输入有效的数字！');
-            } else if (fontSizeMagnification < inputOpts.min
-                || fontSizeMagnification > inputOpts.max
+            } else if (fontSizeRate < inputOpts.min
+                || fontSizeRate > inputOpts.max
             ) {
                 inputEle.value = oldValue;
                 sliderEle.value = oldValue;
                 alert(`请输入${inputOpts.min}到${inputOpts.max}之间的数字！`);
             } else {
-                sliderEle.value = fontSizeMagnification.toFixed(1);
+                sliderEle.value = fontSizeRate.toFixed(1);
             }
         };
         // 监听 Input 回车结束设置
@@ -400,7 +394,7 @@
                 popDiv.style.display = 'none';
                 if (popDiv.startSetter) {
                     popDiv.startSetter = undefined;
-                    doDanmakuChange({ localStorageKey: inputEle.value });
+                    if (lsCheckSet(localStorageKey, inputEle.value)) { loadDanmaku(LOAD_TYPE.RELOAD); }
                 }
             }
         });
@@ -452,22 +446,22 @@
         popDiv.style.alignItems = 'center';
 
         // 大小调整 SubPanel
-        const fontSizeSetPopDiv = createSubPanel(popDiv, '大小', lsKeys.danmakuFontSizeMagnification);
+        const fontSizeSetPopDiv = createSubPanel(popDiv, '大小', lsKeys.fontSizeRate.id);
         const fontSizeInput = fontSizeSetPopDiv.getInput();
         const fontSizeSlider = fontSizeSetPopDiv.getSlider();
 
         // 透明度调整 SubPanel
-        const fontOpacitySetPopDiv = createSubPanel(popDiv, '透明度', lsKeys.danmakuFontOpacity, { max: 1 });
+        const fontOpacitySetPopDiv = createSubPanel(popDiv, '透明度', lsKeys.fontOpacity.id, { max: 1 });
         const fontOpacityInput = fontOpacitySetPopDiv.getInput();
         const fontOpacitySlider = fontOpacitySetPopDiv.getSlider();
 
         // 基准速度调整 SubPanel
-        const speedSetPopDiv = createSubPanel(popDiv, '速度', lsKeys.danmakuSpeed);
+        const speedSetPopDiv = createSubPanel(popDiv, '速度', lsKeys.speed.id);
         const speedInput = speedSetPopDiv.getInput();
         const speedSlider = speedSetPopDiv.getSlider();
 
         // 时间轴偏移秒数调整 SubPanel
-        const timelineOffsetSetPopDiv = createSubPanel(popDiv, '轴偏秒', lsKeys.danmakuTimelineOffset, {
+        const timelineOffsetSetPopDiv = createSubPanel(popDiv, '轴偏秒', lsKeys.timelineOffset.id, {
             min: -30, max: 30, step: 1,
         });
         const timelineOffsetInput = timelineOffsetSetPopDiv.getInput();
@@ -494,14 +488,10 @@
         button.addEventListener('click', function (event) {
             if (popDiv.style.display == 'none') {
                 // 赋初值
-                let curFontSizeMag = localStorage.getItem(lsKeys.danmakuFontSizeMagnification);
-                let curFontOpacity = localStorage.getItem(lsKeys.danmakuFontOpacity);
-                let curSpeed = localStorage.getItem(lsKeys.danmakuSpeed);
-                let curTimelineOffset = localStorage.getItem(lsKeys.danmakuTimelineOffset);
-                curFontSizeMag = isNaN(parseFloat(curFontSizeMag)) ? '1.0' : curFontSizeMag;
-                curFontOpacity = isNaN(parseFloat(curFontOpacity)) ? '1.0' : curFontOpacity;
-                curSpeed = isNaN(parseFloat(curSpeed)) ? '1.0' : curSpeed;
-                curTimelineOffset = isNaN(parseFloat(curTimelineOffset)) ? '0.0' : curTimelineOffset;
+                let curFontSizeMag = lsGetItem(lsKeys.fontSizeRate.id);
+                let curFontOpacity = lsGetItem(lsKeys.fontOpacity.id);
+                let curSpeed = lsGetItem(lsKeys.speed.id);
+                let curTimelineOffset = lsGetItem(lsKeys.timelineOffset.id);
                 fontSizeSlider.value = curFontSizeMag;
                 fontSizeInput.value = curFontSizeMag;
                 fontOpacitySlider.value = curFontOpacity;
@@ -527,12 +517,13 @@
                 popDiv.style.display = 'none';
                 if (popDiv.startSetter) {
                     popDiv.startSetter = undefined;
-                    doDanmakuChange({
-                        [lsKeys.danmakuFontSizeMagnification]: fontSizeInput.value,
-                        [lsKeys.danmakuFontOpacity]: fontOpacityInput.value,
-                        [lsKeys.danmakuSpeed]: speedInput.value,
-                        [lsKeys.danmakuTimelineOffset]: timelineOffsetInput.value,
-                    });
+                    let keyValues = {
+                        [lsKeys.fontSizeRate.id]: fontSizeInput.value,
+                        [lsKeys.fontOpacity.id]: fontOpacityInput.value,
+                        [lsKeys.speed.id]: speedInput.value,
+                        [lsKeys.timelineOffset.id]: timelineOffsetInput.value,
+                    }
+                    if (lsMultCheckSet(keyValues)) { loadDanmaku(LOAD_TYPE.RELOAD);};
                 }
             }
         });
@@ -547,34 +538,16 @@
             popDiv.style.display = 'none';
             if (popDiv.startSetter) {
                 popDiv.startSetter = undefined;
-                doDanmakuChange({ 
-                    [lsKeys.danmakuFontSizeMagnification]: fontSizeInput.value,
-                    [lsKeys.danmakuFontOpacity]: fontOpacityInput.value,
-                    [lsKeys.danmakuSpeed]: speedInput.value,
-                    [lsKeys.danmakuTimelineOffset]: timelineOffsetInput.value,
-                });
+                let keyValues = {
+                    [lsKeys.fontSizeRate.id]: fontSizeInput.value,
+                    [lsKeys.fontOpacity.id]: fontOpacityInput.value,
+                    [lsKeys.speed.id]: speedInput.value,
+                    [lsKeys.timelineOffset.id]: timelineOffsetInput.value,
+                }
+                if (lsMultCheckSet(keyValues)) { loadDanmaku(LOAD_TYPE.RELOAD);};
             }
         });
         return button;
-    }
-
-    /**
-     * 热重载弹幕并更新本地存储值,例如执行弹幕大小和透明度变换...
-     * @param {Object} keyValuePairs - 键值对对象,如 {key1: value1, key2: value2}
-     * @param {Function} [callback] - 更新后执行的回调函数
-     */
-    function doDanmakuChange(keyValuePairs, callback) {
-        let flag = false;
-        Object.keys(keyValuePairs).forEach(key => {
-            const oldValue = window.localStorage.getItem(key);
-            const newValue = keyValuePairs[key];
-            if (newValue !== oldValue) {
-                window.localStorage.setItem(key, newValue);
-                flag = true;
-            }
-        });
-        if (flag) { loadDanmaku(LOAD_TYPE.RELOAD); }
-        if (typeof callback === 'function') { callback(); }
     }
 
     function initListener() {
@@ -614,7 +587,6 @@
             }, check_interval));
             return;
         }
-
         // 在老客户端上存在右侧按钮,在右侧按钮前添加
         const rightButtonsStr = `.videoOsdBottom-buttons-right`;
         const rightButtons = parent.querySelector(rightButtonsStr);
@@ -640,7 +612,7 @@
             translateButtonOpts.title = chConverTtitle[window.ede.chConvert];
             menubar.appendChild(createButton(translateButtonOpts));
             // 屏蔽密度等级
-            filterButtonOpts.innerText = filter_icons[parseInt(window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0)];
+            filterButtonOpts.innerText = filter_icons[lsGetItem(lsKeys.filterLevel.id)];
             menubar.appendChild(createButton(filterButtonOpts));
             // 弹幕信息
             menubar.appendChild(createButton(infoButtonOpts));
@@ -866,18 +838,18 @@
         wrapper.id = eleIds.danmakuWrapper;
         wrapper.style.position = 'fixed';
         wrapper.style.width = '100%';
-        wrapper.style.height = `calc(${lsGetOrDefault(lsKeys.danmakuHeightRatio, 1) * 100}% - ${wrapperTop}px)`;
-        // wrapper.style.opacity = lsGetOrDefault(lsKeys.danmakuFontOpacity, 1); // 弹幕整体透明度
+        wrapper.style.height = `calc(${lsGetItem(lsKeys.heightRatio.id) * 100}% - ${wrapperTop}px)`;
+        // wrapper.style.opacity = lsGetItem(lsKeys.fontOpacity.id); // 弹幕整体透明度
         wrapper.style.top = wrapperTop + 'px';
         wrapper.style.pointerEvents = 'none';
         _container.prepend(wrapper);
         // 弹幕基准速度,这里可以根据屏幕尺寸再计算添加倍率,不过还是设备上手调比较简单
-        let _speed = 144 * lsGetOrDefault(lsKeys.danmakuSpeed, 1);
+        let _speed = 144 * lsGetItem(lsKeys.speed.id);
         window.ede.danmaku = new Danmaku({
             container: wrapper,
             media: _media,
             comments: _comments,
-            engine: localStorage.getItem(lsKeys.danmakuEngine) || 'canvas',
+            engine: lsGetItem(lsKeys.engine.id),
             speed: _speed,
         });
         window.ede.danmakuSwitch == 1 ? window.ede.danmaku.show() : window.ede.danmaku.hide();
@@ -990,7 +962,7 @@
 
     /** 过滤弹幕类型 */
     function danmakuTypeFilter(comments) {
-        let idArray = lsGetOrDefault(lsKeys.danmakuTypeFilter, [], JSON.parse);
+        let idArray = lsGetItem(lsKeys.typeFilter.id);
         // 彩色过滤,只留下默认的白色
         if (idArray.includes('onlyWhite')) {
             comments = comments.filter(c => '#ffffff' === c.style.color.toLowerCase().slice(0, 7));
@@ -1005,12 +977,12 @@
 
     /** 过滤弹幕来源 */
     function danmakuSourceFilter(comments) {
-        return comments.filter(c => !(lsGetOrDefault(lsKeys.danmakuSourceFilter, [], JSON.parse).includes(c.source)));
+        return comments.filter(c => !(lsGetItem(lsKeys.sourceFilter.id).includes(c.source)));
     }
 
     /** 过滤弹幕密度等级,水平和垂直 */
     function danmakuDensityLevelFilter(comments) {
-        let level = parseInt(window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0);
+        let level = lsGetItem(lsKeys.filterLevel.id);
         if (level == 0) {
             return comments;
         }
@@ -1043,8 +1015,8 @@
 
     /** 通过屏蔽关键词过滤弹幕 */
     function danmakuKeywordsFilter(comments) {
-        if (localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable) !== '1') { return comments; }
-        const keywords = localStorage.getItem(lsKeys.danmakuFilterKeywords)
+        if (!lsGetItem(lsKeys.filterKeywordsEnable.id)) { return comments; }
+        const keywords = lsGetItem(lsKeys.filterKeywords.id)
             ?.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
         if (keywords.length === 0) { return comments; }
         return comments.filter(comment => {
@@ -1062,24 +1034,24 @@
     function danmakuParser($obj) {
         //const fontSize = Number(values[2]) || 25
         // 弹幕大小
-        const fontSizeMagnification = lsGetOrDefault(lsKeys.danmakuFontSizeMagnification, 1);
+        const fontSizeRate = lsGetItem(lsKeys.fontSizeRate.id);
         let fontSize = 25;
         const h3Ele = document.querySelector(isJellyfin ? '.osdTitle' : '.videoOsdTitle');
         if (h3Ele) {
-            fontSize = parseFloat(getComputedStyle(h3Ele).fontSize.replace('px', '')) * fontSizeMagnification;
+            fontSize = parseFloat(getComputedStyle(h3Ele).fontSize.replace('px', '')) * fontSizeRate;
         } else {
             fontSize = Math.round(
                 (window.screen.height > window.screen.width 
                     ? window.screen.width 
-                    : window.screen.height / 1080) * 18 * fontSizeMagnification
+                    : window.screen.height / 1080) * 18 * fontSizeRate
             );
         }
         // 弹幕透明度
-        const fontOpacity = Math.round(lsGetOrDefault(lsKeys.danmakuFontOpacity, 1) * 255).toString(16);
+        const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16);
         // 时间轴偏移秒数
-        const timelineOffset = lsGetOrDefault(lsKeys.danmakuTimelineOffset, 0, parseInt);
+        const timelineOffset = lsGetItem(lsKeys.timelineOffset.id);
         const sourceUidReg = /\[(.*)\](.*)/;
-        const showSourceIds = lsGetOrDefault(lsKeys.danmakuShowSource, [], JSON.parse);
+        const showSourceIds = lsGetItem(lsKeys.showSource.id);
         //const $xml = new DOMParser().parseFromString(string, 'text/xml')
         return $obj
             .map(($comment) => {
@@ -1109,7 +1081,7 @@
                     source: values[3].match(sourceUidReg)?.[1] || danmakuSource.Blank.id,
                     originalUserId: values[3].match(sourceUidReg)?.[2] || values[3],
                 };
-                c.text += showSourceIds.map(id => id === showSource.source.id ? `[${c[id]}]` : c[id]).join();
+                c.text += showSourceIds.map(id => id === showSource.source.id ? `,[${c[id]}]` : ',' + c[id]).join('');
                 return c;
             })
             .filter((x) => x);
@@ -1198,24 +1170,24 @@
             <div>
                 <label class="${embyLabelClass}">弹幕样式: </label>
                 <div style="${embySliderStyle}">
-                    <label class="${embyLabelClass}" style="${embySliderLabelStyle}">大小: </label>
+                    <label class="${embyLabelClass}" style="width:4em;">大小: </label>
                     <div id="${eleIds.danmakuSizeDiv}" style="width: 15.5em; text-align: center;"></div>
-                    <label id="${eleIds.danmakuSizeLabel}" style="${embySliderLabelStyle}"></label>
+                    <label id="${eleIds.danmakuSizeLabel}" style="width:4em;"></label>
                 </div>
                 <div style="${embySliderStyle}">
-                    <label class="${embyLabelClass}" style="${embySliderLabelStyle}">透明度: </label>
+                    <label class="${embyLabelClass}" style="width:4em;">透明度: </label>
                     <div id="${eleIds.danmakuAlphaDiv}" style="width: 15.5em; text-align: center;"></div>
-                    <label id="${eleIds.danmakuAlphaLabel}" style="${embySliderLabelStyle}"></label>
+                    <label id="${eleIds.danmakuAlphaLabel}" style="width:4em;"></label>
                 </div>
                 <div style="${embySliderStyle}">
-                    <label class="${embyLabelClass}" style="${embySliderLabelStyle}">速度: </label>
+                    <label class="${embyLabelClass}" style="width:4em;">速度: </label>
                     <div id="${eleIds.danmakuSpeedDiv}" style="width: 15.5em; text-align: center;"></div>
-                    <label id="${eleIds.danmakuSpeedLabel}" style="${embySliderLabelStyle}"></label>
+                    <label id="${eleIds.danmakuSpeedLabel}" style="width:4em;"></label>
                 </div>
                 <div style="${embySliderStyle}">
-                    <label class="${embyLabelClass}" style="${embySliderLabelStyle}">轴偏秒: </label>
+                    <label class="${embyLabelClass}" style="width:4em;">轴偏秒: </label>
                     <div id="${eleIds.danmakuOffsetDiv}" style="width: 15.5em; text-align: center;"></div>
-                    <label id="${eleIds.danmakuOffsetLabel}" style="${embySliderLabelStyle}">0</label>
+                    <label id="${eleIds.danmakuOffsetLabel}" style="width:4em;">0</label>
                 </div>
             </div>
         `;
@@ -1226,30 +1198,33 @@
         
         let chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
         container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
-        let engineTabs = embyTabs(danmakuEngineOpts, localStorage.getItem(lsKeys.danmakuEngine) ?? danmakuEngineOpts[0].id
+        let engineTabs = embyTabs(danmakuEngineOpts, lsGetItem(lsKeys.engine.id)
             , 'id', 'name', doDanmakuEngineSelect);
         container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
         //滑块
-        let sizeSlider = embySlider({ labelId: eleIds.danmakuSizeLabel, key: lsKeys.danmakuFontSizeMagnification }
-            , {}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
-        let alphaSlider = embySlider({ labelId: eleIds.danmakuAlphaLabel, key: lsKeys.danmakuFontOpacity }
-            , { max: 1}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
-        let speedSlider = embySlider({ labelId: eleIds.danmakuSpeedLabel, key: lsKeys.danmakuSpeed }
-            , {}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
+        let fontSizeRate = lsGetItem(lsKeys.fontSizeRate.id);
+        let FontOpacity = lsGetItem(lsKeys.fontOpacity.id);
+        let danmakuSpeed = lsGetItem(lsKeys.speed.id);
+        let sizeSlider = embySlider({ labelId: eleIds.danmakuSizeLabel, key: lsKeys.fontSizeRate.id }
+            , { value: fontSizeRate}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
+        let alphaSlider = embySlider({ labelId: eleIds.danmakuAlphaLabel, key: lsKeys.fontOpacity.id }
+            , { max: 1, value: FontOpacity}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
+        let speedSlider = embySlider({ labelId: eleIds.danmakuSpeedLabel, key: lsKeys.speed.id }
+            , { value: danmakuSpeed}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
         container.querySelector('#' + eleIds.danmakuSizeDiv).appendChild(sizeSlider);
         container.querySelector('#' + eleIds.danmakuAlphaDiv).appendChild(alphaSlider);
         container.querySelector('#' + eleIds.danmakuSpeedDiv).appendChild(speedSlider);
-        embySliderSetValue(sizeSlider, localStorage.getItem(lsKeys.danmakuFontSizeMagnification) || '1.0');
-        embySliderSetValue(alphaSlider, localStorage.getItem(lsKeys.danmakuFontOpacity) || '1.0');
-        embySliderSetValue(speedSlider, localStorage.getItem(lsKeys.danmakuSpeed) || '1.0');
+        document.getElementById(eleIds.danmakuSizeLabel).innerText = fontSizeRate;
+        document.getElementById(eleIds.danmakuAlphaLabel).innerText = FontOpacity;
+        document.getElementById(eleIds.danmakuSpeedLabel).innerText = danmakuSpeed;
         let btnContainer = container.querySelector('#' + eleIds.danmakuOffsetDiv);
-        let styleOffsetOpts = { labelId: eleIds.danmakuOffsetLabel, key: lsKeys.danmakuTimelineOffset };
-        onDanmakuStyleChangeLabel(localStorage.getItem(lsKeys.danmakuTimelineOffset) || '0', styleOffsetOpts);
+        let styleOffsetOpts = { labelId: eleIds.danmakuOffsetLabel, key: lsKeys.timelineOffset.id };
+        onDanmakuStyleChangeLabel(lsGetItem(lsKeys.timelineOffset.id), styleOffsetOpts);
         danmakuStyleOffsetBtns.forEach(btn => {
             btnContainer.appendChild(embyButton(btn, (event) => {
                 const element = event.target.nodeName.toLowerCase() === 'i' ? event.target.parentElement : event.target;
                 if (element) {
-                    let oldValue = lsGetOrDefault(lsKeys.danmakuTimelineOffset, 0);
+                    let oldValue = lsGetItem(lsKeys.timelineOffset.id);
                     let newValue = oldValue + (parseFloat(element.getAttribute('styleOffset')) || 0);
                     // 如果 offset 为 0,则 newValue 应该设置为 0
                     if (newValue === oldValue) { newValue = 0;}
@@ -1360,22 +1335,22 @@
 
         container.querySelector('#' + eleIds.danmakuTypeFilterDiv).appendChild(
             embyCheckboxList(null, eleIds.danmakuTypeFilterSelectName
-                , localStorage.getItem(lsKeys.danmakuTypeFilter), danmakuTypeFilterOpts, doDanmakuTypeFilterSelect)
+                , lsGetItem(lsKeys.typeFilter.id), danmakuTypeFilterOpts, doDanmakuTypeFilterSelect)
         );
         container.querySelector('#' + eleIds.danmakuSourceFilterDiv).appendChild(
             embyCheckboxList(null, eleIds.danmakuSourceFilterSelectName
-                , localStorage.getItem(lsKeys.danmakuSourceFilter), Object.values(danmakuSource), doDanmakuSourceFilterSelect)
+                , lsGetItem(lsKeys.sourceFilter.id), Object.values(danmakuSource), doDanmakuSourceFilterSelect)
         );
         container.querySelector('#' + eleIds.danmakuShowSourceDiv).appendChild(
             embyCheckboxList(null, eleIds.danmakuShowSourceSelectName
-                , localStorage.getItem(lsKeys.danmakuShowSource), Object.values(showSource), doDanmakuShowSourceSelect)
+                , lsGetItem(lsKeys.showSource.id), Object.values(showSource), doDanmakuShowSourceSelect)
         );
         container.querySelector('#' + eleIds.danmakuFilterLevelDiv).appendChild(
-            embyTabs(danmakuFilterLevelOpts, localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0
+            embyTabs(danmakuFilterLevelOpts, lsGetItem(lsKeys.filterLevel.id)
                 , 'id', 'name', doDanmakuFilterLevelChange)
         );
         container.querySelector('#' + eleIds.danmakuHeightRatioDiv).appendChild(
-            embyTabs(danmakuHeightRatioOpts, lsGetOrDefault(lsKeys.danmakuHeightRatio, 1) 
+            embyTabs(danmakuHeightRatioOpts, lsGetItem(lsKeys.heightRatio.id) 
                 , 'id', 'name', danmakuHeightRatioChange)
         );
         // 屏蔽关键字
@@ -1385,13 +1360,12 @@
         keywordsBtn.disabled = true;
         keywordsEnableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 90%;');
         keywordsEnableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', ''
-            , (localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable) ?? '0') === '1'
-            , (flag) => updateFilterKeywordsBtn(keywordsBtn, flag
+            , lsGetItem(lsKeys.filterKeywordsEnable.id), (flag) => updateFilterKeywordsBtn(keywordsBtn, flag
                 , document.getElementById(eleIds.filterKeywordsId).value.trim()))
         );
         keywordsEnableDiv.appendChild(document.createElement('div')).appendChild(keywordsBtn);
         keywordsContainer.appendChild(document.createElement('div')).appendChild(
-            embyTextarea(eleIds.filterKeywordsId, localStorage.getItem(lsKeys.danmakuFilterKeywords) ?? ''
+            embyTextarea(eleIds.filterKeywordsId, lsGetItem(lsKeys.filterKeywords.id)
             , 'width: 90%;margin-top: 0.2em;', 8, true, false
             , (event) => updateFilterKeywordsBtn(keywordsBtn, document.getElementById(eleIds.filterKeywordsEnableId).checked
                 , event.target.value.trim()))
@@ -1405,7 +1379,7 @@
     function doDanmakuSwitch(flag) {
         console.log('切换弹幕开关');
         window.ede.danmakuSwitch = flag ? 1 : 0;
-        window.localStorage.setItem(lsKeys.danmakuSwitch, window.ede.danmakuSwitch);
+        lsSetItem(lsKeys.switch.id, window.ede.danmakuSwitch);
         document.querySelector('#displayDanmaku').children[0].innerText = danmaku_icons[window.ede.danmakuSwitch];
         if (window.ede.danmaku) {
             flag ? window.ede.danmaku.show() : window.ede.danmaku.hide();
@@ -1486,17 +1460,15 @@
 
     function doDanmakuEngineSelect(index) {
         let selectedValue = danmakuEngineOpts[index].id;
-        if (selectedValue != localStorage.getItem(lsKeys.danmakuEngine)) {
-            localStorage.setItem(lsKeys.danmakuEngine, selectedValue);
+        if (lsCheckSet(lsKeys.engine.id, selectedValue)) { 
             console.log(`已更改弹幕引擎为: ${selectedValue}`);
             loadDanmaku(LOAD_TYPE.RELOAD);
-            // embyToast({ text: `已生效,已更改弹幕引擎为: ${selectedValue}` });
         }
     }
 
     function doDanmakuChConverChange(index) {
         window.ede.chConvert = danmakuChConverOpts[index].id;
-        window.localStorage.setItem(lsKeys.chConvert, window.ede.chConvert);
+        lsSetItem(lsKeys.chConvert.id, window.ede.chConvert);
         document.querySelector('#translateDanmaku')?.setAttribute('title', chConverTtitle[window.ede.chConvert]);
         loadDanmaku(LOAD_TYPE.REFRESH);
         console.log(chConverTtitle[window.ede.chConvert]);
@@ -1505,7 +1477,7 @@
     function doDanmakuFilterLevelChange(index) {
         const level = parseInt(danmakuFilterLevelOpts[index].id);
         console.log(`切换弹幕密度等级: ${level}`);
-        doDanmakuChange({ danmakuFilterLevel: level });
+        if (lsCheckSet(lsKeys.filterLevel.id, level)) { loadDanmaku(LOAD_TYPE.RELOAD);};
         const doc = document.getElementById(eleIds.filteringDanmaku);
         if (doc) {
             doc.children[0].innerHTML = filter_icons[level];
@@ -1515,13 +1487,13 @@
     function danmakuHeightRatioChange(index) {
         const valueStr = danmakuHeightRatioOpts[index].id;
         console.log(`切换弹幕高度比例: ${valueStr}`);
-        doDanmakuChange({ [lsKeys.danmakuHeightRatio]: valueStr });
+        if (lsCheckSet(lsKeys.heightRatio.id, valueStr)) { loadDanmaku(LOAD_TYPE.RELOAD);};
     }
 
     function doDanmakuTypeFilterSelect() {
         const checkList = Array.from(document.getElementsByName(eleIds.danmakuTypeFilterSelectName))
             .filter(item => item.checked).map(item => item.value);
-        localStorage.setItem(lsKeys.danmakuTypeFilter, JSON.stringify(checkList));
+        localStorage.setItem(lsKeys.typeFilter.id, JSON.stringify(checkList));
         loadDanmaku(LOAD_TYPE.RELOAD);
         const idNameMap = new Map(danmakuTypeFilterOpts.map(opt => [opt.id, opt.name]));
         console.log(`当前弹幕类型过滤为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}`);
@@ -1531,16 +1503,15 @@
     function doDanmakuSourceFilterSelect() {
         const checkList = Array.from(document.getElementsByName(eleIds.danmakuSourceFilterSelectName))
             .filter(item => item.checked).map(item => item.value);
-        localStorage.setItem(lsKeys.danmakuSourceFilter, JSON.stringify(checkList));
+        localStorage.setItem(lsKeys.sourceFilter.id, JSON.stringify(checkList));
         loadDanmaku(LOAD_TYPE.RELOAD);
-        const idNameMap = new Map(Object.values(danmakuSource).map(opt => [opt.id, opt.name]));
-        console.log(`当前弹幕来源过滤为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}`);
+        console.log(`当前弹幕来源过滤为: ${JSON.stringify(checkList)}`);
     }
 
     function doDanmakuShowSourceSelect() {
         const checkList = Array.from(document.getElementsByName(eleIds.danmakuShowSourceSelectName))
             .filter(item => item.checked).map(item => item.value);
-        localStorage.setItem(lsKeys.danmakuShowSource, JSON.stringify(checkList));
+        localStorage.setItem(lsKeys.showSource.id, JSON.stringify(checkList));
         loadDanmaku(LOAD_TYPE.RELOAD);
         const idNameMap = new Map(Object.values(showSource).map(opt => [opt.id, opt.name]));
         console.log(`当前弹幕显示来源为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}`);
@@ -1550,9 +1521,7 @@
         // reset the label
         onDanmakuStyleChangeLabel(val, props);
         if (props?.key) {
-            const oldValue = parseFloat(localStorage.getItem(props.key));
-            if (oldValue != parseFloat(val)) {
-                localStorage.setItem(props.key, val);
+            if (lsCheckSet(props.key, val)) {
                 console.log(`${props.key} changed to ${val}`);
                 loadDanmaku(LOAD_TYPE.RELOAD);
             }
@@ -1562,7 +1531,6 @@
     function onDanmakuStyleChangeLabel(val, props) {
         if (props?.labelId) {
             document.getElementById(props.labelId).innerText = val;
-            console.log(`${props.key} slider to ${val}`);
         }
     }
 
@@ -1573,21 +1541,15 @@
             btn.disabled = true;
         }
         let keywords = document.getElementById(eleIds.filterKeywordsId).value.trim();
-        let enable = document.getElementById(eleIds.filterKeywordsEnableId).checked ? '1': '0';
-        if (enable !== localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable)) {
-            localStorage.setItem(lsKeys.danmakuFilterKeywordsEnable, enable);
-        }
-        if (keywords !== localStorage.getItem(lsKeys.danmakuFilterKeywords)) {
-            localStorage.setItem(lsKeys.danmakuFilterKeywords, keywords);
-        } else if (keywords === '') {
-            return;
-        }
+        let enable = document.getElementById(eleIds.filterKeywordsEnableId).checked;
+        lsCheckSet(lsKeys.filterKeywordsEnable.id, enable);
+
+        if (!lsCheckSet(lsKeys.filterKeywords.id, keywords)) { return; }
         loadDanmaku(LOAD_TYPE.RELOAD);
     }
 
     function updateFilterKeywordsBtn(btn, flag, keywords) {
-        const isSame = (flag ? '1': '0') === localStorage.getItem(lsKeys.danmakuFilterKeywordsEnable) 
-            && keywords === localStorage.getItem(lsKeys.danmakuFilterKeywords);
+        const isSame = lsCheckOld(lsKeys.filterKeywordsEnable.id, flag) && lsCheckOld(lsKeys.filterKeywords.id, keywords);
         btn.style = isSame ? '' : embyCheckGreenStyle;
         btn.disabled = isSame;
     }
@@ -1723,8 +1685,9 @@
         return textarea;
     }
 
-    // orient: 'vertical' | 'horizontal' 垂直/水平
-    // props: {id: 'slider id', labelId: 'label id', ...} will return to the callback
+    /** props: {id: 'slider id', labelId: 'label id', ...} will return to the callback
+    *   orient: 'vertical' | 'horizontal' 垂直/水平 
+    */
     function embySlider(props = {}, options = {}, onChange, onSliding) {
         const defaultOpts = { min: 0.1, max: 3, step: 0.1, orient: 'horizontal', bubble: false, hoverthumb: true , style: ''};
         options = { ...defaultOpts, ...options };
@@ -1738,6 +1701,7 @@
         slider.setAttribute('orient', options.orient);
         slider.setAttribute('data-bubble', options.bubble);  // To show the value bubble
         slider.setAttribute('data-hoverthumb', options.hoverthumb);
+        if (options.value) { slider.setValue(options.value);}
         if (typeof onChange === 'function') {
             // Trigger after end of tap/swipe
             slider.addEventListener('change', e => onChange(e.target.value, props));
@@ -1793,12 +1757,6 @@
         return slider;
     }
 
-    // after slider append to container, then call this function to set value to slider
-    function embySliderSetValue(slider, value) {
-        slider.value = value;
-        slider.dispatchEvent(new Event('change'));
-    }
-
     /**
      * see: ../web/modules/dialog/dialog.js
      * opts have type props: unknown
@@ -1830,8 +1788,48 @@
         return typeof keyOrFunc === 'function' ? keyOrFunc(option) : option[keyOrFunc];
     }
 
-    function lsGetOrDefault(key, defaultValue, formatFn = parseFloat) {
-        return formatFn(localStorage.getItem(key)) || defaultValue;
+    // 缓存相关方法
+    function lsGetItem(id) {
+        const key = lsGetKeyById(id);
+        if (!key) { return null; }
+        const defaultValue = lsKeys[key].defaultValue;
+        const item = localStorage.getItem(id);
+        if (item === null) { return defaultValue; }
+        if (Array.isArray(defaultValue)) { return JSON.parse(item); }
+        if (Array.isArray(defaultValue) || typeof defaultValue === 'object') { return JSON.parse(item); }
+        if (typeof defaultValue === 'boolean') { return item === 'true'; }
+        if (typeof defaultValue === 'number') { return parseFloat(item); }
+        return item;
+    }
+    function lsCheckOld(id, value) {
+        return JSON.stringify(lsGetItem(id)) === JSON.stringify(value);
+    }
+    function lsCheckSet(id, value) {
+        if (lsCheckOld(id, value)) { return false; }
+        lsSetItem(id, value);
+        return true;
+    }
+    /** 批量设置缓存
+     * @param {object} keyValues - 键值对对象,如 {key1: value1, key2: value2}
+     * @returns {boolean} - 是否有更新
+     */
+    function lsMultCheckSet(keyValues) {
+        return Object.entries(keyValues).reduce((acc, [id, value]) => (acc || lsCheckSet(id, value)), false);
+    }
+    function lsSetItem(id, value) {
+        if (!lsGetKeyById(id)) { return; }
+        let stringValue;
+        if (Array.isArray(value)) {
+            stringValue = JSON.stringify(value);
+        } else if (typeof value === 'object') {
+            stringValue = JSON.stringify(value);
+        } else {
+            stringValue = value;
+        }
+        localStorage.setItem(id, stringValue);
+    }
+    function lsGetKeyById(id) {
+        return Object.keys(lsKeys).find(key => lsKeys[key].id === id);
     }
 
     // from emby videoosd.js bindToPlayer events, warning: not dom event
