@@ -132,7 +132,7 @@
         title: '弹幕密度等级',
         id: 'filteringDanmaku',
         innerText: null,
-        onclick: () => { 
+        onclick: () => {
             let level = parseInt(window.localStorage.getItem(lsKeys.danmakuFilterLevel) ?? 0);
             level = (level + 1) % 4;
             console.log(`切换弹幕密度等级: ${level}`);
@@ -170,13 +170,14 @@
         danmakuSearchName: 'danmakuSearchName',
         danmakuSearchEpisode: 'danmakuSearchEpisode',
         danmakuEpisodeFlag: 'danmakuEpisodeFlag',
-        danmakuEpisodeDiv: 'danmakuEpisodeDiv',
+        danmakuAnimeDiv: 'danmakuAnimeDiv',
         danmakuSwitchEpisode: 'danmakuSwitchEpisode',
         danmakuEpisodeNumDiv: 'danmakuEpisodeNumDiv',
         danmakuEpisodeLoad: 'danmakuEpisodeLoad',
         danmakuRemark: 'danmakuRemark',
-        danmakuEpisodeSelect: 'danmakuEpisodeSelect',
+        danmakuAnimeSelect: 'danmakuAnimeSelect',
         danmakuEpisodeNumSelect: 'danmakuEpisodeNumSelect',
+        searchImg: 'searchImg',
         // danmakuSetting
         filteringDanmaku: filterButtonOpts.id,
         danmakuTypeFilterDiv: 'danmakuTypeFilterDiv',
@@ -242,14 +243,14 @@
         { id: 'onlyWhite', name: '彩色弹幕' },
     ];
     const danmakuSource = {
-        BiliBili: { id: 'BiliBili', name: 'B站' },
-        Gamer: { id: 'Gamer', name: '巴哈' },
-        Blank: { id: 'Blank', name: '弹弹' },
+        BiliBili: { id: 'BiliBili', name: 'B站(BiliBili)' },
+        Gamer: { id: 'Gamer', name: '巴哈(Gamer)' },
+        Blank: { id: 'Blank', name: '弹弹(Blank)' }, // 无弹幕来源的默认值
     };
     const showSource = {
-        cid: { id: 'cid', name: '弹幕id' },
         source: { id: 'source', name: '弹幕来源' },
         originalUserId: { id: 'originalUserId', name: '来源用户id' },
+        cid: { id: 'cid', name: '弹幕id' },
     };
     // 弹幕引擎
     const danmakuEngineOpts = [
@@ -710,7 +711,7 @@
         }
         let _id;
         let animeName;
-        let anime_id = -1;
+        let animeId = -1;
         let episode;
         if (item.Type == 'Episode') {
             _id = item.SeasonId;
@@ -729,7 +730,7 @@
         let _name_key = '_anime_name_rel_' + _id;
         let _episode_key = '_episode_id_rel_' + _id + '_' + episode;
         if (window.localStorage.getItem(_id_key)) {
-            anime_id = window.localStorage.getItem(_id_key);
+            animeId = window.localStorage.getItem(_id_key);
         }
         if (window.localStorage.getItem(_name_key)) {
             animeName = window.localStorage.getItem(_name_key);
@@ -739,7 +740,7 @@
             _id_key: _id_key,
             _name_key: _name_key,
             _episode_key: _episode_key,
-            anime_id: anime_id,
+            animeId: animeId,
             episode: episode, // this is episode number, not a index
             animeName: animeName,
             seriesOrMovieId: item.SeriesId || item.Id,
@@ -749,7 +750,7 @@
     async function getEpisodeInfo(is_auto = true) {
         const itemInfoMap = await getMapByEmbyItemInfo();
         if (!itemInfoMap) { return null; }
-        const { _episode_key, anime_id } = itemInfoMap;
+        const { _episode_key, animeId } = itemInfoMap;
         let { animeName, episode } = itemInfoMap;
         if (is_auto) {
             if (window.localStorage.getItem(_episode_key)) {
@@ -780,9 +781,9 @@
         }
 
         let selectAnime_id = 1;
-        if (anime_id != -1) {
+        if (animeId != -1) {
             for (let index = 0; index < animaInfo.animes.length; index++) {
-                if (animaInfo.animes[index].animeId == anime_id) {
+                if (animaInfo.animes[index].animeId == animeId) {
                     selectAnime_id = index + 1;
                 }
             }
@@ -803,14 +804,15 @@
             selectAnime_id = parseInt(selectAnime_id) - 1;
             episode = 0;
         // }
-        let episodeInfo = {
+        const episodeInfo = {
             episodeId: animaInfo.animes[selectAnime_id].episodes[episode].episodeId,
-            animeTitle: animaInfo.animes[selectAnime_id].animeTitle,
             episodeTitle: animaInfo.animes[selectAnime_id].type == 'tvseries'
                 ? animaInfo.animes[selectAnime_id].episodes[episode].episodeTitle
                 : null,
+            animeId: animaInfo.animes[selectAnime_id].animeId,
+            animeTitle: animaInfo.animes[selectAnime_id].animeTitle,
         };
-        window.localStorage.setItem(_episode_key, JSON.stringify(episodeInfo));
+        localStorage.setItem(_episode_key, JSON.stringify(episodeInfo));
         return episodeInfo;
     }
 
@@ -838,7 +840,7 @@
     async function createDanmaku(comments) {
         if (!comments) { return; }
         if (window.ede.danmaku != null) {
-            window.ede.danmaku.clear();
+            // window.ede.danmaku.clear();
             window.ede.danmaku.destroy();
             window.ede.danmaku = null;
         }
@@ -1089,7 +1091,7 @@
                 // 弹幕颜色+透明度
                 const color = `000000${Number(values[2]).toString(16)}${fontOpacity}`.slice(-8);
                 const c = {
-                    // text: $comment.m,
+                    text: $comment.m,
                     mode,
                     time: values[0] * 1 + timelineOffset,
                     style: {
@@ -1107,8 +1109,7 @@
                     source: values[3].match(sourceUidReg)?.[1] || danmakuSource.Blank.id,
                     originalUserId: values[3].match(sourceUidReg)?.[2] || values[3],
                 };
-                c.text = showSourceIds.map(id => id === showSource.source.id ? `[${danmakuSource[c[id]].name}],` : c[id] + ',').join('') 
-                    + $comment.m;
+                c.text += showSourceIds.map(id => id === showSource.source.id ? `[${c[id]}]` : c[id]).join();
                 return c;
             })
             .filter((x) => x);
@@ -1146,12 +1147,12 @@
 
     async function afterEmbyDialogCreated() {
         const itemInfoMap = await getMapByEmbyItemInfo();
-        const { _id_key, _name_key, _episode_key, anime_id, animeName, episode } = itemInfoMap;
+        const { _id_key, _name_key, _episode_key, animeId, animeName, episode } = itemInfoMap;
         searchDanmakuOpts = {
             _id_key: _id_key,
             _name_key: _name_key,
             _episode_key: _episode_key,
-            anime_id: anime_id,
+            animeId: animeId,
             animeName: animeName,
             episode: (parseInt(episode) || 1) - 1, // convert to index
             animes: [],
@@ -1229,11 +1230,11 @@
             , 'id', 'name', doDanmakuEngineSelect);
         container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
         //滑块
-        let sizeSlider = embySlider({ labelId: eleIds.danmakuSizeLabel, key: lsKeys.danmakuFontSizeMagnification}
+        let sizeSlider = embySlider({ labelId: eleIds.danmakuSizeLabel, key: lsKeys.danmakuFontSizeMagnification }
             , {}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
-        let alphaSlider = embySlider({ labelId: eleIds.danmakuAlphaLabel, key: lsKeys.danmakuFontOpacity}
+        let alphaSlider = embySlider({ labelId: eleIds.danmakuAlphaLabel, key: lsKeys.danmakuFontOpacity }
             , { max: 1}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
-        let speedSlider = embySlider({ labelId: eleIds.danmakuSpeedLabel, key: lsKeys.danmakuSpeed}
+        let speedSlider = embySlider({ labelId: eleIds.danmakuSpeedLabel, key: lsKeys.danmakuSpeed }
             , {}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
         container.querySelector('#' + eleIds.danmakuSizeDiv).appendChild(sizeSlider);
         container.querySelector('#' + eleIds.danmakuAlphaDiv).appendChild(alphaSlider);
@@ -1259,7 +1260,7 @@
     }
     
     function buildSearchEpisode(containerId) {
-        let container = document.getElementById(containerId);
+        const container = document.getElementById(containerId);
         let template = `
             <div>
                 <div>
@@ -1267,50 +1268,63 @@
                     <div style="display: flex;" id="${eleIds.danmakuSearchNameDiv}"></div>
                 </div>
                 <div id="${eleIds.danmakuEpisodeFlag}" hidden>
-                    <label class="${embyLabelClass}">媒体名: </label>
-                    <div class="${embySelectWrapperClass}" style="max-width: 100%;" id="${eleIds.danmakuEpisodeDiv}"></div>
-                    <label class="${embyLabelClass}">分集名: </label>
                     <div style="display: flex;">
-                        <div class="${embySelectWrapperClass}" style="max-width: 90%;"  id="${eleIds.danmakuEpisodeNumDiv}"></div>
-                        <div id="${eleIds.danmakuEpisodeLoad}"></div>
+                        <div style="width: 80%;">
+                            <label class="${embyLabelClass}">媒体名: </label>
+                            <div class="${embySelectWrapperClass}" style="max-width: 100%;" id="${eleIds.danmakuAnimeDiv}"></div>
+                            <label class="${embyLabelClass}">分集名: </label>
+                            <div style="display: flex;">
+                                <div class="${embySelectWrapperClass}" style="max-width: 90%;"  id="${eleIds.danmakuEpisodeNumDiv}"></div>
+                                <div id="${eleIds.danmakuEpisodeLoad}"></div>
+                            </div>
+                        </div>
+                        <img id="${eleIds.searchImg}" style="width: 20%;margin: 2%;" loading="lazy" decoding="async" draggable="false" class="coveredImage-noScale"></img>
+                        </div>
                     </div>
-                </div>
                 <div>
                     <label class="${embyLabelClass}" id="${eleIds.danmakuRemark}"></label>
                 </div>
             </div>
         `;
         container.innerHTML = template.trim();
-        let searchInput = embyInput(eleIds.danmakuSearchName, null, searchDanmakuOpts.animeName);
-        let searchBtn = embyButton({id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: 'search'}, doDanmakuSearchEpisode);
+        const searchInput = embyInput(eleIds.danmakuSearchName, null, searchDanmakuOpts.animeName);
+        const searchBtn = embyButton({id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: 'search'}, doDanmakuSearchEpisode);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchInput);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchBtn);
-        let loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: 'check', style: embyCheckGreenStyle}
+        const loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: 'check', style: embyCheckGreenStyle}
             , doDanmakuSwitchEpisode);
         container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(loadBtn);
     }
 
     function buildCurrentDanmakuInfo(containerId) {
-        let container = document.getElementById(containerId);
+        const container = document.getElementById(containerId);
         if (!container || !window.ede.episode_info) { return; }
+        const { episodeTitle, animeId, animeTitle } = window.ede.episode_info;
+        const imgSrc = `https://img.dandanplay.net/anime/${animeId}.jpg`;
+        const loadSum = window.ede.danmaku?.comments.length ?? 0;
+        const downloadSum = window.ede.downloadSum;
         let template = `
-            <div>
+            <div style="display: flex;">
+                ${animeId === -1 ? '' :
+                `<img src="${imgSrc}" style="width: 20%;margin-right: 2%;" loading="lazy" decoding="async" draggable="false" class="coveredImage-noScale"></img>`
+                }
                 <div>
-                    <label class="${embyLabelClass}">媒体名: </label>
-                    <div class="${embyTextDivClass}">${window.ede.episode_info.animeTitle}</div>
-                </div>
-                ${window.ede.episode_info.episodeTitle ?
-                `<div>
-                    <label class="${embyLabelClass}">分集名: </label>
-                    <div class="${embyTextDivClass}">${window.ede.episode_info.episodeTitle}</div>
-                </div>`
-                : ''}
-                <div>
-                    <label class="${embyLabelClass}">其它信息: </label>
-                    <div class="${embyTextDivClass}">
-                        获取总条数: ${window.ede.downloadSum}, 
-                        加载总条数: ${window.ede.danmaku?.comments.length}, 
-                        被过滤条数: ${window.ede.downloadSum - window.ede.danmaku?.comments.length ?? 0}
+                    <div>
+                        <label class="${embyLabelClass}">媒体名: </label>
+                        <div class="${embyTextDivClass}">${animeTitle}</div>
+                    </div>
+                    ${!episodeTitle ? '' :
+                    `<div>
+                        <label class="${embyLabelClass}">分集名: </label>
+                        <div class="${embyTextDivClass}">${episodeTitle}</div>
+                    </div>`}
+                    <div>
+                        <label class="${embyLabelClass}">其它信息: </label>
+                        <div class="${embyTextDivClass}">
+                            获取总条数: ${downloadSum}, 
+                            加载总条数: ${loadSum}, 
+                            被过滤条数: ${downloadSum - loadSum}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1406,12 +1420,11 @@
         let searchName = embySearch.value
         const danmakuRemarkEle = document.getElementById(eleIds.danmakuRemark);
         danmakuRemarkEle.innerText = searchName ? '' : '请填写标题';
-        document.querySelector(".mdl-spinner").classList.remove('hide');
-        let anime_id = searchDanmakuOpts.anime_id;
-        let episode = searchDanmakuOpts.episode;
+        const spinnerEle = document.querySelector(".mdl-spinner");
+        spinnerEle.classList.remove('hide');
         
         const animaInfo = await fetchSearchEpisodes(searchName);
-        document.querySelector('.mdl-spinner').classList.add('hide');
+        spinnerEle.classList.add('hide');
         if (!animaInfo || animaInfo.animes.length < 1) {
             danmakuRemarkEle.innerText = '搜索结果为空';
             document.getElementById(eleIds.danmakuSwitchEpisode).disabled = true;
@@ -1420,48 +1433,53 @@
         } else {
             danmakuRemarkEle.innerText = '';
         }
-        let danmakuEpisodeDiv = document.getElementById(eleIds.danmakuEpisodeDiv);
-        let danmakuEpisodeNumDiv = document.getElementById(eleIds.danmakuEpisodeNumDiv);
-        danmakuEpisodeDiv.innerHTML = '';
+        const danmakuAnimeDiv = document.getElementById(eleIds.danmakuAnimeDiv);
+        const danmakuEpisodeNumDiv = document.getElementById(eleIds.danmakuEpisodeNumDiv);
+        danmakuAnimeDiv.innerHTML = '';
         danmakuEpisodeNumDiv.innerHTML = '';
-        let animes = animaInfo.animes;
+        const animes = animaInfo.animes;
         searchDanmakuOpts.animes = animes;
 
-        let selectAnimeIdx = animes.findIndex(anime => anime.animeId == anime_id);
+        let selectAnimeIdx = animes.findIndex(anime => anime.animeId == searchDanmakuOpts.animeId);
         selectAnimeIdx = selectAnimeIdx !== -1 ? selectAnimeIdx : 0;
-        let episodeSelect = embySelect(eleIds.danmakuEpisodeSelect, '剧集: ', selectAnimeIdx
-            , animes, 'animeId', option => `${option.animeTitle} 类型：${option.typeDescription}`, doDanmakuEpisodeSelect);
-        danmakuEpisodeDiv.appendChild(episodeSelect);
-        let episodeNumSelect = embySelect(eleIds.danmakuEpisodeNumSelect, '集数: ', episode
+        const animeSelect = embySelect(eleIds.danmakuAnimeSelect, '剧集: ', selectAnimeIdx
+            , animes, 'animeId', option => `${option.animeTitle} 类型：${option.typeDescription}`, doDanmakuAnimeSelect);
+        danmakuAnimeDiv.appendChild(animeSelect);
+        const episodeNumSelect = embySelect(eleIds.danmakuEpisodeNumSelect, '集数: ', searchDanmakuOpts.episode
             , animes[selectAnimeIdx].episodes, 'episodeId', 'episodeTitle');
         episodeNumSelect.style.maxWidth = '100%';
-        danmakuEpisodeNumDiv.appendChild(episodeNumSelect);        
+        danmakuEpisodeNumDiv.appendChild(episodeNumSelect);
         document.getElementById(eleIds.danmakuEpisodeFlag).hidden = false;
         document.getElementById(eleIds.danmakuSwitchEpisode).disabled = false;
+        document.getElementById(eleIds.searchImg).src = 
+            `https://img.dandanplay.net/anime/${animes[selectAnimeIdx].animeId}.jpg`;
     }  
 
-    function doDanmakuEpisodeSelect() {
-        let numDiv = document.getElementById(eleIds.danmakuEpisodeNumDiv);
+    function doDanmakuAnimeSelect() {
+        const numDiv = document.getElementById(eleIds.danmakuEpisodeNumDiv);
         numDiv.innerHTML = '';
-        const idx = document.getElementById(eleIds.danmakuEpisodeSelect).selectedIndex;
-        let episodeNumSelect = embySelect(eleIds.danmakuEpisodeNumSelect, '集数: ', idx
+        const idx = document.getElementById(eleIds.danmakuAnimeSelect).selectedIndex;
+        const episodeNumSelect = embySelect(eleIds.danmakuEpisodeNumSelect, '集数: ', idx
             , searchDanmakuOpts.animes[idx].episodes, 'episodeId', 'episodeTitle');
         episodeNumSelect.style.maxWidth = '100%';
         numDiv.appendChild(episodeNumSelect);
+        document.getElementById(eleIds.searchImg).src = 
+            `https://img.dandanplay.net/anime/${searchDanmakuOpts.animes[idx].animeId}.jpg`;
     }
 
     function doDanmakuSwitchEpisode() {
-        let episodeSelect = document.getElementById(eleIds.danmakuEpisodeSelect);
-        let episodeNumSelect = document.getElementById(eleIds.danmakuEpisodeNumSelect);
+        const animeSelect = document.getElementById(eleIds.danmakuAnimeSelect);
+        const episodeNumSelect = document.getElementById(eleIds.danmakuEpisodeNumSelect);
 
-        let episodeInfo = {
+        const episodeInfo = {
             episodeId: episodeNumSelect.value,
-            animeTitle: searchDanmakuOpts.animes[episodeSelect.selectedIndex].animeTitle,
-            episodeTitle: searchDanmakuOpts.animes[episodeSelect.selectedIndex].type == 'tvseries' 
+            episodeTitle: searchDanmakuOpts.animes[animeSelect.selectedIndex].type == 'tvseries' 
                 ?  episodeNumSelect.options[episodeNumSelect.selectedIndex].text
                 : null,
+            animeId: searchDanmakuOpts.animes[animeSelect.selectedIndex].animeId,
+            animeTitle: searchDanmakuOpts.animes[animeSelect.selectedIndex].animeTitle,
         }
-        window.localStorage.setItem(searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
+        localStorage.setItem(searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
         console.log(`手动匹配信息:`, episodeInfo);
         loadDanmaku(LOAD_TYPE.RELOAD);
     }
