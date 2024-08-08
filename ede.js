@@ -730,6 +730,8 @@
         }
 
         const dialogContainer = document.getElementById(eleIds.dialogContainer);
+        let formDialogHeader = document.querySelector('.formDialogHeader');
+        let formDialogFooter = document.querySelector('.formDialogFooter');
         if (!dialogContainer) {
             window.ede.destroyTimeoutIds.push(setTimeout(() => {
                 console.log("retry dialogContainer!");
@@ -737,12 +739,19 @@
             }, check_interval));
             return;
         }
+        if(!formDialogHeader) {
+            formDialogHeader = dialogContainer;
+        }
         const tabsMenuContainer = document.createElement('div');
         tabsMenuContainer.className = embyTabsMenuClass;
         tabsMenuContainer.appendChild(embyTabs(danmakuTabOpts, danmakuTabOpts[0].id, 'id', 'name', (index) => {
-            danmakuTabOpts.forEach((obj, i) => document.getElementById(obj.id).hidden = i !== index);
+            danmakuTabOpts.forEach((obj, i) => {
+                let elem = document.getElementById(obj.id);
+                if (elem) { elem.hidden = i !== index; }
+            });
         }));
-        dialogContainer.appendChild(tabsMenuContainer);
+        formDialogHeader.appendChild(tabsMenuContainer);
+        formDialogHeader.style = 'width: 100%; padding: 0; height: auto;';
 
         danmakuTabOpts.forEach((tab, index) => {
             if (tab.hidden) { return; }
@@ -753,6 +762,9 @@
             dialogContainer.appendChild(tabContainer);
             tab.buildMethod(tab.id);
         });
+        if (formDialogFooter) {
+            formDialogFooter.style.padding = '0.3em';
+        }
     }
 
     function buildDanmakuSetting(containerId) {
@@ -994,10 +1006,10 @@
         const flag = !lsGetItem(lsKeys.switch.id);
         if (flag) {
             window.ede.danmaku.show();
-            document.getElementById(eleIds.danmakuSwitchBtn).innerHTML = `<i class="md-icon autortl">${iconKeys.switchShow}</i>`;
+            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = iconKeys.switchShow;
         } else {
             window.ede.danmaku.hide();
-            document.getElementById(eleIds.danmakuSwitchBtn).innerHTML = `<i class="md-icon autortl">${iconKeys.switchHide}</i>`;
+            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = iconKeys.switchHide;
         }
         lsSetItem(lsKeys.switch.id, flag);
     }
