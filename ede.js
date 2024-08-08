@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.21
+// @version      1.22
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -17,7 +17,7 @@
 (async function () {
     'use strict';
     // ------ 用户配置 start ------
-    const showSettingBtns = false;  // 是否播放界面下方显示弹幕设置按钮（简繁转换、屏蔽等级、弹幕信息、弹幕大小）
+    const showBtnsTab = false;  // 是否在弹框内显示按钮列表菜单
     // Danmaku 依赖路径,index.html 引入的和篡改猴环境不用填,依赖已内置,被 eval() 执行的特殊环境下使用,支持相对绝对网络路径
     // const requireDanmakuPath = "danmaku.min.js";
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
@@ -35,20 +35,6 @@
         RELOAD: 'reload',
         SEARCH: 'search',
     };
-    // 0:当前状态关闭 1:当前状态打开
-    // const danmaku_icons = ['\uE0B9', '\uE7A2'];
-    const danmaku_icons = ['\uE7A2', '\uE0B9'];
-    // const search_icon = '\uE881';
-    const search_icon = 'tune';
-    const translate_icon = '\uE927';
-    const info_icon = '\uE0E0';
-    const filter_icons = ['\uE3E0', '\uE3D0', '\uE3D1', '\uE3D2'];
-    const danmuStyleSetter_icon = '\uE0F0';
-    const buttonOptions = {
-        // class: 'paper-icon-button-light',
-        class: 'osdIconButton paper-icon-button-light',
-        is: 'paper-icon-button-light',
-    };
     // apiClient.isMinServerVersion("4.8.0.56")
     const appVersion = parseFloat(document.querySelector('html').getAttribute('data-appversion')?.substring(0, 3));
     const isVersionOld = appVersion ? appVersion < 4.8 : true;
@@ -60,89 +46,10 @@
     const notHide = ':not(.hide)';
     mediaContainerQueryStr += notHide;
     const mediaQueryStr = 'video';
-    const displayButtonOpts = {
-        title: '弹幕开关',
-        id: 'displayDanmaku',
-        innerText: null,
-        onclick: () => {
-            if (window.ede.loading) {
-                console.log('正在加载,请稍后再试');
-                return;
-            }
-            console.log('切换弹幕开关');
-            window.ede.danmakuSwitch = (window.ede.danmakuSwitch + 1) % 2;
-            lsSetItem(lsKeys.switch.id, window.ede.danmakuSwitch);
-            document.querySelector('#displayDanmaku').children[0].innerText = danmaku_icons[window.ede.danmakuSwitch];
-            if (window.ede.danmaku) {
-                window.ede.danmakuSwitch == 1 ? window.ede.danmaku.show() : window.ede.danmaku.hide();
-            }
-        },
-    };
-    const searchButtonOpts = {
-        title: '弹幕设置',
-        id: 'searchDanmaku',
-        iconKey: search_icon,
-        onclick: () => {
-            if (window.ede.loading) {
-                console.log('正在加载,请稍后再试');
-                return;
-            }
-            createDialog();
-        },
-    };
-    // if showSettingBtns = true -- start --
-    const translateButtonOpts = {
-        title: null,
-        id: 'translateDanmaku',
-        innerText: translate_icon,
-        onclick: () => {
-            if (window.ede.loading) {
-                console.log('正在加载,请稍后再试');
-                return;
-            }
-            console.log('切换简繁转换');
-            window.ede.chConvert = (window.ede.chConvert + 1) % 3;
-            lsSetItem(lsKeys.chConvert.id, window.ede.chConvert);
-            document.querySelector('#translateDanmaku').setAttribute('title', chConverTtitle[window.ede.chConvert]);
-            loadDanmaku(LOAD_TYPE.REFRESH);
-            console.log(document.querySelector('#translateDanmaku').getAttribute('title'));
-        },
-    };
-    const infoButtonOpts = {
-        title: '弹幕信息',
-        id: 'printDanmakuInfo',
-        innerText: info_icon,
-        onclick: () => {
-            if (!window.ede.episode_info || window.ede.loading) {
-                console.log('正在加载,请稍后再试');
-                return;
-            }
-            console.log('显示当前信息');
-            let msg = '动画名称:' + window.ede.episode_info.animeTitle;
-            if (window.ede.episode_info.episodeTitle) {
-                msg += '\n分集名称:' + window.ede.episode_info.episodeTitle;
-            }
-            sendNotification('当前弹幕匹配', msg);
-        },
-    };
-
-    const filterButtonOpts = {
-        title: '弹幕密度等级',
-        id: 'filteringDanmaku',
-        innerText: null,
-        onclick: () => { 
-            let level = lsGetItem(lsKeys.filterLevel.id);
-            level = (level + 1) % 4;
-            console.log(`切换弹幕密度等级: ${level}`);
-            if (lsCheckSet(lsKeys.filterLevel.id, level)) { loadDanmaku(LOAD_TYPE.RELOAD); }
-            document.getElementById(eleIds.filteringDanmaku).children[0].innerText = filter_icons[level];
-        },
-    };
-    // if showSettingBtns = true -- end --
 
     const lsKeys = {
         chConvert: { id: 'danmakuChConvert', defaultValue: 1 }, 
-        switch: { id: 'danmakuSwitch', defaultValue: 1 },
+        switch: { id: 'danmakuSwitch', defaultValue: true },
         filterLevel: { id: 'danmakuFilterLevel', defaultValue: 0 },
         heightRate: { id: 'danmakuHeightRate', defaultValue: 1 },
         fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1 },
@@ -157,6 +64,7 @@
         filterKeywordsEnable: { id: 'danmakuFilterKeywordsEnable', defaultValue: true },
     };
     const eleIds = {
+        danmakuSwitchBtn: 'danmakuSwitchBtn',
         danmakuCtr: 'danmakuCtr',
         danmakuWrapper: 'danmakuWrapper',
         h5VideoAdapter: 'h5VideoAdapter',
@@ -177,7 +85,7 @@
         danmakuEpisodeNumSelect: 'danmakuEpisodeNumSelect',
         searchImg: 'searchImg',
         // danmakuSetting
-        filteringDanmaku: filterButtonOpts.id,
+        filteringDanmaku: 'filteringDanmaku',
         danmakuTypeFilterDiv: 'danmakuTypeFilterDiv',
         danmakuTypeFilterSelectName: 'danmakuTypeFilterSelectName',
         danmakuSourceFilterDiv: 'danmakuSourceFilterDiv',
@@ -202,6 +110,29 @@
         filterKeywordsEnableId: 'filterKeywordsEnableId',
         filterKeywordsId: 'filterKeywordsId',
     };
+    /* // const danmaku_icons = ['\uE0B9', '\uE7A2'];
+    const danmaku_icons = ['\uE7A2', '\uE0B9'];
+    const search_icon = '\uE881';
+    const translate_icon = '\uE927';
+    const info_icon = '\uE0E0';
+    const filter_icons = ['\uE3E0', '\uE3D0', '\uE3D1', '\uE3D2'];
+    const danmuStyleSetter_icon = '\uE0F0'; */
+    const iconKeys = {
+        sub30:  '&#xe05a;',
+        sub10:  '&#xe059;',
+        sub5:   '&#xe05b;',
+        sub1:   '&#xE042;',
+        reset:  '&#xE040;',
+        add1:   '&#xE042;',
+        add5:   '&#xe058;',
+        add10:  '&#xe056;',
+        add30:  '&#xe057;',
+        switchShow: '\uE0B9',
+        switchHide: '\uE7A2',
+        setting: 'tune',
+        search: 'search',
+        check: 'check',
+    }
     // emby ui class
     const embyLabelClass = 'inputLabel';
     const embyInputClass = 'txtName txtInput-withlockedfield emby-input emby-input-largerfont emby-input-smaller';
@@ -224,12 +155,18 @@
     let searchDanmakuOpts = {};
     // 此id等同于danmakuTabOpts内的弹幕信息的id
     let currentDanmakuInfoContainerId = 'danmakuTab2';
+    // 播放界面下方按钮
+    const mediaBtnOpts = [
+        { id: eleIds.danmakuSwitchBtn, label: '弹幕开关', iconKey: iconKeys.switchShow, onClick: doDanmakuSwitch },
+        { label: '弹幕设置', iconKey: iconKeys.setting, onClick: createDialog },
+    ];
     // 菜单tabs
     const danmakuTabOpts = [
         { id: 'danmakuTab0', name: '弹幕设置', buildMethod: buildDanmakuSetting },
         { id: 'danmakuTab1', name: '手动匹配', buildMethod: buildSearchEpisode},
         { id: currentDanmakuInfoContainerId, name: '弹幕信息', buildMethod: buildCurrentDanmakuInfo },
         { id: 'danmakuTab3', name: '弹幕屏蔽', buildMethod: buildDanmakuFilter },
+        { id: 'danmakuTab4', name: 'btns', buildMethod: buildBtns , hidden: !showBtnsTab},
     ];
     // 弹幕类型过滤
     const danmakuTypeFilterOpts = {
@@ -273,15 +210,15 @@
         { id: '0.25', name: '25%'},
     ];
     const danmakuStyleOffsetBtns = [
-        { label: '-30', styleOffset: '-30', iconKey: '&#xe05a;', style: embyOffsetBtnStyle},
-        { label: '-10', styleOffset: '-10', iconKey: '&#xe059;', style: embyOffsetBtnStyle},
-        { label: '-5', styleOffset: '-5', iconKey: '&#xe05b;', style: embyOffsetBtnStyle},
-        { label: '-1', styleOffset: '-1', iconKey: '&#xE042;', style: embyOffsetBtnStyle},
-        { label: '0', styleOffset: '0', iconKey: '&#xE041;', style: embyOffsetBtnStyle},
-        { label: '+1', styleOffset: '1', iconKey: '&#xE042;', style: embyOffsetBtnStyle + ' transform: rotateY(180deg);'},
-        { label: '+5', styleOffset: '5', iconKey: '&#xe058;', style: embyOffsetBtnStyle},
-        { label: '+10', styleOffset: '10', iconKey: '&#xe056;', style: embyOffsetBtnStyle},
-        { label: '+30', styleOffset: '30', iconKey: '&#xe057;', style: embyOffsetBtnStyle},
+        { label: '-30', styleOffset: '-30', iconKey: iconKeys.sub30, style: embyOffsetBtnStyle},
+        { label: '-10', styleOffset: '-10', iconKey: iconKeys.sub10, style: embyOffsetBtnStyle},
+        { label: '-5',  styleOffset: '-5',  iconKey: iconKeys.sub5,  style: embyOffsetBtnStyle},
+        { label: '-1',  styleOffset: '-1',  iconKey: iconKeys.sub1,  style: embyOffsetBtnStyle},
+        { label: '0',   styleOffset: '0',   iconKey: iconKeys.reset, style: embyOffsetBtnStyle},
+        { label: '+1',  styleOffset: '1',   iconKey: iconKeys.add1,  style: embyOffsetBtnStyle + ' transform: rotateY(180deg);'},
+        { label: '+5',  styleOffset: '5',   iconKey: iconKeys.add5,  style: embyOffsetBtnStyle},
+        { label: '+10', styleOffset: '10',  iconKey: iconKeys.add10, style: embyOffsetBtnStyle},
+        { label: '+30', styleOffset: '30',  iconKey: iconKeys.add30, style: embyOffsetBtnStyle},
     ];
     
     // ------ 程序内部使用,请勿更改 end ------
@@ -315,237 +252,12 @@
         constructor() {
             this.chConvert = lsGetItem(lsKeys.chConvert.id);
             // 0:当前状态关闭 1:当前状态打开
-            this.danmakuSwitch = lsGetItem(lsKeys.switch.id);
             this.danmaku = null;
             this.episode_info = null;
             this.ob = null;
             this.loading = false;
             this.destroyTimeoutIds = [];
         }
-    }
-
-    function createButton(opt) {
-        let button = document.createElement('button');
-        opt = { ...buttonOptions, ...opt };
-        Object.entries(opt).forEach(([key, value]) => button.setAttribute(key, value));
-        if (opt.innerText) {
-            let icon = document.createElement('span');
-            icon.className = 'md-icon autortl';
-            icon.innerText = opt.innerText;
-            button.appendChild(icon);
-        } else if (opt.iconKey) {
-            button.innerHTML = `<i class="md-icon autortl">${opt.iconKey}</i>`;
-        }
-        button.onclick = opt.onclick;
-        return button;
-    }
-
-    // if showSettingBtns = true
-    function createSubPanel(popDiv, label, localStorageKey, inputOpts = {}) {
-        const defaultOpts = { min: 0.1, max: 3, step: 0.1 };
-        inputOpts = { ...defaultOpts, ...inputOpts };
-        // 大小调整SubPanel
-        let subPanelEle = document.createElement('div');
-        subPanelEle.style.display = 'flex';
-        subPanelEle.style.flexDirection = 'column';
-        subPanelEle.style.flexWrap = 'nowrap';
-        subPanelEle.style.justifyContent = 'center';
-        subPanelEle.style.alignItems = 'center';
-        // 滑动条
-        let sliderEle = document.createElement('input');
-        sliderEle.setAttribute('orient', 'vertical');
-        sliderEle.setAttribute('type', 'range');
-        sliderEle.setAttribute('min', String(inputOpts.min));
-        sliderEle.setAttribute('max', String(inputOpts.max));
-        sliderEle.setAttribute('step', String(inputOpts.step));
-        sliderEle.style.width = '30px';
-        sliderEle.style.height = '60px';
-        sliderEle.style.appearance = 'slider-vertical';
-        sliderEle.oninput = () => {
-            inputEle.value = parseFloat(sliderEle.value).toFixed(1);
-        };
-        // 输入框
-        let inputEle = document.createElement('input');
-        inputEle.type = 'text';
-        inputEle.style.width = '30px';
-        inputEle.style.textAlign = 'center';
-        inputEle.oninput = () => {
-            var oldValue = lsGetItem(localStorageKey);
-            var fontSizeRate = parseFloat(inputEle.value);
-            if (isNaN(fontSizeRate)) {
-                inputEle.value = oldValue;
-                sliderEle.value = oldValue;
-                alert('请输入有效的数字！');
-            } else if (fontSizeRate < inputOpts.min
-                || fontSizeRate > inputOpts.max
-            ) {
-                inputEle.value = oldValue;
-                sliderEle.value = oldValue;
-                alert(`请输入${inputOpts.min}到${inputOpts.max}之间的数字！`);
-            } else {
-                sliderEle.value = fontSizeRate.toFixed(1);
-            }
-        };
-        // 监听 Input 回车结束设置
-        inputEle.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                popDiv.style.display = 'none';
-                if (popDiv.startSetter) {
-                    popDiv.startSetter = undefined;
-                    if (lsCheckSet(localStorageKey, inputEle.value)) { loadDanmaku(LOAD_TYPE.RELOAD); }
-                }
-            }
-        });
-        // 标签
-        let labelEle = document.createElement('span');
-        labelEle.innerText = label;
-
-        // DOM, 将滑动条和输入框和描述添加到 subPanel
-        subPanelEle.appendChild(sliderEle);
-        subPanelEle.appendChild(inputEle);
-        subPanelEle.appendChild(labelEle);
-        // Props, 定义获取元素的方法
-        subPanelEle.getSlider = () => sliderEle;
-        subPanelEle.getInput = () => inputEle;
-        subPanelEle.getLabel = () => labelEle;
-        return subPanelEle;
-    }
-
-    /** 调整字幕大小和透明度的Button
-     *  if showSettingBtns = true
-     * @returns
-     */
-    function createResizeButton() {
-        // 创建按钮
-        // let button = document.createElement('button', buttonOptions);
-        let button = document.createElement('button');
-        for (let key in buttonOptions) {
-            button.setAttribute(key, buttonOptions[key]);
-        }
-        button.setAttribute('title', '弹幕调整');
-        button.setAttribute('id', 'danmuStyleSetter');
-        //创建按钮图标
-        let icon = document.createElement('span');
-        icon.className = 'md-icon';
-        icon.innerText = danmuStyleSetter_icon;
-
-        // 创建弹出面板
-        let popDiv = document.getElementById('danmuStyleSetterPopPanel');
-        if (popDiv) popDiv.remove();
-        popDiv = document.createElement('div');
-        popDiv.setAttribute('id', 'danmuStyleSetterPopPanel');
-        popDiv.startSetter = undefined;
-        popDiv.style.display = 'none';
-        popDiv.style.position = 'absolute';
-        popDiv.style.padding = '6px';
-        popDiv.style.background = '#555';
-        popDiv.style.flexWrap = 'nowrap';
-        popDiv.style.justifyContent = 'center';
-        popDiv.style.alignItems = 'center';
-
-        // 大小调整 SubPanel
-        const fontSizeSetPopDiv = createSubPanel(popDiv, '大小', lsKeys.fontSizeRate.id);
-        const fontSizeInput = fontSizeSetPopDiv.getInput();
-        const fontSizeSlider = fontSizeSetPopDiv.getSlider();
-
-        // 透明度调整 SubPanel
-        const fontOpacitySetPopDiv = createSubPanel(popDiv, '透明度', lsKeys.fontOpacity.id, { max: 1 });
-        const fontOpacityInput = fontOpacitySetPopDiv.getInput();
-        const fontOpacitySlider = fontOpacitySetPopDiv.getSlider();
-
-        // 基准速度调整 SubPanel
-        const speedSetPopDiv = createSubPanel(popDiv, '速度', lsKeys.speed.id);
-        const speedInput = speedSetPopDiv.getInput();
-        const speedSlider = speedSetPopDiv.getSlider();
-
-        // 时间轴偏移秒数调整 SubPanel
-        const timelineOffsetSetPopDiv = createSubPanel(popDiv, '轴偏秒', lsKeys.timelineOffset.id, {
-            min: -30, max: 30, step: 1,
-        });
-        const timelineOffsetInput = timelineOffsetSetPopDiv.getInput();
-        const timelineOffsetSlider = timelineOffsetSetPopDiv.getSlider();
-
-        // 所有 danmakuCtr 都没渲染
-        const popDivClientWidth = 2 * parseInt(popDiv.style.padding.replace('px', ''))
-            + parseInt(fontSizeInput.style.width.replace('px', ''))
-            + parseInt(fontOpacityInput.style.width.replace('px', ''))
-            + parseInt(speedInput.style.width.replace('px', ''))
-            + parseInt(timelineOffsetInput.style.width.replace('px', ''))
-            + 30; // this is offset for label
-
-        // icon插入button
-        button.appendChild(icon);
-        popDiv.appendChild(fontSizeSetPopDiv);
-        popDiv.appendChild(fontOpacitySetPopDiv);
-        popDiv.appendChild(speedSetPopDiv);
-        popDiv.appendChild(timelineOffsetSetPopDiv);
-        // 将POP插入body
-        document.body.appendChild(popDiv);
-
-        // 监听鼠标点击事件
-        button.addEventListener('click', function (event) {
-            if (popDiv.style.display == 'none') {
-                // 赋初值
-                let curFontSizeMag = lsGetItem(lsKeys.fontSizeRate.id);
-                let curFontOpacity = lsGetItem(lsKeys.fontOpacity.id);
-                let curSpeed = lsGetItem(lsKeys.speed.id);
-                let curTimelineOffset = lsGetItem(lsKeys.timelineOffset.id);
-                fontSizeSlider.value = curFontSizeMag;
-                fontSizeInput.value = curFontSizeMag;
-                fontOpacitySlider.value = curFontOpacity;
-                fontOpacityInput.value = curFontOpacity;
-                speedSlider.value = curSpeed;
-                speedInput.value = curSpeed;
-                timelineOffsetSlider.value = curTimelineOffset;
-                timelineOffsetInput.value = curTimelineOffset;
-
-                // CSS
-                var x = event.clientX - 36 > 0 ? event.clientX - 36 : 0;
-                var y = event.clientY - 160 > 0 ? event.clientY - 160 : 0;
-                // 假如超出屏幕宽度,则将 popDiv 向左移动自身的宽度
-                if (x + popDivClientWidth > window.screen.availWidth) {
-                    x -= popDivClientWidth;
-                }
-
-                popDiv.startSetter = '1';
-                popDiv.style.left = x + 'px';
-                popDiv.style.top = y + 'px';
-                popDiv.style.display = 'flex';
-            } else {
-                popDiv.style.display = 'none';
-                if (popDiv.startSetter) {
-                    popDiv.startSetter = undefined;
-                    let keyValues = {
-                        [lsKeys.fontSizeRate.id]: fontSizeInput.value,
-                        [lsKeys.fontOpacity.id]: fontOpacityInput.value,
-                        [lsKeys.speed.id]: speedInput.value,
-                        [lsKeys.timelineOffset.id]: timelineOffsetInput.value,
-                    }
-                    if (lsMultCheckSet(keyValues)) { loadDanmaku(LOAD_TYPE.RELOAD);};
-                }
-            }
-        });
-        // 监听页面点击事件
-        document.addEventListener('click', function (event) {
-            // 检查点击事件的目标元素是否是div或div内的元素
-            if (event.target === popDiv || popDiv.contains(event.target) 
-                || event.target === button || button.contains(event.target)
-            ) {
-                return; // 如果是，则不执行下面的代码
-            }
-            popDiv.style.display = 'none';
-            if (popDiv.startSetter) {
-                popDiv.startSetter = undefined;
-                let keyValues = {
-                    [lsKeys.fontSizeRate.id]: fontSizeInput.value,
-                    [lsKeys.fontOpacity.id]: fontOpacityInput.value,
-                    [lsKeys.speed.id]: speedInput.value,
-                    [lsKeys.timelineOffset.id]: timelineOffsetInput.value,
-                }
-                if (lsMultCheckSet(keyValues)) { loadDanmaku(LOAD_TYPE.RELOAD);};
-            }
-        });
-        return button;
     }
 
     function initListener() {
@@ -597,44 +309,10 @@
         } else {
             parent.append(menubar);
         }
-        
-        // 弹幕开关
-        displayButtonOpts.innerText = danmaku_icons[window.ede.danmakuSwitch];
-        menubar.appendChild(createButton(displayButtonOpts));
-        // 弹幕设置
-        menubar.appendChild(createButton(searchButtonOpts));
-        if (showSettingBtns) {
-            // 简繁转换
-            translateButtonOpts.title = chConverTtitle[window.ede.chConvert];
-            menubar.appendChild(createButton(translateButtonOpts));
-            // 屏蔽密度等级
-            filterButtonOpts.innerText = filter_icons[lsGetItem(lsKeys.filterLevel.id)];
-            menubar.appendChild(createButton(filterButtonOpts));
-            // 弹幕信息
-            menubar.appendChild(createButton(infoButtonOpts));
-            // 弹幕大小调整
-            menubar.appendChild(createResizeButton());
-        }
+        mediaBtnOpts.forEach(opt => {
+            menubar.appendChild(embyButton(opt, opt.onClick));
+        });
         console.log('UI初始化完成');
-    }
-
-    // android 不兼容, web 和 Electron 兼容
-    function sendNotification(title, msg) {
-        const Notification = window.Notification || window.webkitNotifications;
-        console.log(msg);
-        if (Notification.permission === 'granted') {
-            return new Notification(title, {
-                body: msg,
-            });
-        } else {
-            Notification.requestPermission((permission) => {
-                if (permission === 'granted') {
-                    return new Notification(title, {
-                        body: msg,
-                    });
-                }
-            });
-        }
     }
 
     async function getEmbyItemInfo() {
@@ -720,10 +398,6 @@
                 return JSON.parse(window.localStorage.getItem(_episode_key));
             }
         }
-        // if (!is_auto) {
-        //     animeName = prompt('确认动画名:', animeName);
-        //     if (animeName == null) throw new Error('用户取消确认动画名操作');
-        // }
 
         let animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
         if (is_auto && animaInfo.animes.length == 0) {
@@ -749,22 +423,8 @@
                 }
             }
         }
-        // if (!is_auto) {
-        //     let anime_lists_str = list2string(animaInfo);
-        //     console.log(anime_lists_str);
-        //     selectAnime_id = prompt('选择:\n' + anime_lists_str, selectAnime_id);
-        //     if (selectAnime_id == null) throw new Error('用户取消选择集数操作');
-        //     selectAnime_id = parseInt(selectAnime_id) - 1;
-        //     window.localStorage.setItem(_id_key, animaInfo.animes[selectAnime_id].animeId);
-        //     window.localStorage.setItem(_name_key, animaInfo.animes[selectAnime_id].animeTitle);
-        //     let episode_lists_str = ep2string(animaInfo.animes[selectAnime_id].episodes);
-        //     episode = prompt('确认集数:\n' + episode_lists_str, parseInt(episode));
-        //     if (episode == null) throw new Error('用户取消确认集数操作');
-        //     episode = parseInt(episode) - 1;
-        // } else {
-            selectAnime_id = parseInt(selectAnime_id) - 1;
-            episode = 0;
-        // }
+        selectAnime_id = parseInt(selectAnime_id) - 1;
+        episode = 0;
         const episodeInfo = {
             episodeId: animaInfo.animes[selectAnime_id].episodes[episode].episodeId,
             episodeTitle: animaInfo.animes[selectAnime_id].type == 'tvseries'
@@ -840,7 +500,7 @@
             engine: lsGetItem(lsKeys.engine.id),
             speed: _speed,
         });
-        window.ede.danmakuSwitch == 1 ? window.ede.danmaku.show() : window.ede.danmaku.hide();
+        lsGetItem(lsKeys.switch.id) ? window.ede.danmaku.show() : window.ede.danmaku.hide();
         if (window.ede.ob) {
             window.ede.ob.disconnect();
         }
@@ -1075,30 +735,6 @@
             .filter((x) => x);
     }
 
-    // function list2string($obj2) {
-    //     const $animes = $obj2.animes;
-    //     let anime_lists = $animes.map(($single_anime) => {
-    //         return $single_anime.animeTitle + ' 类型:' + $single_anime.typeDescription;
-    //     });
-    //     let anime_lists_str = '1:' + anime_lists[0];
-    //     for (let i = 1; i < anime_lists.length; i++) {
-    //         anime_lists_str = anime_lists_str + '\n' + (i + 1).toString() + ':' + anime_lists[i];
-    //     }
-    //     return anime_lists_str;
-    // }
-
-    // function ep2string($obj3) {
-    //     const $animes = $obj3;
-    //     let anime_lists = $animes.map(($single_ep) => {
-    //         return $single_ep.episodeTitle;
-    //     });
-    //     let ep_lists_str = '1:' + anime_lists[0];
-    //     for (let i = 1; i < anime_lists.length; i++) {
-    //         ep_lists_str = ep_lists_str + '\n' + (i + 1).toString() + ':' + anime_lists[i];
-    //     }
-    //     return ep_lists_str;
-    // }
-
     async function createDialog() {
         const html = `<div id="${eleIds.dialogContainer}"></div>`;
         embyDialog({ html, buttons: [{ name: '关闭' }] });
@@ -1134,6 +770,7 @@
         dialogContainer.appendChild(tabsMenuContainer);
 
         danmakuTabOpts.forEach((tab, index) => {
+            if (tab.hidden) { return; }
             const tabContainer = document.createElement('div');
             tabContainer.id = tab.id;
             tabContainer.style.textAlign = 'left';
@@ -1180,10 +817,8 @@
             </div>
         `;
         container.innerHTML = template.trim();
-        const switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, eleIds.danmakuSwitch, '弹幕开关', window.ede.danmakuSwitch == 1
-            , window.ede.danmakuSwitch == 1, doDanmakuSwitch);
+        const switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, '', '弹幕开关', '', lsGetItem(lsKeys.switch.id), doDanmakuSwitch);
         container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(switchCheckbox);
-        
         const chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
         container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
         const engineTabs = embyTabs(danmakuEngineOpts, lsGetItem(lsKeys.engine.id)
@@ -1251,10 +886,10 @@
         `;
         container.innerHTML = template.trim();
         const searchInput = embyInput(eleIds.danmakuSearchName, null, searchDanmakuOpts.animeName);
-        const searchBtn = embyButton({id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: 'search'}, doDanmakuSearchEpisode);
+        const searchBtn = embyButton({id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: iconKeys.search}, doDanmakuSearchEpisode);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchInput);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchBtn);
-        const loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: 'check', style: embyCheckGreenStyle}
+        const loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: iconKeys.check, style: embyCheckGreenStyle}
             , doDanmakuSwitchEpisode);
         container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(loadBtn);
     }
@@ -1293,6 +928,16 @@
             </div>
         `;
         container.innerHTML = template.trim();
+    }
+
+    function buildBtns(containerId) {
+        const container = document.getElementById(containerId);
+        for (let i = 0; i < 1000; i++) {
+            let key = '&#xe' + i.toString().padStart(3, '0') + ';';
+            const btnEle = embyButton({label: key, iconKey: key});
+            container.appendChild(btnEle);
+        }
+        container.appendChild(embyButton({label: '\uE7A2', iconKey: '\uE7A2'}));
     }
 
     function buildDanmakuFilter(containerId) {
@@ -1344,7 +989,7 @@
         // 屏蔽关键字
         const keywordsContainer = container.querySelector('#' + eleIds.filterKeywordsDiv);
         const keywordsEnableDiv = keywordsContainer.appendChild(document.createElement('div'));
-        const keywordsBtn = embyButton({ label: '加载关键词过滤', iconKey: 'check' }, doDanmakuFilterKeywordsBtnClick);
+        const keywordsBtn = embyButton({ label: '加载关键词过滤', iconKey: iconKeys.check }, doDanmakuFilterKeywordsBtnClick);
         keywordsBtn.disabled = true;
         keywordsEnableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 90%;');
         keywordsEnableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', ''
@@ -1364,14 +1009,17 @@
         keywordsContainer.appendChild(document.createElement('div')).appendChild(label);
     }
     
-    function doDanmakuSwitch(flag) {
+    function doDanmakuSwitch() {
         console.log('切换弹幕开关');
-        window.ede.danmakuSwitch = flag ? 1 : 0;
-        lsSetItem(lsKeys.switch.id, window.ede.danmakuSwitch);
-        document.querySelector('#displayDanmaku').children[0].innerText = danmaku_icons[window.ede.danmakuSwitch];
-        if (window.ede.danmaku) {
-            flag ? window.ede.danmaku.show() : window.ede.danmaku.hide();
+        const flag = !lsGetItem(lsKeys.switch.id);
+        if (flag) {
+            window.ede.danmaku.show();
+            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerText = iconKeys.switchShow;
+        } else {
+            window.ede.danmaku.hide();
+            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerText = iconKeys.switchHide;
         }
+        lsSetItem(lsKeys.switch.id, flag);
     }
 
     async function doDanmakuSearchEpisode() {
@@ -1464,8 +1112,6 @@
         const level = parseInt(danmakuFilterLevelOpts[index].id);
         console.log(`切换弹幕密度等级: ${level}`);
         if (lsCheckSet(lsKeys.filterLevel.id, level)) { loadDanmaku(LOAD_TYPE.RELOAD); }
-        const doc = document.getElementById(eleIds.filteringDanmaku);
-        if (doc) { doc.children[0].innerHTML = filter_icons[level]; }
     }
 
     function danmakuHeightRateChange(index) {
@@ -1552,7 +1198,7 @@
         const button = document.createElement('button', { is: 'emby-button' });
         button.setAttribute('type', 'button');
         Object.entries(props).forEach(([key, value]) => {
-            if (key !== 'iconKey') {button.setAttribute(key, value);}
+            if (key !== 'iconKey' &&  typeof value !== 'function') {button.setAttribute(key, value);}
         });
         if (props.iconKey) {
             button.setAttribute('title', props.label);
@@ -1576,6 +1222,7 @@
         tabsSlider.className = embyTabsDivClass2;
         tabsSlider.style.padding = '0.25em';
         options.forEach((option, index) => {
+            if (option.hidden) { return; }
             const value = getValueOrInvoke(option, optionValueKey);
             const title = getValueOrInvoke(option, optionTitleKey);
             const tabButton = document.createElement('button');
