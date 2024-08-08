@@ -17,12 +17,11 @@
 (async function () {
     'use strict';
     // ------ 用户配置 start ------
-    const showBtnsTab = true;  // 是否在弹框内显示按钮列表菜单
     // Danmaku 依赖路径,index.html 引入的和篡改猴环境不用填,依赖已内置,被 eval() 执行的特殊环境下使用,支持相对绝对网络路径
-    // const requireDanmakuPath = "danmaku.min.js";
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
     const requireDanmakuPath = "https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js";
     // ------ 用户配置 start ------
+    const showBtnsTab = false;  // 调试使用,是否在弹框内显示按钮列表菜单
     // ------ 程序内部使用,请勿更改 start ------
     const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     const check_interval = 200;
@@ -69,7 +68,6 @@
         danmakuWrapper: 'danmakuWrapper',
         h5VideoAdapter: 'h5VideoAdapter',
         dialogContainer: 'dialogContainer',
-        // searchEpisodeInfoHtml
         danmakuSwitchDiv: 'danmakuSwitchDiv',
         danmakuSwitch: 'danmakuSwitch',
         danmakuSearchNameDiv: 'danmakuSearchNameDiv',
@@ -84,7 +82,6 @@
         danmakuAnimeSelect: 'danmakuAnimeSelect',
         danmakuEpisodeNumSelect: 'danmakuEpisodeNumSelect',
         searchImg: 'searchImg',
-        // danmakuSetting
         filteringDanmaku: 'filteringDanmaku',
         danmakuTypeFilterDiv: 'danmakuTypeFilterDiv',
         danmakuTypeFilterSelectName: 'danmakuTypeFilterSelectName',
@@ -97,7 +94,6 @@
         danmakuFilterLevelDiv: 'danmakuFilterLevelDiv',
         danmakuHeightRateDiv: 'danmakuHeightRateDiv',
         filterKeywordsDiv: 'filterKeywordsDiv',
-        // danmakuStyle
         danmakuSizeDiv: 'danmakuSizeDiv',
         danmakuSizeLabel: 'danmakuSizeLabel',
         danmakuAlphaDiv: 'danmakuAlphaDiv',
@@ -106,16 +102,9 @@
         danmakuSpeedLabel: 'danmakuSpeedLabel',
         danmakuOffsetDiv: 'danmakuOffsetDiv',
         danmakuOffsetLabel: 'danmakuOffsetLabel',
-        // filterKeywords
         filterKeywordsEnableId: 'filterKeywordsEnableId',
         filterKeywordsId: 'filterKeywordsId',
     };
-    /* const danmaku_icons = ['\uE7A2', '\uE0B9'];
-    const search_icon = '\uE881';
-    const translate_icon = '\uE927';
-    const info_icon = '\uE0E0';
-    const filter_icons = ['\uE3E0', '\uE3D0', '\uE3D1', '\uE3D2'];
-    const danmuStyleSetter_icon = '\uE0F0'; */
     const iconKeys = {
         sub30:  '&#xe05a;',
         sub10:  '&#xe059;',
@@ -164,10 +153,10 @@
     // 菜单tabs
     const danmakuTabOpts = [
         { id: 'danmakuTab0', name: '弹幕设置', buildMethod: buildDanmakuSetting },
-        { id: 'danmakuTab1', name: '手动匹配', buildMethod: buildSearchEpisode},
+        { id: 'danmakuTab1', name: '手动匹配', buildMethod: buildSearchEpisode },
         { id: currentDanmakuInfoContainerId, name: '弹幕信息', buildMethod: buildCurrentDanmakuInfo },
         { id: 'danmakuTab3', name: '弹幕屏蔽', buildMethod: buildDanmakuFilter },
-        { id: 'danmakuTab4', name: 'btns', buildMethod: buildBtns , hidden: !showBtnsTab},
+        { id: 'danmakuTab4', name: 'btns', buildMethod: buildBtns , hidden: !showBtnsTab },
     ];
     // 弹幕类型过滤
     const danmakuTypeFilterOpts = {
@@ -190,36 +179,36 @@
     };
     // 弹幕引擎
     const danmakuEngineOpts = [
-        { id: 'canvas', name: 'canvas'},
-        { id: 'dom', name: 'dom'},
+        { id: 'canvas', name: 'canvas' },
+        { id: 'dom', name: 'dom' },
     ];
     const danmakuChConverOpts = [
-        { id: '0', name: '未启用'},
-        { id: '1', name: '转换为简体'},
-        { id: '2', name: '转换为繁体'},
+        { id: '0', name: '未启用' },
+        { id: '1', name: '转换为简体' },
+        { id: '2', name: '转换为繁体' },
     ];
     const danmakuFilterLevelOpts = [
-        { id: '0', name: '0'},
-        { id: '1', name: '1'},
-        { id: '2', name: '2'},
-        { id: '3', name: '3'},
+        { id: '0', name: '0' },
+        { id: '1', name: '1' },
+        { id: '2', name: '2' },
+        { id: '3', name: '3' },
     ];
     const danmakuHeightRateOpts = [
-        { id: '1', name: '100%'},
-        { id: '0.75', name: '75%'},
-        { id: '0.5', name: '50%'},
-        { id: '0.25', name: '25%'},
+        { id: '1', name: '100%' },
+        { id: '0.75', name: '75%' },
+        { id: '0.5', name: '50%' },
+        { id: '0.25', name: '25%' },
     ];
     const danmakuStyleOffsetBtns = [
-        { label: '-30', styleOffset: '-30', iconKey: iconKeys.sub30, style: embyOffsetBtnStyle},
-        { label: '-10', styleOffset: '-10', iconKey: iconKeys.sub10, style: embyOffsetBtnStyle},
-        { label: '-5',  styleOffset: '-5',  iconKey: iconKeys.sub5,  style: embyOffsetBtnStyle},
-        { label: '-1',  styleOffset: '-1',  iconKey: iconKeys.sub1,  style: embyOffsetBtnStyle},
-        { label: '0',   styleOffset: '0',   iconKey: iconKeys.reset, style: embyOffsetBtnStyle},
-        { label: '+1',  styleOffset: '1',   iconKey: iconKeys.add1,  style: embyOffsetBtnStyle + ' transform: rotateY(180deg);'},
-        { label: '+5',  styleOffset: '5',   iconKey: iconKeys.add5,  style: embyOffsetBtnStyle},
-        { label: '+10', styleOffset: '10',  iconKey: iconKeys.add10, style: embyOffsetBtnStyle},
-        { label: '+30', styleOffset: '30',  iconKey: iconKeys.add30, style: embyOffsetBtnStyle},
+        { label: '-30', styleOffset: '-30', iconKey: iconKeys.sub30, style: embyOffsetBtnStyle },
+        { label: '-10', styleOffset: '-10', iconKey: iconKeys.sub10, style: embyOffsetBtnStyle },
+        { label: '-5',  styleOffset: '-5',  iconKey: iconKeys.sub5,  style: embyOffsetBtnStyle },
+        { label: '-1',  styleOffset: '-1',  iconKey: iconKeys.sub1,  style: embyOffsetBtnStyle },
+        { label: '0',   styleOffset: '0',   iconKey: iconKeys.reset, style: embyOffsetBtnStyle },
+        { label: '+1',  styleOffset: '1',   iconKey: iconKeys.add1,  style: embyOffsetBtnStyle + ' transform: rotateY(180deg);' },
+        { label: '+5',  styleOffset: '5',   iconKey: iconKeys.add5,  style: embyOffsetBtnStyle },
+        { label: '+10', styleOffset: '10',  iconKey: iconKeys.add10, style: embyOffsetBtnStyle },
+        { label: '+30', styleOffset: '30',  iconKey: iconKeys.add30, style: embyOffsetBtnStyle },
     ];
     
     // ------ 程序内部使用,请勿更改 end ------
@@ -280,14 +269,11 @@
 
     function initUI() {
         // 已初始化
-        if (document.getElementById(eleIds.danmakuCtr)) {
-            return;
-        }
+        if (document.getElementById(eleIds.danmakuCtr)) { return; }
         console.log('正在初始化UI');
 
         // 弹幕按钮容器 div
-        const ctrQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`;
-        const parent = document.querySelector(ctrQueryStr);
+        const parent = document.querySelector(`${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`);
         // 延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
         if (!parent) {
             window.ede.destroyTimeoutIds.push(setTimeout(() => {
@@ -297,10 +283,9 @@
             return;
         }
         // 在老客户端上存在右侧按钮,在右侧按钮前添加
-        const rightButtonsStr = `.videoOsdBottom-buttons-right`;
-        const rightButtons = parent.querySelector(rightButtonsStr);
+        const rightButtons = parent.querySelector('.videoOsdBottom-buttons-right');
 
-        let menubar = document.createElement('div');
+        const menubar = document.createElement('div');
         menubar.id = eleIds.danmakuCtr;
         if (!window.ede.episode_info) {
             menubar.style.opacity = 0.5;
@@ -347,10 +332,8 @@
 
     async function getMapByEmbyItemInfo() {
         const item = await getEmbyItemInfo();
-        if (!item) {
-            // getEmbyItemInfo from playbackManager null, will next called
-            return null;
-        }
+        // getEmbyItemInfo from playbackManager null, will next called
+        if (!item) { return null; }
         let _id;
         let animeName;
         let animeId = -1;
@@ -394,13 +377,11 @@
         if (!itemInfoMap) { return null; }
         const { _episode_key, animeId } = itemInfoMap;
         let { animeName, episode } = itemInfoMap;
-        if (is_auto) {
-            if (window.localStorage.getItem(_episode_key)) {
-                return JSON.parse(window.localStorage.getItem(_episode_key));
-            }
+        if (is_auto && window.localStorage.getItem(_episode_key)) {
+            return JSON.parse(window.localStorage.getItem(_episode_key));
         }
 
-        let animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
+        const animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
         if (is_auto && animaInfo.animes.length == 0) {
             // from: https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L886
             console.log(`标题名: ${animeName},自动匹配未查询到结果,将使用原标题名,重试一次`);
@@ -462,23 +443,16 @@
     async function createDanmaku(comments) {
         if (!comments) { return; }
         if (window.ede.danmaku != null) {
-            // window.ede.danmaku.clear();
             window.ede.danmaku.destroy();
             window.ede.danmaku = null;
         }
         let _comments = danmakuFilter(danmakuParser(comments));
         console.log('弹幕加载成功: ' + _comments.length);
 
-        // while (!document.querySelector(mediaContainerQueryStr)) {
-        //     await new Promise((resolve) => setTimeout(resolve, 200));
-        // }
-
         const _container = document.querySelector(mediaContainerQueryStr);
         const _media = document.querySelector(mediaQueryStr);
-        if (!_media) throw new Error('用户已退出视频播放');
-        if (!isVersionOld) {
-            _media.style.position = 'absolute';
-        }
+        if (!_media) { throw new Error('用户已退出视频播放'); }
+        if (!isVersionOld) { _media.style.position = 'absolute'; }
         // from https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L1104
         const wrapperTop = 0; // 播放器 UI 顶部阴影
         let wrapper = document.getElementById(eleIds.danmakuWrapper);
@@ -711,7 +685,7 @@
                 if (!mode) return null;
                 // 弹幕颜色+透明度
                 const color = `000000${Number(values[2]).toString(16)}${fontOpacity}`.slice(-8);
-                const c = {
+                const cmt = {
                     text: $comment.m,
                     mode,
                     time: values[0] * 1 + timelineOffset,
@@ -730,8 +704,8 @@
                     [showSource.source.id]: values[3].match(sourceUidReg)?.[1] || danmakuSource.DanDanPlay.id,
                     [showSource.originalUserId.id]: values[3].match(sourceUidReg)?.[2] || values[3],
                 };
-                c.text += showSourceIds.map(id => id === showSource.source.id ? `,[${c[id]}]` : ',' + c[id]).join('');
-                return c;
+                cmt.text += showSourceIds.map(id => id === showSource.source.id ? `,[${cmt[id]}]` : ',' + cmt[id]).join('');
+                return cmt;
             })
             .filter((x) => x);
     }
@@ -931,17 +905,6 @@
         container.innerHTML = template.trim();
     }
 
-    function buildBtns(containerId) {
-        const container = document.getElementById(containerId);
-        let btns = [...knownBtns];
-        for (let i = 0; i < 1000; i++) {
-            btns.push('&#xe' + i.toString().padStart(3, '0') + ';');
-        }
-        btns.forEach(key => {
-            container.appendChild(embyButton({label: key, iconKey: key}));
-        });
-    }
-
     function buildDanmakuFilter(containerId) {
         const container = document.getElementById(containerId);
         let template = `
@@ -1009,6 +972,17 @@
         label.innerText = '关键词/正则匹配过滤,多个表达式用换行分隔';
         label.className = 'fieldDescription';
         keywordsContainer.appendChild(document.createElement('div')).appendChild(label);
+    }
+
+    function buildBtns(containerId) {
+        const container = document.getElementById(containerId);
+        let btns = [...knownBtns];
+        for (let i = 0; i < 1000; i++) {
+            btns.push('&#xe' + i.toString().padStart(3, '0') + ';');
+        }
+        btns.forEach(key => {
+            container.appendChild(embyButton({label: key, iconKey: key}));
+        });
     }
     
     function doDanmakuSwitch() {
@@ -1150,7 +1124,6 @@
     }
 
     function onDanmakuStyleChange(val, props) {
-        // reset the label
         onDanmakuStyleChangeLabel(val, props);
         if (props?.key && lsCheckSet(props.key, val)) {
             console.log(`${props.key} changed to ${val}`);
