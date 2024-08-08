@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.22
+// @version      1.23
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -753,7 +753,7 @@
             }, check_interval));
             return;
         }
-        formDialogHeader ??= dialogContainer;
+        formDialogHeader = formDialogHeader || dialogContainer;
         const tabsMenuContainer = document.createElement('div');
         tabsMenuContainer.className = embyTabsMenuClass;
         tabsMenuContainer.appendChild(embyTabs(danmakuTabOpts, danmakuTabOpts[0].id, 'id', 'name', (index) => {
