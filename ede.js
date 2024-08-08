@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.20
+// @version      1.21
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -1524,7 +1524,7 @@
         let enable = document.getElementById(eleIds.filterKeywordsEnableId).checked;
         lsCheckSet(lsKeys.filterKeywordsEnable.id, enable);
 
-        if (!lsCheckSet(lsKeys.filterKeywords.id, keywords)) { return; }
+        if (!lsCheckSet(lsKeys.filterKeywords.id, keywords) && keywords === '') { return; }
         loadDanmaku(LOAD_TYPE.RELOAD);
     }
 
