@@ -773,7 +773,7 @@
             animeId: animaInfo.animes[selectAnime_id].animeId,
             animeTitle: animaInfo.animes[selectAnime_id].animeTitle,
         };
-        lsSetItem(_episode_key, episodeInfo);
+        localStorage.setItem(_episode_key, JSON.stringify(episodeInfo));
         return episodeInfo;
     }
 
@@ -1439,9 +1439,9 @@
             animeId: searchDanmakuOpts.animes[animeSelect.selectedIndex].animeId,
             animeTitle: searchDanmakuOpts.animes[animeSelect.selectedIndex].animeTitle,
         }
-        lsSetItem(searchDanmakuOpts._episode_key, episodeInfo);
-        loadDanmaku(LOAD_TYPE.RELOAD);
+        localStorage.setItem(searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
         console.log(`手动匹配信息:`, episodeInfo);
+        loadDanmaku(LOAD_TYPE.RELOAD);
     }
 
     function doDanmakuEngineSelect(index) {
