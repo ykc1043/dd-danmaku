@@ -109,20 +109,20 @@
         sub30:  '&#xe05a;',
         sub10:  '&#xe059;',
         sub5:   '&#xe05b;',
-        sub1:   '&#xE042;',
-        reset:  '&#xE040;',
-        add1:   '&#xE042;',
+        sub1:   '&#xe042;',
+        reset:  '&#xe040;',
+        add1:   '&#xe042;',
         add5:   '&#xe058;',
         add10:  '&#xe056;',
         add30:  '&#xe057;',
-        switchShow: '\uE0B9',
-        switchHide: '\uE7A2',
+        switchShow: '&#xe0b9;',
+        switchHide: '&#xe7a2;',
         setting: 'tune',
         search: 'search',
         check: 'check',
-    }
-    const knownBtns = ['\uE0B9','\uE7A2','\uE881','\uE927','\uE0E0','\uE0F0','\uE3E0',
-        '\uE3D0', '\uE3D1', '\uE3D2', 'tune','search','check']
+    };
+    const knownBtns = ['&#xe0b9;','&#xe7a2;','&#xe881;','&#xe927;','&#xe0e0;','&#xe0f0;','&#xe3e0;',
+        '&#xe3d0;', '&#xe3d1;', '&#xe3d2;', 'tune','search','check'];
     // emby ui class
     const embyLabelClass = 'inputLabel';
     const embyInputClass = 'txtName txtInput-withlockedfield emby-input emby-input-largerfont emby-input-smaller';
@@ -977,8 +977,12 @@
     function buildBtns(containerId) {
         const container = document.getElementById(containerId);
         let btns = [...knownBtns];
-        for (let i = 0; i < 1000; i++) {
-            btns.push('&#xe' + i.toString().padStart(3, '0') + ';');
+        // 生成从0开始的十六进制表示，直到长度超过3位
+        for (let i = 0; ; i++) {
+            let hex = i.toString(16).toUpperCase();
+            if (hex.length > 3) break;
+            hex = hex.padStart(3, '0');
+            btns.push('&#xe' + hex + ';');
         }
         btns.forEach(key => {
             container.appendChild(embyButton({label: key, iconKey: key}));
@@ -990,10 +994,10 @@
         const flag = !lsGetItem(lsKeys.switch.id);
         if (flag) {
             window.ede.danmaku.show();
-            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerText = iconKeys.switchShow;
+            document.getElementById(eleIds.danmakuSwitchBtn).innerHTML = `<i class="md-icon autortl">${iconKeys.switchShow}</i>`;
         } else {
             window.ede.danmaku.hide();
-            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerText = iconKeys.switchHide;
+            document.getElementById(eleIds.danmakuSwitchBtn).innerHTML = `<i class="md-icon autortl">${iconKeys.switchHide}</i>`;
         }
         lsSetItem(lsKeys.switch.id, flag);
     }
