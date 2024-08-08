@@ -573,7 +573,7 @@
         console.log('正在初始化UI');
 
         // 弹幕按钮容器 div
-        const ctrQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons}`;
+        const ctrQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`;
         const parent = document.querySelector(ctrQueryStr);
         // 延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
         if (!parent) {
