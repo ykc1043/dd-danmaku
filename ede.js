@@ -146,8 +146,8 @@
     const embyTabsButtonClass = 'emby-button secondaryText emby-tab-button main-tab-button';
     const embySelectStyle = 'font-size: inherit;font-family: inherit;font-weight: inherit;padding-top: 0;padding-bottom: 0;box-sizing: border-box;outline: 0 !important;-webkit-tap-highlight-color: transparent;width: auto;border-radius: .3em;letter-spacing: inherit;padding-inline-start: 1ch;padding-inline-end: 3.6ch;height: 2.4em;';
     const embyCheckboxListStyle = 'display: flex;flex-wrap: wrap;';
-    const embySliderListStyle = 'display: flex;flex-direction: column;justify-content: center;align-items: center;';//容器内元素垂直排列,横向居中 
-    const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;';//容器内元素横向并排,垂直居中
+    const embySliderListStyle = 'display: flex;flex-direction: column;justify-content: center;align-items: center;'; // 容器内元素垂直排列,水平居中 
+    const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;'; // 容器内元素横向并排,垂直居中
     const embyOffsetBtnStyle = 'margin: 0;padding: 0;';
     const embyCheckGreenStyle = 'color: #388e3c;';
 
@@ -665,18 +665,18 @@
     function danmakuKeywordsFilter(comments) {
         if (!lsGetItem(lsKeys.filterKeywordsEnable.id)) { return comments; }
         const keywords = lsGetItem(lsKeys.filterKeywords.id)
-            ?.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
+            ?.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0 && !k.startsWith('// '));
         if (keywords.length === 0) { return comments; }
-        return comments.filter(comment => {
-            return !keywords.some(keyword => {
+        const cKeys = [ 'text', ...Object.keys(showSource) ];
+        return comments.filter(comment =>
+            !keywords.some(keyword => {
                 try {
-                    return new RegExp(keyword).test(comment.text);
+                    return cKeys.some(key => new RegExp(keyword).test(comment[key]));
                 } catch (error) {
-                    console.error(`Invalid regular expression: ${keyword}. Using plain text filter.`);
-                    return comment.text.includes(keyword);
+                    return cKeys.some(key => comment[key].includes(keyword));
                 }
-            });
-        });
+            })
+        );
     }
 
     function danmakuParser($obj) {
@@ -725,9 +725,9 @@
                         strokeStyle: color === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`,
                         lineWidth: 2.0,
                     },
-                    cid: $comment.cid,
-                    source: values[3].match(sourceUidReg)?.[1] || danmakuSource.DanDanPlay.id,
-                    originalUserId: values[3].match(sourceUidReg)?.[2] || values[3],
+                    [showSource.cid.id]: $comment.cid,
+                    [showSource.source.id]: values[3].match(sourceUidReg)?.[1] || danmakuSource.DanDanPlay.id,
+                    [showSource.originalUserId.id]: values[3].match(sourceUidReg)?.[2] || values[3],
                 };
                 c.text += showSourceIds.map(id => id === showSource.source.id ? `,[${c[id]}]` : ',' + c[id]).join('');
                 return c;
@@ -960,7 +960,7 @@
                     <label class="${embyLabelClass}">高度比例: </label>
                 </div>
                 <div id="${eleIds.filterKeywordsDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">屏蔽关键字: </label>
+                    <label class="${embyLabelClass}">屏蔽关键词: </label>
                 </div>
             </div>
         `;
@@ -986,7 +986,7 @@
             embyTabs(danmakuHeightRateOpts, lsGetItem(lsKeys.heightRate.id) 
                 , 'id', 'name', danmakuHeightRateChange)
         );
-        // 屏蔽关键字
+        // 屏蔽关键词
         const keywordsContainer = container.querySelector('#' + eleIds.filterKeywordsDiv);
         const keywordsEnableDiv = keywordsContainer.appendChild(document.createElement('div'));
         const keywordsBtn = embyButton({ label: '加载关键词过滤', iconKey: iconKeys.check }, doDanmakuFilterKeywordsBtnClick);
@@ -1004,7 +1004,7 @@
                 , event.target.value.trim()))
         );
         const label = document.createElement('label');
-        label.innerText = '关键词过滤,支持正则匹配,多个关键词用换行分隔';
+        label.innerText = '关键词/正则匹配过滤,多个表达式用换行分隔';
         label.className = 'fieldDescription';
         keywordsContainer.appendChild(document.createElement('div')).appendChild(label);
     }
