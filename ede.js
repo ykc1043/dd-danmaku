@@ -1005,7 +1005,7 @@
     function danmakuKeywordsFilter(comments) {
         if (!lsGetItem(lsKeys.filterKeywordsEnable.id)) { return comments; }
         const keywords = lsGetItem(lsKeys.filterKeywords.id)
-            ?.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
+            ?.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0 && !k.startsWith('// '));
         if (keywords.length === 0) { return comments; }
         const cKeys = [ 'text', ...Object.keys(showSource) ];
         return comments.filter(comment =>
@@ -1359,7 +1359,7 @@
                 , event.target.value.trim()))
         );
         const label = document.createElement('label');
-        label.innerText = '关键词过滤,支持正则匹配,多个关键词用换行分隔';
+        label.innerText = '关键词/正则匹配过滤,多个表达式用换行分隔';
         label.className = 'fieldDescription';
         keywordsContainer.appendChild(document.createElement('div')).appendChild(label);
     }
