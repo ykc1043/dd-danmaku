@@ -17,7 +17,7 @@
 (async function () {
     'use strict';
     // ------ 用户配置 start ------
-    const showBtnsTab = false;  // 是否在弹框内显示按钮列表菜单
+    const showBtnsTab = true;  // 是否在弹框内显示按钮列表菜单
     // Danmaku 依赖路径,index.html 引入的和篡改猴环境不用填,依赖已内置,被 eval() 执行的特殊环境下使用,支持相对绝对网络路径
     // const requireDanmakuPath = "danmaku.min.js";
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
@@ -110,8 +110,7 @@
         filterKeywordsEnableId: 'filterKeywordsEnableId',
         filterKeywordsId: 'filterKeywordsId',
     };
-    /* // const danmaku_icons = ['\uE0B9', '\uE7A2'];
-    const danmaku_icons = ['\uE7A2', '\uE0B9'];
+    /* const danmaku_icons = ['\uE7A2', '\uE0B9'];
     const search_icon = '\uE881';
     const translate_icon = '\uE927';
     const info_icon = '\uE0E0';
@@ -133,6 +132,8 @@
         search: 'search',
         check: 'check',
     }
+    const knownBtns = ['\uE0B9','\uE7A2','\uE881','\uE927','\uE0E0','\uE0F0','\uE3E0',
+        '\uE3D0', '\uE3D1', '\uE3D2', 'tune','search','check']
     // emby ui class
     const embyLabelClass = 'inputLabel';
     const embyInputClass = 'txtName txtInput-withlockedfield emby-input emby-input-largerfont emby-input-smaller';
@@ -932,12 +933,13 @@
 
     function buildBtns(containerId) {
         const container = document.getElementById(containerId);
+        let btns = [...knownBtns];
         for (let i = 0; i < 1000; i++) {
-            let key = '&#xe' + i.toString().padStart(3, '0') + ';';
-            const btnEle = embyButton({label: key, iconKey: key});
-            container.appendChild(btnEle);
+            btns.push('&#xe' + i.toString().padStart(3, '0') + ';');
         }
-        container.appendChild(embyButton({label: '\uE7A2', iconKey: '\uE7A2'}));
+        btns.forEach(key => {
+            container.appendChild(embyButton({label: key, iconKey: key}));
+        });
     }
 
     function buildDanmakuFilter(containerId) {
