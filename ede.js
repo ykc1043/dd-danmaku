@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.23
+// @version      1.25
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -24,12 +24,11 @@
     // ------ 程序内部使用,请勿更改 start ------
     const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     const check_interval = 200;
-    const chConverTtitle = ['当前状态: 未启用', '当前状态: 转换为简体', '当前状态: 转换为繁体'];
     const LOAD_TYPE = {
         CHECK: 'check',
         INIT: 'init',
         REFRESH: 'refresh',
-        RELOAD: 'reload',
+        RELOAD: 'reload', // 优先走缓存,其余类型走接口
         SEARCH: 'search',
     };
     // apiClient.isMinServerVersion("4.8.0.56")
@@ -44,23 +43,6 @@
     mediaContainerQueryStr += notHide;
     const mediaQueryStr = 'video';
 
-    const lsKeys = {
-        chConvert: { id: 'danmakuChConvert', defaultValue: 1 }, 
-        switch: { id: 'danmakuSwitch', defaultValue: true },
-        filterLevel: { id: 'danmakuFilterLevel', defaultValue: 0 },
-        heightRate: { id: 'danmakuHeightRate', defaultValue: 1 },
-        fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1 },
-        fontOpacity: { id: 'danmakuFontOpacity', defaultValue: 1 },
-        speed: { id: 'danmakuSpeed', defaultValue: 1 },
-        timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0 },
-        typeFilter: { id: 'danmakuTypeFilter', defaultValue: [] },
-        sourceFilter: { id: 'danmakuSourceFilter', defaultValue: [] },
-        showSource: { id: 'danmakuShowSource', defaultValue: [] },
-        engine: { id: 'danmakuEngine', defaultValue: 'canvas' },
-        filterKeywords: { id: 'danmakuFilterKeywords', defaultValue: '' },
-        filterKeywordsEnable: { id: 'danmakuFilterKeywordsEnable', defaultValue: true },
-        danmuList: { id: 'danmakuDanmuList', defaultValue: 0 },
-    };
     const eleIds = {
         danmakuSwitchBtn: 'danmakuSwitchBtn',
         danmakuCtr: 'danmakuCtr',
@@ -97,26 +79,30 @@
         filterKeywordsDiv: 'filterKeywordsDiv',
         danmakuSizeDiv: 'danmakuSizeDiv',
         danmakuSizeLabel: 'danmakuSizeLabel',
-        danmakuAlphaDiv: 'danmakuAlphaDiv',
-        danmakuAlphaLabel: 'danmakuAlphaLabel',
+        danmakuOpacityDiv: 'danmakuOpacityDiv',
+        danmakuOpacityLabel: 'danmakuOpacityLabel',
         danmakuSpeedDiv: 'danmakuSpeedDiv',
         danmakuSpeedLabel: 'danmakuSpeedLabel',
-        danmakuOffsetDiv: 'danmakuOffsetDiv',
-        danmakuOffsetLabel: 'danmakuOffsetLabel',
+        timelineOffsetDiv: 'timelineOffsetDiv',
+        timelineOffsetLabel: 'timelineOffsetLabel',
+        settingsDiv: 'settingsDiv',
+        settingsText: 'settingsText',
+        settingsImportBtn: 'settingsImportBtn',
         filterKeywordsEnableId: 'filterKeywordsEnableId',
         filterKeywordsId: 'filterKeywordsId',
     };
+    const embyOffsetBtnStyle = 'margin: 0;padding: 0;';
     // https://fonts.google.com/icons
     const iconKeys = {
-        replay_30:  'replay_30',
-        replay_10:  'replay_10',
-        replay_5:   'replay_5',
-        replay:   'replay',
-        reset:  'repeat',
-        forward_media:   'forward_media', // electron中图标不正确,使用replay反转
-        forward_5:   'forward_5',
-        forward_10:  'forward_10',
-        forward_30:  'forward_30',
+        replay_30: 'replay_30',
+        replay_10: 'replay_10',
+        replay_5: 'replay_5',
+        replay: 'replay',
+        reset: 'repeat',
+        forward_media: 'forward_media', // electron中图标不正确,使用replay反转
+        forward_5: 'forward_5',
+        forward_10: 'forward_10',
+        forward_30: 'forward_30',
         comment: 'comment',
         comments_disabled: 'comments_disabled',
         setting: 'tune',
@@ -124,27 +110,9 @@
         done: 'done_all',
         done_disabled: 'remove_done',
     };
-    // emby ui class
-    const embyLabelClass = 'inputLabel';
-    const embyInputClass = 'txtName txtInput-withlockedfield emby-input emby-input-largerfont emby-input-smaller';
-    const embyIconButtonClass = 'itemAction paper-icon-button-light';
-    const embySelectWrapperClass = 'emby-select-wrapper emby-select-wrapper-smaller';
-    const embyCheckboxListClass = 'featureList'; // 'checkboxList'
-    const embyTextDivClass = 'txtPath fieldDescription';
-    const embyTabsMenuClass = 'headerMiddle headerSection sectionTabs headerMiddle-withSectionTabs';
-    const embyTabsDivClass1 = 'tabs-viewmenubar tabs-viewmenubar-backgroundcontainer focusable scrollX hiddenScrollX smoothScrollX scrollFrameX emby-tabs';
-    const embyTabsDivClass2 = 'tabs-viewmenubar-slider emby-tabs-slider padded-left padded-right nohoverfocus scrollSliderX';
-    const embyTabsButtonClass = 'emby-button secondaryText emby-tab-button main-tab-button';
-    const embySelectStyle = 'font-size: inherit;font-family: inherit;font-weight: inherit;padding-top: 0;padding-bottom: 0;box-sizing: border-box;outline: 0 !important;-webkit-tap-highlight-color: transparent;width: auto;border-radius: .3em;letter-spacing: inherit;padding-inline-start: 1ch;padding-inline-end: 3.6ch;height: 2.4em;';
-    const embyCheckboxListStyle = 'display: flex;flex-wrap: wrap;';
-    const embySliderListStyle = 'display: flex;flex-direction: column;justify-content: center;align-items: center;'; // 容器内元素垂直排列,水平居中 
-    const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;'; // 容器内元素横向并排,垂直居中
-    const embyOffsetBtnStyle = 'margin: 0;padding: 0;';
 
-    // 手动搜索变量
-    let searchDanmakuOpts = {};
     // 此id等同于danmakuTabOpts内的弹幕信息的id
-    let currentDanmakuInfoContainerId = 'danmakuTab2';
+    const currentDanmakuInfoContainerId = 'danmakuTab2';
     // 播放界面下方按钮
     const mediaBtnOpts = [
         { id: eleIds.danmakuSwitchBtn, label: '弹幕开关', iconKey: iconKeys.comment, onClick: doDanmakuSwitch },
@@ -172,7 +140,7 @@
         DanDanPlay: { id: 'DanDanPlay', name: '弹弹(DanDanPlay)' }, // 无弹幕来源的默认值
     };
     const showSource = {
-        source: { id: 'source', name: '弹幕来源' },
+        source: { id: 'source', name: '来源平台' },
         originalUserId: { id: 'originalUserId', name: '来源用户id' },
         cid: { id: 'cid', name: '来源cid' }, // 非弹幕id,唯一性用cuid
     };
@@ -197,26 +165,59 @@
         { id: '0.5', name: '50%' },
         { id: '0.25', name: '25%' },
     ];
-    const danmakuStyleOffsetBtns = [
-        { label: '-30', styleOffset: '-30', iconKey: iconKeys.replay_30,  style: embyOffsetBtnStyle },
-        { label: '-10', styleOffset: '-10', iconKey: iconKeys.replay_10,  style: embyOffsetBtnStyle },
-        { label: '-5',  styleOffset: '-5',  iconKey: iconKeys.replay_5,   style: embyOffsetBtnStyle },
-        { label: '-1',  styleOffset: '-1',  iconKey: iconKeys.replay,     style: embyOffsetBtnStyle },
-        { label: '0',   styleOffset: '0',   iconKey: iconKeys.reset,      style: embyOffsetBtnStyle },
-        { label: '+1',  styleOffset: '1',   iconKey: iconKeys.replay,     style: embyOffsetBtnStyle + ' transform: rotateY(180deg);' },
-        { label: '+5',  styleOffset: '5',   iconKey: iconKeys.forward_5,  style: embyOffsetBtnStyle },
-        { label: '+10', styleOffset: '10',  iconKey: iconKeys.forward_10, style: embyOffsetBtnStyle },
-        { label: '+30', styleOffset: '30',  iconKey: iconKeys.forward_30, style: embyOffsetBtnStyle },
+    const timelineOffsetBtns = [
+        { label: '-30', valueOffset: '-30', iconKey: iconKeys.replay_30,  style: embyOffsetBtnStyle },
+        { label: '-10', valueOffset: '-10', iconKey: iconKeys.replay_10,  style: embyOffsetBtnStyle },
+        { label: '-5',  valueOffset: '-5',  iconKey: iconKeys.replay_5,   style: embyOffsetBtnStyle },
+        { label: '-1',  valueOffset: '-1',  iconKey: iconKeys.replay,     style: embyOffsetBtnStyle },
+        { label: '0',   valueOffset: '0',   iconKey: iconKeys.reset,      style: embyOffsetBtnStyle },
+        { label: '+1',  valueOffset: '1',   iconKey: iconKeys.replay,     style: embyOffsetBtnStyle + ' transform: rotateY(180deg);' },
+        { label: '+5',  valueOffset: '5',   iconKey: iconKeys.forward_5,  style: embyOffsetBtnStyle },
+        { label: '+10', valueOffset: '10',  iconKey: iconKeys.forward_10, style: embyOffsetBtnStyle },
+        { label: '+30', valueOffset: '30',  iconKey: iconKeys.forward_30, style: embyOffsetBtnStyle },
     ];
     const danmuListOpts = [
-        { id: '0', name: '未启用' , onChange: () => [] },
+        { id: '0', name: '不启用' , onChange: () => [] },
         { id: '1', name: '显示屏中', onChange: (ede) => ede.danmaku._.runningList },
         { id: '2', name: '显示所有', onChange: (ede) => ede.commentsParsed },
         { id: '3', name: '显示加载', onChange: (ede) => ede.danmaku.comments },
-        { id: '4', name: '显示被过滤', onChange: (ede) => {
+        { id: '4', name: '显示被过滤', onChange: (ede) => { // 取差集慢,减轻负担,默认不启用
             return ede.commentsParsed.filter(s => !ede.danmaku.comments.some(t => s.cuid === t.cuid))
         } },
     ];
+    const lsKeys = {
+        chConvert: { id: 'danmakuChConvert', defaultValue: 1 },
+        switch: { id: 'danmakuSwitch', defaultValue: true },
+        filterLevel: { id: 'danmakuFilterLevel', defaultValue: 0 },
+        heightRate: { id: 'danmakuHeightRate', defaultValue: 1 },
+        fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1 },
+        fontOpacity: { id: 'danmakuFontOpacity', defaultValue: 1 },
+        speed: { id: 'danmakuSpeed', defaultValue: 1 },
+        timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0 },
+        typeFilter: { id: 'danmakuTypeFilter', defaultValue: [] },
+        sourceFilter: { id: 'danmakuSourceFilter', defaultValue: [] },
+        showSource: { id: 'danmakuShowSource', defaultValue: [] },
+        engine: { id: 'danmakuEngine', defaultValue: 'canvas' },
+        filterKeywords: { id: 'danmakuFilterKeywords', defaultValue: '' },
+        filterKeywordsEnable: { id: 'danmakuFilterKeywordsEnable', defaultValue: true },
+        danmuList: { id: 'danmakuDanmuList', defaultValue: 0 },
+    };
+    // emby ui class
+    const embyLabelClass = 'inputLabel';
+    const embyInputClass = 'txtName txtInput-withlockedfield emby-input emby-input-largerfont emby-input-smaller';
+    const embyIconButtonClass = 'itemAction paper-icon-button-light';
+    const embySelectWrapperClass = 'emby-select-wrapper emby-select-wrapper-smaller';
+    const embyCheckboxListClass = 'featureList'; // 'checkboxList'
+    const embyTextDivClass = 'txtPath fieldDescription';
+    const embyTabsMenuClass = 'headerMiddle headerSection sectionTabs headerMiddle-withSectionTabs';
+    const embyTabsDivClass1 = 'tabs-viewmenubar tabs-viewmenubar-backgroundcontainer focusable scrollX hiddenScrollX smoothScrollX scrollFrameX emby-tabs';
+    const embyTabsDivClass2 = 'tabs-viewmenubar-slider emby-tabs-slider padded-left padded-right nohoverfocus scrollSliderX';
+    const embyTabsButtonClass = 'emby-button secondaryText emby-tab-button main-tab-button';
+    const embySelectStyle = 'font-size: inherit;font-family: inherit;font-weight: inherit;padding-top: 0;padding-bottom: 0;box-sizing: border-box;outline: 0 !important;-webkit-tap-highlight-color: transparent;width: auto;border-radius: .3em;letter-spacing: inherit;padding-inline-start: 1ch;padding-inline-end: 3.6ch;height: 2.4em;';
+    const embyCheckboxListStyle = 'display: flex;flex-wrap: wrap;';
+    const embySliderListStyle = 'display: flex;flex-direction: column;justify-content: center;align-items: center;'; // 容器内元素垂直排列,水平居中 
+    const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;'; // 容器内元素横向并排,垂直居中
+    const embyCheckGreenStyle = 'color: #388e3c;';
     
     // ------ 程序内部使用,请勿更改 end ------
 
@@ -227,7 +228,7 @@
     } catch(e) {
         const stackTrace = e.stack;
         skipInnerModule = !!stackTrace && stackTrace.includes('eval');
-        console.log('ignore this not error, callee:', e);
+        // console.log('ignore this not error, callee:', e);
     }
     if (!skipInnerModule) {
     /* eslint-disable */
@@ -236,7 +237,7 @@
     !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t="undefined"!=typeof globalThis?globalThis:t||self).Danmaku=e()}(this,(function(){"use strict";var t=function(){if("undefined"==typeof document)return"transform";for(var t=["oTransform","msTransform","mozTransform","webkitTransform","transform"],e=document.createElement("div").style,i=0;i<t.length;i++)if(t[i]in e)return t[i];return"transform"}();function e(t){var e=document.createElement("div");if(e.style.cssText="position:absolute;","function"==typeof t.render){var i=t.render();if(i instanceof HTMLElement)return e.appendChild(i),e}if(e.textContent=t.text,t.style)for(var n in t.style)e.style[n]=t.style[n];return e}var i={name:"dom",init:function(){var t=document.createElement("div");return t.style.cssText="overflow:hidden;white-space:nowrap;transform:translateZ(0);",t},clear:function(t){for(var e=t.lastChild;e;)t.removeChild(e),e=t.lastChild},resize:function(t,e,i){t.style.width=e+"px",t.style.height=i+"px"},framing:function(){},setup:function(t,i){var n=document.createDocumentFragment(),s=0,r=null;for(s=0;s<i.length;s++)(r=i[s]).node=r.node||e(r),n.appendChild(r.node);for(i.length&&t.appendChild(n),s=0;s<i.length;s++)(r=i[s]).width=r.width||r.node.offsetWidth,r.height=r.height||r.node.offsetHeight},render:function(e,i){i.node.style[t]="translate("+i.x+"px,"+i.y+"px)"},remove:function(t,e){t.removeChild(e.node),this.media||(e.node=null)}},n="undefined"!=typeof window&&window.devicePixelRatio||1,s=Object.create(null);function r(t,e){if("function"==typeof t.render){var i=t.render();if(i instanceof HTMLCanvasElement)return t.width=i.width,t.height=i.height,i}var r=document.createElement("canvas"),h=r.getContext("2d"),o=t.style||{};o.font=o.font||"10px sans-serif",o.textBaseline=o.textBaseline||"bottom";var a=1*o.lineWidth;for(var d in a=a>0&&a!==1/0?Math.ceil(a):1*!!o.strokeStyle,h.font=o.font,t.width=t.width||Math.max(1,Math.ceil(h.measureText(t.text).width)+2*a),t.height=t.height||Math.ceil(function(t,e){if(s[t])return s[t];var i=12,n=t.match(/(\d+(?:\.\d+)?)(px|%|em|rem)(?:\s*\/\s*(\d+(?:\.\d+)?)(px|%|em|rem)?)?/);if(n){var r=1*n[1]||10,h=n[2],o=1*n[3]||1.2,a=n[4];"%"===h&&(r*=e.container/100),"em"===h&&(r*=e.container),"rem"===h&&(r*=e.root),"px"===a&&(i=o),"%"===a&&(i=r*o/100),"em"===a&&(i=r*o),"rem"===a&&(i=e.root*o),void 0===a&&(i=r*o)}return s[t]=i,i}(o.font,e))+2*a,r.width=t.width*n,r.height=t.height*n,h.scale(n,n),o)h[d]=o[d];var u=0;switch(o.textBaseline){case"top":case"hanging":u=a;break;case"middle":u=t.height>>1;break;default:u=t.height-a}return o.strokeStyle&&h.strokeText(t.text,a,u),h.fillText(t.text,a,u),r}function h(t){return 1*window.getComputedStyle(t,null).getPropertyValue("font-size").match(/(.+)px/)[1]}var o={name:"canvas",init:function(t){var e=document.createElement("canvas");return e.context=e.getContext("2d"),e._fontSize={root:h(document.getElementsByTagName("html")[0]),container:h(t)},e},clear:function(t,e){t.context.clearRect(0,0,t.width,t.height);for(var i=0;i<e.length;i++)e[i].canvas=null},resize:function(t,e,i){t.width=e*n,t.height=i*n,t.style.width=e+"px",t.style.height=i+"px"},framing:function(t){t.context.clearRect(0,0,t.width,t.height)},setup:function(t,e){for(var i=0;i<e.length;i++){var n=e[i];n.canvas=r(n,t._fontSize)}},render:function(t,e){t.context.drawImage(e.canvas,e.x*n,e.y*n)},remove:function(t,e){e.canvas=null}};function a(t){var e=this,i=this.media?this.media.currentTime:Date.now()/1e3,n=this.media?this.media.playbackRate:1;function s(t,s){if("top"===s.mode||"bottom"===s.mode)return i-t.time<e._.duration;var r=(e._.width+t.width)*(i-t.time)*n/e._.duration;if(t.width>r)return!0;var h=e._.duration+t.time-i,o=e._.width+s.width,a=e.media?s.time:s._utc,d=o*(i-a)*n/e._.duration,u=e._.width-d;return h>e._.duration*u/(e._.width+s.width)}for(var r=this._.space[t.mode],h=0,o=0,a=1;a<r.length;a++){var d=r[a],u=t.height;if("top"!==t.mode&&"bottom"!==t.mode||(u+=d.height),d.range-d.height-r[h].range>=u){o=a;break}s(d,t)&&(h=a)}var m=r[h].range,c={range:m+t.height,time:this.media?t.time:t._utc,width:t.width,height:t.height};return r.splice(h+1,o-h-1,c),"bottom"===t.mode?this._.height-t.height-m%this._.height:m%(this._.height-t.height)}var d="undefined"!=typeof window&&(window.requestAnimationFrame||window.mozRequestAnimationFrame||window.webkitRequestAnimationFrame)||function(t){return setTimeout(t,50/3)},u="undefined"!=typeof window&&(window.cancelAnimationFrame||window.mozCancelAnimationFrame||window.webkitCancelAnimationFrame)||clearTimeout;function m(t,e,i){for(var n=0,s=0,r=t.length;s<r-1;)i>=t[n=s+r>>1][e]?s=n:r=n;return t[s]&&i<t[s][e]?s:r}function c(t){return/^(ltr|top|bottom)$/i.test(t)?t.toLowerCase():"rtl"}function l(){var t=9007199254740991;return[{range:0,time:-t,width:t,height:0},{range:t,time:t,width:0,height:0}]}function f(t){t.ltr=l(),t.rtl=l(),t.top=l(),t.bottom=l()}function p(){if(!this._.visible||!this._.paused)return this;if(this._.paused=!1,this.media)for(var t=0;t<this._.runningList.length;t++){var e=this._.runningList[t];e._utc=Date.now()/1e3-(this.media.currentTime-e.time)}var i=this,n=function(t,e,i,n){return function(){t(this._.stage);var s=Date.now()/1e3,r=this.media?this.media.currentTime:s,h=this.media?this.media.playbackRate:1,o=null,d=0,u=0;for(u=this._.runningList.length-1;u>=0;u--)o=this._.runningList[u],r-(d=this.media?o.time:o._utc)>this._.duration&&(n(this._.stage,o),this._.runningList.splice(u,1));for(var m=[];this._.position<this.comments.length&&(o=this.comments[this._.position],!((d=this.media?o.time:o._utc)>=r));)r-d>this._.duration||(this.media&&(o._utc=s-(this.media.currentTime-o.time)),m.push(o)),++this._.position;for(e(this._.stage,m),u=0;u<m.length;u++)(o=m[u]).y=a.call(this,o),this._.runningList.push(o);for(u=0;u<this._.runningList.length;u++){o=this._.runningList[u];var c=(this._.width+o.width)*(s-o._utc)*h/this._.duration;"ltr"===o.mode&&(o.x=c-o.width+.5|0),"rtl"===o.mode&&(o.x=this._.width-c+.5|0),"top"!==o.mode&&"bottom"!==o.mode||(o.x=this._.width-o.width>>1),i(this._.stage,o)}}}(this._.engine.framing.bind(this),this._.engine.setup.bind(this),this._.engine.render.bind(this),this._.engine.remove.bind(this));return this._.requestID=d((function t(){n.call(i),i._.requestID=d(t)})),this}function g(){return!this._.visible||this._.paused||(this._.paused=!0,u(this._.requestID),this._.requestID=0),this}function _(){if(!this.media)return this;this.clear(),f(this._.space);var t=m(this.comments,"time",this.media.currentTime);return this._.position=Math.max(0,t-1),this}function v(t){t.play=p.bind(this),t.pause=g.bind(this),t.seeking=_.bind(this),this.media.addEventListener("play",t.play),this.media.addEventListener("pause",t.pause),this.media.addEventListener("playing",t.play),this.media.addEventListener("waiting",t.pause),this.media.addEventListener("seeking",t.seeking)}function w(t){this.media.removeEventListener("play",t.play),this.media.removeEventListener("pause",t.pause),this.media.removeEventListener("playing",t.play),this.media.removeEventListener("waiting",t.pause),this.media.removeEventListener("seeking",t.seeking),t.play=null,t.pause=null,t.seeking=null}function y(t){this._={},this.container=t.container||document.createElement("div"),this.media=t.media,this._.visible=!0,this.engine=(t.engine||"DOM").toLowerCase(),this._.engine="canvas"===this.engine?o:i,this._.requestID=0,this._.speed=Math.max(0,t.speed)||144,this._.duration=4,this.comments=t.comments||[],this.comments.sort((function(t,e){return t.time-e.time}));for(var e=0;e<this.comments.length;e++)this.comments[e].mode=c(this.comments[e].mode);return this._.runningList=[],this._.position=0,this._.paused=!0,this.media&&(this._.listener={},v.call(this,this._.listener)),this._.stage=this._.engine.init(this.container),this._.stage.style.cssText+="position:relative;pointer-events:none;",this.resize(),this.container.appendChild(this._.stage),this._.space={},f(this._.space),this.media&&this.media.paused||(_.call(this),p.call(this)),this}function x(){if(!this.container)return this;for(var t in g.call(this),this.clear(),this.container.removeChild(this._.stage),this.media&&w.call(this,this._.listener),this)Object.prototype.hasOwnProperty.call(this,t)&&(this[t]=null);return this}var b=["mode","time","text","render","style"];function L(t){if(!t||"[object Object]"!==Object.prototype.toString.call(t))return this;for(var e={},i=0;i<b.length;i++)void 0!==t[b[i]]&&(e[b[i]]=t[b[i]]);if(e.text=(e.text||"").toString(),e.mode=c(e.mode),e._utc=Date.now()/1e3,this.media){var n=0;void 0===e.time?(e.time=this.media.currentTime,n=this._.position):(n=m(this.comments,"time",e.time))<this._.position&&(this._.position+=1),this.comments.splice(n,0,e)}else this.comments.push(e);return this}function T(){return this._.visible?this:(this._.visible=!0,this.media&&this.media.paused||(_.call(this),p.call(this)),this)}function E(){return this._.visible?(g.call(this),this.clear(),this._.visible=!1,this):this}function k(){return this._.engine.clear(this._.stage,this._.runningList),this._.runningList=[],this}function C(){return this._.width=this.container.offsetWidth,this._.height=this.container.offsetHeight,this._.engine.resize(this._.stage,this._.width,this._.height),this._.duration=this._.width/this._.speed,this}var D={get:function(){return this._.speed},set:function(t){return"number"!=typeof t||isNaN(t)||!isFinite(t)||t<=0?this._.speed:(this._.speed=t,this._.width&&(this._.duration=this._.width/t),t)}};function z(t){t&&y.call(this,t)}return z.prototype.destroy=function(){return x.call(this)},z.prototype.emit=function(t){return L.call(this,t)},z.prototype.show=function(){return T.call(this)},z.prototype.hide=function(){return E.call(this)},z.prototype.clear=function(){return k.call(this)},z.prototype.resize=function(){return C.call(this)},Object.defineProperty(z.prototype,"speed",D),z}));
     /* eslint-enable */
     } else {
-        !!window.Danmaku || Emby.importModule(requireDanmakuPath).then(f => {
+        window.Danmaku || Emby.importModule(requireDanmakuPath).then(f => {
             console.log(f);
             window.Danmaku = f;
         }).catch(error => {
@@ -248,7 +249,6 @@
     class EDE {
         constructor() {
             this.chConvert = lsGetItem(lsKeys.chConvert.id);
-            // 0:当前状态关闭 1:当前状态打开
             this.danmaku = null;
             this.episode_info = null;
             this.ob = null;
@@ -256,11 +256,12 @@
             this.danmuCache = {};
             this.destroyTimeoutIds = [];
             this.commentsParsed = [];
+            this.searchDanmakuOpts = {}; // 手动搜索变量
         }
     }
 
     function initListener() {
-        let _media = document.querySelector(mediaQueryStr);
+        const _media = document.querySelector(mediaQueryStr);
         // 页面未加载
         if (!_media) {
             window.ede.episode_info && (window.ede.episode_info = null);
@@ -341,8 +342,7 @@
 
     async function getMapByEmbyItemInfo() {
         const item = await getEmbyItemInfo();
-        // getEmbyItemInfo from playbackManager null, will next called
-        if (!item) { return null; }
+        if (!item) { return null; } // getEmbyItemInfo from playbackManager null, will next called
         let _id;
         let animeName;
         let animeId = -1;
@@ -575,8 +575,9 @@
             )
             .then(() => {
                 window.ede.loading = false;
-                if (document.getElementById(eleIds.danmakuCtr).style.opacity != 1) {
-                    document.getElementById(eleIds.danmakuCtr).style.opacity = 1;
+                const danmakuCtrEle = document.getElementById(eleIds.danmakuCtr);
+                if (danmakuCtrEle && danmakuCtrEle.style.opacity !== '1') {
+                    danmakuCtrEle.style.opacity = '1';
                 }
             })
             .catch((err) => {
@@ -608,7 +609,7 @@
         return comments;
     }
 
-    /** 过滤弹幕来源 */
+    /** 过滤弹幕来源平台 */
     function danmakuSourceFilter(comments) {
         return comments.filter(c => !(lsGetItem(lsKeys.sourceFilter.id).includes(c.source)));
     }
@@ -730,7 +731,7 @@
     async function afterEmbyDialogCreated() {
         const itemInfoMap = await getMapByEmbyItemInfo();
         const { _id_key, _name_key, _episode_key, animeId, animeName, episode } = itemInfoMap;
-        searchDanmakuOpts = {
+        window.ede.searchDanmakuOpts = {
             _id_key: _id_key,
             _name_key: _name_key,
             _episode_key: _episode_key,
@@ -779,78 +780,94 @@
     function buildDanmakuSetting(containerId) {
         const container = document.getElementById(containerId);
         let template =  `
-            <div>
-                <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;"></div>
-                <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">简繁转换: </label>
+            <div style="display: flex;">
+                <div>
+                    <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;"></div>
+                    <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
+                        <label class="${embyLabelClass}">简繁转换: </label>
+                    </div>
+                    <div id="${eleIds.danmakuEngineDiv}" style="margin-bottom: 0.2em;">
+                        <label class="${embyLabelClass}">切换弹幕引擎: </label>
+                    </div>
+                    <label class="${embyLabelClass}">弹幕样式: </label>
+                    <div style="${embySliderStyle}">
+                        <label class="${embyLabelClass}" style="width:4em;">大小: </label>
+                        <div id="${eleIds.danmakuSizeDiv}" style="width: 15.5em; text-align: center;"></div>
+                        <label id="${eleIds.danmakuSizeLabel}" style="width:4em;"></label>
+                    </div>
+                    <div style="${embySliderStyle}">
+                        <label class="${embyLabelClass}" style="width:4em;">透明度: </label>
+                        <div id="${eleIds.danmakuOpacityDiv}" style="width: 15.5em; text-align: center;"></div>
+                        <label id="${eleIds.danmakuOpacityLabel}" style="width:4em;"></label>
+                    </div>
+                    <div style="${embySliderStyle}">
+                        <label class="${embyLabelClass}" style="width:4em;">速度: </label>
+                        <div id="${eleIds.danmakuSpeedDiv}" style="width: 15.5em; text-align: center;"></div>
+                        <label id="${eleIds.danmakuSpeedLabel}" style="width:4em;"></label>
+                    </div>
+                    <div style="${embySliderStyle}">
+                        <label class="${embyLabelClass}" style="width:4em;">轴偏秒: </label>
+                        <div id="${eleIds.timelineOffsetDiv}" style="width: 15.5em; text-align: center;"></div>
+                        <label id="${eleIds.timelineOffsetLabel}" style="width:4em;"></label>
+                    </div>
                 </div>
-                <div id="${eleIds.danmakuEngineDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">切换弹幕引擎: </label>
-                </div>
-            </div>
-            <div>
-                <label class="${embyLabelClass}">弹幕样式: </label>
-                <div style="${embySliderStyle}">
-                    <label class="${embyLabelClass}" style="width:4em;">大小: </label>
-                    <div id="${eleIds.danmakuSizeDiv}" style="width: 15.5em; text-align: center;"></div>
-                    <label id="${eleIds.danmakuSizeLabel}" style="width:4em;"></label>
-                </div>
-                <div style="${embySliderStyle}">
-                    <label class="${embyLabelClass}" style="width:4em;">透明度: </label>
-                    <div id="${eleIds.danmakuAlphaDiv}" style="width: 15.5em; text-align: center;"></div>
-                    <label id="${eleIds.danmakuAlphaLabel}" style="width:4em;"></label>
-                </div>
-                <div style="${embySliderStyle}">
-                    <label class="${embyLabelClass}" style="width:4em;">速度: </label>
-                    <div id="${eleIds.danmakuSpeedDiv}" style="width: 15.5em; text-align: center;"></div>
-                    <label id="${eleIds.danmakuSpeedLabel}" style="width:4em;"></label>
-                </div>
-                <div style="${embySliderStyle}">
-                    <label class="${embyLabelClass}" style="width:4em;">轴偏秒: </label>
-                    <div id="${eleIds.danmakuOffsetDiv}" style="width: 15.5em; text-align: center;"></div>
-                    <label id="${eleIds.danmakuOffsetLabel}" style="width:4em;">0</label>
+                <div style="width: 100%;">
+                    <div id="${eleIds.settingsDiv}" style="margin-bottom: 0.2em;display: flex;justify-content: space-between;"></div>
+                    <textarea id="${eleIds.settingsText}" hidden style="resize: vertical;width: 100%" rows="16" 
+                        is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                 </div>
             </div>
         `;
         container.innerHTML = template.trim();
-        const switchCheckbox = embyCheckbox(eleIds.danmakuSwitch, '', '弹幕开关', '', lsGetItem(lsKeys.switch.id), doDanmakuSwitch);
-        container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(switchCheckbox);
-        const chConvertTabs = embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange);
-        container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(chConvertTabs);
-        const engineTabs = embyTabs(danmakuEngineOpts, lsGetItem(lsKeys.engine.id)
-            , 'id', 'name', doDanmakuEngineSelect);
-        container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(engineTabs);
-        //滑块
+
+        container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(
+            embyCheckbox(eleIds.danmakuSwitch, '', '弹幕开关', '', lsGetItem(lsKeys.switch.id), doDanmakuSwitch)
+        );
+        container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(
+            embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange)
+        );
+        container.querySelector('#' + eleIds.danmakuEngineDiv).appendChild(
+            embyTabs(danmakuEngineOpts, lsGetItem(lsKeys.engine.id), 'id', 'name', doDanmakuEngineSelect)
+        );
+        // 滑块
         const fontSizeRate = lsGetItem(lsKeys.fontSizeRate.id);
-        const FontOpacity = lsGetItem(lsKeys.fontOpacity.id);
+        const fontOpacity = lsGetItem(lsKeys.fontOpacity.id);
         const danmakuSpeed = lsGetItem(lsKeys.speed.id);
         const sizeSlider = embySlider({ labelId: eleIds.danmakuSizeLabel, key: lsKeys.fontSizeRate.id }
             , { value: fontSizeRate}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
-        const alphaSlider = embySlider({ labelId: eleIds.danmakuAlphaLabel, key: lsKeys.fontOpacity.id }
-            , { max: 1, value: FontOpacity}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
+        const alphaSlider = embySlider({ labelId: eleIds.danmakuOpacityLabel, key: lsKeys.fontOpacity.id }
+            , { max: 1, value: fontOpacity}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
         const speedSlider = embySlider({ labelId: eleIds.danmakuSpeedLabel, key: lsKeys.speed.id }
             , { value: danmakuSpeed}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
         container.querySelector('#' + eleIds.danmakuSizeDiv).appendChild(sizeSlider);
-        container.querySelector('#' + eleIds.danmakuAlphaDiv).appendChild(alphaSlider);
+        container.querySelector('#' + eleIds.danmakuOpacityDiv).appendChild(alphaSlider);
         container.querySelector('#' + eleIds.danmakuSpeedDiv).appendChild(speedSlider);
         document.getElementById(eleIds.danmakuSizeLabel).innerText = fontSizeRate;
-        document.getElementById(eleIds.danmakuAlphaLabel).innerText = FontOpacity;
+        document.getElementById(eleIds.danmakuOpacityLabel).innerText = fontOpacity;
         document.getElementById(eleIds.danmakuSpeedLabel).innerText = danmakuSpeed;
-        const btnContainer = container.querySelector('#' + eleIds.danmakuOffsetDiv);
-        const styleOffsetOpts = { labelId: eleIds.danmakuOffsetLabel, key: lsKeys.timelineOffset.id };
-        onDanmakuStyleChangeLabel(lsGetItem(lsKeys.timelineOffset.id), styleOffsetOpts);
-        danmakuStyleOffsetBtns.forEach(btn => {
-            btnContainer.appendChild(embyButton(btn, (event) => {
-                const element = event.target.nodeName.toLowerCase() === 'i' ? event.target.parentElement : event.target;
-                if (element) {
+        // 弹幕时间轴偏移秒数
+        const btnContainer = container.querySelector('#' + eleIds.timelineOffsetDiv);
+        const timelineOffsetOpts = { labelId: eleIds.timelineOffsetLabel, key: lsKeys.timelineOffset.id };
+        onDanmakuStyleChangeLabel(lsGetItem(lsKeys.timelineOffset.id), timelineOffsetOpts);
+        timelineOffsetBtns.forEach(btn => {
+            btnContainer.appendChild(embyButton(btn, (e) => {
+                if (e.currentTarget) {
                     let oldValue = lsGetItem(lsKeys.timelineOffset.id);
-                    let newValue = oldValue + (parseFloat(element.getAttribute('styleOffset')) || 0);
+                    let newValue = oldValue + (parseFloat(e.currentTarget.getAttribute('valueOffset')) || 0);
                     // 如果 offset 为 0,则 newValue 应该设置为 0
-                    if (newValue === oldValue) { newValue = 0;}
-                    onDanmakuStyleChange(newValue, styleOffsetOpts);
+                    if (newValue === oldValue) { newValue = 0; }
+                    onDanmakuStyleChange(newValue, timelineOffsetOpts);
                 }
             }));
         });
+        // 配置 JSON 导入,导出
+        container.querySelector('#' + eleIds.settingsDiv).appendChild(
+            embyCheckbox(null, '', '展示配置(手动刷新)', '', null, doShowSettingsText)
+        );
+        container.querySelector('#' + eleIds.settingsDiv).appendChild(
+            embyButton({ id: eleIds.settingsImportBtn, label: '应用', iconKey: iconKeys.done, style: 'display: none;' }
+                , () => lsMultiSet(JSON.parse(document.getElementById(eleIds.settingsText).value)))
+        );
     }
     
     function buildSearchEpisode(containerId) {
@@ -865,10 +882,10 @@
                     <div style="display: flex;">
                         <div style="width: 80%;">
                             <label class="${embyLabelClass}">媒体名: </label>
-                            <div class="${embySelectWrapperClass}" style="max-width: 100%;" id="${eleIds.danmakuAnimeDiv}"></div>
+                            <div id="${eleIds.danmakuAnimeDiv}" style="max-width: 100%;" class="${embySelectWrapperClass}"></div>
                             <label class="${embyLabelClass}">分集名: </label>
                             <div style="display: flex;">
-                                <div class="${embySelectWrapperClass}" style="max-width: 90%;"  id="${eleIds.danmakuEpisodeNumDiv}"></div>
+                                <div id="${eleIds.danmakuEpisodeNumDiv}" style="max-width: 90%;" class="${embySelectWrapperClass}"></div>
                                 <div id="${eleIds.danmakuEpisodeLoad}"></div>
                             </div>
                         </div>
@@ -882,7 +899,7 @@
             </div>
         `;
         container.innerHTML = template.trim();
-        const searchInput = embyInput(eleIds.danmakuSearchName, null, searchDanmakuOpts.animeName);
+        const searchInput = embyInput(eleIds.danmakuSearchName, null, window.ede.searchDanmakuOpts.animeName);
         const searchBtn = embyButton({id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: iconKeys.search}, doDanmakuSearchEpisode);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchInput);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchBtn);
@@ -890,21 +907,6 @@
             , doDanmakuSwitchEpisode);
         container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(loadBtn);
     }
-
-    // function a(comments) {
-    //     const container = document.createElement('div');
-    //     window.ede.danmaku._.runningList.map(cmt => {
-    //         const node = document.createElement('div');
-    //         node.textContent = cmt.text;
-    //         if (cmt.style) {
-    //             for (const key in cmt.style) {
-    //                 node.style[key] = cmt.style[key];
-    //             }
-    //         }
-    //         container.appendChild(node);
-    //     });
-    //     return container.innerHTML;
-    // }
 
     function buildCurrentDanmakuInfo(containerId) {
         const container = document.getElementById(containerId);
@@ -915,7 +917,7 @@
         const downloadSum = window.ede.commentsParsed.length;
         let template = `
             <div style="display: flex;">
-                ${animeId === -1 ? '' :
+                ${!animeId || animeId === -1 ? '' :
                 `<img src="${imgSrc}" style="width: 20%;height: 100%;margin-right: 2%;" 
                     loading="lazy" decoding="async" draggable="false" class="coveredImage-noScale"></img>`}
                 <div>
@@ -941,7 +943,7 @@
             <div style="margin-top: 2%;">
                 <label class="${embyLabelClass}">弹幕列表: </label>
                 <div id="${eleIds.danmuListDiv}" style="margin: 1% 0;"></div>
-                <textarea id="${eleIds.danmuListText}" hidden readOnly style="resize: true;width: 100%" rows="8" 
+                <textarea id="${eleIds.danmuListText}" hidden readOnly style="resize: vertical;width: 100%" rows="8" 
                     is="emby-textarea" class="txtOverview emby-textarea"></textarea>
             </div>
         `;
@@ -952,14 +954,6 @@
         );
     }
 
-    function doDanmuListOptsChange(index) {
-        // lsCheckSet(lsKeys.danmuList.id, danmuListOpts[index].id); // 减轻负担,默认不启用
-        const danmuListEle = document.getElementById(eleIds.danmuListText);
-        danmuListEle.hidden = index == lsKeys.danmuList.defaultValue;
-        danmuListEle.value = danmuListOpts[index].onChange(window.ede)
-            .map((cmt, i) => `${i + 1}: ${cmt.text},[${cmt.source}],${cmt.originalUserId},${cmt.cid}`).join('\n');
-    }
-
     function buildDanmakuFilter(containerId) {
         const container = document.getElementById(containerId);
         let template = `
@@ -968,7 +962,7 @@
                     <label class="${embyLabelClass}">屏蔽类型: </label>
                 </div>
                 <div id="${eleIds.danmakuSourceFilterDiv}">
-                    <label class="${embyLabelClass}">屏蔽来源: </label>
+                    <label class="${embyLabelClass}">屏蔽来源平台: </label>
                 </div>
                 <div id="${eleIds.danmakuShowSourceDiv}">
                     <label class="${embyLabelClass}">显示每条来源: </label>
@@ -1011,7 +1005,7 @@
         const keywordsEnableDiv = keywordsContainer.appendChild(document.createElement('div'));
         const keywordsBtn = embyButton({ label: '加载关键词过滤', iconKey: iconKeys.done_disabled }, doDanmakuFilterKeywordsBtnClick);
         keywordsBtn.disabled = true;
-        keywordsEnableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 90%;');
+        keywordsEnableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 100%;');
         keywordsEnableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', ''
             , lsGetItem(lsKeys.filterKeywordsEnable.id), (flag) => updateFilterKeywordsBtn(keywordsBtn, flag
                 , document.getElementById(eleIds.filterKeywordsId).value.trim()))
@@ -1019,12 +1013,12 @@
         keywordsEnableDiv.appendChild(document.createElement('div')).appendChild(keywordsBtn);
         keywordsContainer.appendChild(document.createElement('div')).appendChild(
             embyTextarea(eleIds.filterKeywordsId, lsGetItem(lsKeys.filterKeywords.id)
-            , 'width: 90%;margin-top: 0.2em;', 8, true, false
+            , 'width: 100%;margin-top: 0.2em;', 8, null, false
             , (event) => updateFilterKeywordsBtn(keywordsBtn, document.getElementById(eleIds.filterKeywordsEnableId).checked
                 , event.target.value.trim()))
         );
         const label = document.createElement('label');
-        label.innerText = '关键词/正则匹配过滤,多个表达式用换行分隔';
+        label.innerText = `关键词/正则匹配过滤,支持过滤[正文,${Object.values(showSource).map(o => o.name).join()}],多个表达式用换行分隔`;
         label.className = 'fieldDescription';
         keywordsContainer.appendChild(document.createElement('div')).appendChild(label);
     }
@@ -1066,15 +1060,15 @@
         danmakuAnimeDiv.innerHTML = '';
         danmakuEpisodeNumDiv.innerHTML = '';
         const animes = animaInfo.animes;
-        searchDanmakuOpts.animes = animes;
+        window.ede.searchDanmakuOpts.animes = animes;
 
-        let selectAnimeIdx = animes.findIndex(anime => anime.animeId == searchDanmakuOpts.animeId);
+        let selectAnimeIdx = animes.findIndex(anime => anime.animeId == window.ede.searchDanmakuOpts.animeId);
         selectAnimeIdx = selectAnimeIdx !== -1 ? selectAnimeIdx : 0;
-        const animeSelect = embySelect(eleIds.danmakuAnimeSelect, '剧集: ', selectAnimeIdx
+        const animeSelect = embySelect({ id: eleIds.danmakuAnimeSelect, label: '剧集: ' }, selectAnimeIdx
             , animes, 'animeId', option => `${option.animeTitle} 类型：${option.typeDescription}`, doDanmakuAnimeSelect);
         danmakuAnimeDiv.appendChild(animeSelect);
-        const episodeNumSelect = embySelect(eleIds.danmakuEpisodeNumSelect, '集数: ', searchDanmakuOpts.episode
-            , animes[selectAnimeIdx].episodes, 'episodeId', 'episodeTitle');
+        const episodeNumSelect = embySelect({ id: eleIds.danmakuEpisodeNumSelect, label: '集数: ' }
+            , window.ede.searchDanmakuOpts.episode, animes[selectAnimeIdx].episodes, 'episodeId', 'episodeTitle');
         episodeNumSelect.style.maxWidth = '100%';
         danmakuEpisodeNumDiv.appendChild(episodeNumSelect);
         document.getElementById(eleIds.danmakuEpisodeFlag).hidden = false;
@@ -1083,31 +1077,32 @@
             `https://img.dandanplay.net/anime/${animes[selectAnimeIdx].animeId}.jpg`;
     }  
 
-    function doDanmakuAnimeSelect() {
+    function doDanmakuAnimeSelect(value, index, option) {
         const numDiv = document.getElementById(eleIds.danmakuEpisodeNumDiv);
         numDiv.innerHTML = '';
-        const idx = document.getElementById(eleIds.danmakuAnimeSelect).selectedIndex;
-        const episodeNumSelect = embySelect(eleIds.danmakuEpisodeNumSelect, '集数: ', idx
-            , searchDanmakuOpts.animes[idx].episodes, 'episodeId', 'episodeTitle');
+        const anime = window.ede.searchDanmakuOpts.animes[index];
+        const episodeNumSelect = embySelect({ id: eleIds.danmakuEpisodeNumSelect, label: '集数: ' }, index
+            , anime.episodes, 'episodeId', 'episodeTitle');
         episodeNumSelect.style.maxWidth = '100%';
         numDiv.appendChild(episodeNumSelect);
         document.getElementById(eleIds.searchImg).src = 
-            `https://img.dandanplay.net/anime/${searchDanmakuOpts.animes[idx].animeId}.jpg`;
+            `https://img.dandanplay.net/anime/${anime.animeId}.jpg`;
     }
 
     function doDanmakuSwitchEpisode() {
         const animeSelect = document.getElementById(eleIds.danmakuAnimeSelect);
         const episodeNumSelect = document.getElementById(eleIds.danmakuEpisodeNumSelect);
+        const anime = window.ede.searchDanmakuOpts.animes[animeSelect.selectedIndex];
 
         const episodeInfo = {
             episodeId: episodeNumSelect.value,
-            episodeTitle: searchDanmakuOpts.animes[animeSelect.selectedIndex].type == 'tvseries' 
+            episodeTitle: anime.type == 'tvseries' 
                 ?  episodeNumSelect.options[episodeNumSelect.selectedIndex].text
                 : null,
-            animeId: searchDanmakuOpts.animes[animeSelect.selectedIndex].animeId,
-            animeTitle: searchDanmakuOpts.animes[animeSelect.selectedIndex].animeTitle,
+            animeId: anime.animeId,
+            animeTitle: anime.animeTitle,
         }
-        localStorage.setItem(searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
+        localStorage.setItem(window.ede.searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
         console.log(`手动匹配信息:`, episodeInfo);
         loadDanmaku(LOAD_TYPE.RELOAD);
     }
@@ -1123,9 +1118,8 @@
     function doDanmakuChConverChange(index) {
         window.ede.chConvert = danmakuChConverOpts[index].id;
         lsSetItem(lsKeys.chConvert.id, window.ede.chConvert);
-        document.querySelector('#translateDanmaku')?.setAttribute('title', chConverTtitle[window.ede.chConvert]);
         loadDanmaku(LOAD_TYPE.REFRESH);
-        console.log(chConverTtitle[window.ede.chConvert]);
+        console.log(danmakuChConverOpts[index].name);
     }
 
     function doDanmakuFilterLevelChange(index) {
@@ -1138,6 +1132,13 @@
         const valueStr = danmakuHeightRateOpts[index].id;
         console.log(`切换弹幕高度比例: ${valueStr}`);
         if (lsCheckSet(lsKeys.heightRate.id, valueStr)) { loadDanmaku(LOAD_TYPE.RELOAD); }
+    }
+
+    function doDanmuListOptsChange(index) {
+        const danmuListEle = document.getElementById(eleIds.danmuListText);
+        danmuListEle.hidden = index == lsKeys.danmuList.defaultValue;
+        danmuListEle.value = danmuListOpts[index].onChange(window.ede)
+            .map((cmt, i) => `${i + 1}: ${cmt.text},[${cmt.source}],${cmt.originalUserId},${cmt.cid}`).join('\n');
     }
 
     function doDanmakuTypeFilterSelect() {
@@ -1155,7 +1156,7 @@
             .filter(item => item.checked).map(item => item.value);
         lsSetItem(lsKeys.sourceFilter.id, checkList);
         loadDanmaku(LOAD_TYPE.RELOAD);
-        console.log(`当前弹幕来源过滤为: ${JSON.stringify(checkList)}`);
+        console.log(`当前弹幕来源平台过滤为: ${JSON.stringify(checkList)}`);
     }
 
     function doDanmakuShowSourceSelect() {
@@ -1178,9 +1179,16 @@
     function onDanmakuStyleChangeLabel(val, props) {
         if (props?.labelId) { document.getElementById(props.labelId).innerText = val; }
     }
+    
+    function doShowSettingsText(checked) {
+        const settingsTextEle = document.getElementById(eleIds.settingsText);
+        settingsTextEle.hidden = !checked;
+        if (checked) { settingsTextEle.value = getSettingsJson(); }
+        document.getElementById(eleIds.settingsImportBtn).style.display = !checked ? 'none' : '';
+    }
 
     function doDanmakuFilterKeywordsBtnClick(event) {
-        const btn = event.target.nodeName.toLowerCase() === 'i' ? event.target.parentElement : event.target;
+        const btn = event.currentTarget;
         if (btn) {
             btn.style = '';
             btn.disabled = true;
@@ -1217,7 +1225,7 @@
         const button = document.createElement('button', { is: 'emby-button' });
         button.setAttribute('type', 'button');
         Object.entries(props).forEach(([key, value]) => {
-            if (key !== 'iconKey' &&  typeof value !== 'function') {button.setAttribute(key, value);}
+            if (key !== 'iconKey' &&  typeof value !== 'function') { button.setAttribute(key, value); }
         });
         if (props.iconKey) {
             button.setAttribute('title', props.label);
@@ -1257,28 +1265,31 @@
         return tabs;
     }
 
-    function embySelect(id, label, selected, options, optionValueKey, optionTitleKey, onChange) {
-        if (!Number.isInteger(selected)) {
-            selected = options.indexOf(selected);
+    function embySelect(props, selectedIndexOrValue, options, optionValueKey, optionTitleKey, onChange) {
+        const defaultProps = { style: embySelectStyle, class: 'selectSyncTarget emby-select' };
+        props = { ...defaultProps, ...props };
+        if (!Number.isInteger(selectedIndexOrValue)) {
+            selectedIndexOrValue = options.indexOf(selectedIndexOrValue);
         }
         const selectElement = document.createElement('select', { is: 'emby-select'});
-        selectElement.setAttribute('id', id);
-        selectElement.setAttribute('label', label);
-        selectElement.setAttribute('style', embySelectStyle);
-        selectElement.setAttribute('class', 'selectSyncTarget emby-select');
+        Object.entries(props).forEach(([key, value]) => {
+            if (typeof value !== 'function') { selectElement.setAttribute(key, value); }
+        });
         options.forEach((option, index) => {
             const value = getValueOrInvoke(option, optionValueKey);
             const title = getValueOrInvoke(option, optionTitleKey);
             const optionElement = document.createElement('option');
             optionElement.value = value;
             optionElement.textContent = title;
-            if (index === selected) {
+            if (index === selectedIndexOrValue) {
                 optionElement.selected = true;
             }
             selectElement.appendChild(optionElement);
         });
         if (typeof onChange === 'function') {
-            selectElement.addEventListener('change', e => onChange(e.target.value));
+            selectElement.addEventListener('change', e => {
+                onChange(e.target.value, e.target.selectedIndex, options[e.target.selectedIndex]);
+            });
         }
         return selectElement;
     }
@@ -1318,14 +1329,14 @@
         return checkboxLabel;
     }
 
-    function embyTextarea(id, value, style, rows = 10, resize = true, readonly = false, onBlur) {
+    function embyTextarea(id, value, style, rows = 10, styleResize, readonly = false, onBlur) {
         const textarea = document.createElement('textarea', { is: 'emby-textarea' });
         textarea.setAttribute('id', id);
         textarea.setAttribute('style', style);
         textarea.setAttribute('rows', rows);
         textarea.className = 'txtOverview emby-textarea';
         textarea.readOnly = readonly;
-        textarea.style.resize = resize;
+        textarea.style.resize = styleResize ?? 'vertical';
         textarea.value = value;
         if (typeof onBlur === 'function') { textarea.addEventListener('blur', onBlur); }
         return textarea;
@@ -1434,6 +1445,10 @@
         return typeof keyOrFunc === 'function' ? keyOrFunc(option) : option[keyOrFunc];
     }
 
+    function getSettingsJson() {
+        return JSON.stringify(Object.fromEntries(Object.entries(lsKeys).map(([key, value]) => [value.id, lsGetItem(value.id)])), null, 4);
+    }
+
     // 缓存相关方法
     function lsGetItem(id) {
         const key = lsGetKeyById(id);
@@ -1459,8 +1474,12 @@
      * @param {object} keyValues - 键值对对象,如 {key1: value1, key2: value2}
      * @returns {boolean} - 是否有更新
      */
-    function lsMultCheckSet(keyValues) {
-        return Object.entries(keyValues).reduce((acc, [id, value]) => (acc || lsCheckSet(id, value)), false);
+    function lsMultiSet(keyValues, needCheck = true) {
+        if (needCheck) {
+            return Object.entries(keyValues).reduce((acc, [id, value]) => (acc || lsCheckSet(id, value)), false);
+        } else {
+            Object.entries(keyValues).forEach(([key, value]) => lsSetItem(key, value));
+        }
     }
     function lsSetItem(id, value) {
         if (!lsGetKeyById(id)) { return; }
@@ -1532,6 +1551,7 @@
         // 以下重要,销毁定时器
         window.ede.destroyTimeoutIds.forEach(id => clearTimeout(id));
         window.ede.destroyTimeoutIds = [];
+        lsSetItem(lsKeys.timelineOffset.id, lsKeys.timelineOffset.defaultValue); // 退出播放页面重置轴偏秒
     }
 
     // emby/jellyfin CustomEvent. see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
