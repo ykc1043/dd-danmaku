@@ -88,6 +88,9 @@
         settingsDiv: 'settingsDiv',
         settingsText: 'settingsText',
         settingsImportBtn: 'settingsImportBtn',
+        settingShowBtn: 'settingShowBtn',
+        settingCloseBtn: 'settingCloseBtn',
+        settingReloadBtn: 'settingReloadBtn',
         filterKeywordsEnableId: 'filterKeywordsEnableId',
         filterKeywordsId: 'filterKeywordsId',
     };
@@ -105,10 +108,15 @@
         forward_30: 'forward_30',
         comment: 'comment',
         comments_disabled: 'comments_disabled',
+        switch_on: 'toggle_on',
+        switch_off: 'toggle_off',
         setting: 'tune',
         search: 'search',
         done: 'done_all',
         done_disabled: 'remove_done',
+        more: 'more_horiz',
+        close: 'close',
+        refresh: 'refresh',
     };
 
     // 此id等同于danmakuTabOpts内的弹幕信息的id
@@ -217,7 +225,6 @@
     const embyCheckboxListStyle = 'display: flex;flex-wrap: wrap;';
     const embySliderListStyle = 'display: flex;flex-direction: column;justify-content: center;align-items: center;'; // 容器内元素垂直排列,水平居中 
     const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;'; // 容器内元素横向并排,垂直居中
-    const embyCheckGreenStyle = 'color: #388e3c;';
     
     // ------ 程序内部使用,请勿更改 end ------
 
@@ -729,6 +736,7 @@
     }
 
     async function afterEmbyDialogCreated() {
+        require(["css!modules/emby-elements/emby-textarea/emby-textarea.css"]);
         const itemInfoMap = await getMapByEmbyItemInfo();
         const { _id_key, _name_key, _episode_key, animeId, animeName, episode } = itemInfoMap;
         window.ede.searchDanmakuOpts = {
@@ -780,9 +788,9 @@
     function buildDanmakuSetting(containerId) {
         const container = document.getElementById(containerId);
         let template =  `
-            <div style="display: flex;">
+            <div style="display: flex;justify-content: space-between;">
                 <div>
-                    <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;"></div>
+                    <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;"><label class="${embyLabelClass}">弹幕开关 </label></div>
                     <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
                         <label class="${embyLabelClass}">简繁转换: </label>
                     </div>
@@ -811,17 +819,18 @@
                         <label id="${eleIds.timelineOffsetLabel}" style="width:4em;"></label>
                     </div>
                 </div>
-                <div style="width: 100%;">
+                <div style="width: 20em;">
                     <div id="${eleIds.settingsDiv}" style="margin-bottom: 0.2em;display: flex;justify-content: space-between;"></div>
-                    <textarea id="${eleIds.settingsText}" hidden style="resize: vertical;width: 100%" rows="16" 
+                    <textarea id="${eleIds.settingsText}" style="display: none;resize: vertical;width: 100%" rows="14" 
                         is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                 </div>
             </div>
         `;
         container.innerHTML = template.trim();
 
-        container.querySelector('#' + eleIds.danmakuSwitchDiv).appendChild(
-            embyCheckbox(eleIds.danmakuSwitch, '', '弹幕开关', '', lsGetItem(lsKeys.switch.id), doDanmakuSwitch)
+        container.querySelector('#' + eleIds.danmakuSwitchDiv).prepend(
+            embyButton({id: eleIds.danmakuSwitch, label: '弹幕开关', iconKey: lsGetItem(lsKeys.switch.id) ? iconKeys.switch_on : iconKeys.switch_off, 
+                style: lsGetItem(lsKeys.switch.id) ? 'color:#52b54b;font-size:1.5em;padding:0;': 'font-size:1.5em;padding:0;'}, doDanmakuSwitch)
         );
         container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(
             embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange)
@@ -861,12 +870,18 @@
             }));
         });
         // 配置 JSON 导入,导出
-        container.querySelector('#' + eleIds.settingsDiv).appendChild(
-            embyCheckbox(null, '', '展示配置(手动刷新)', '', null, doShowSettingsText)
-        );
-        container.querySelector('#' + eleIds.settingsDiv).appendChild(
-            embyButton({ id: eleIds.settingsImportBtn, label: '应用', iconKey: iconKeys.done, style: 'display: none;' }
-                , () => lsMultiSet(JSON.parse(document.getElementById(eleIds.settingsText).value)))
+        let settingDiv = container.querySelector('#' + eleIds.settingsDiv);
+        settingDiv.appendChild(embyButton({id: eleIds.settingCloseBtn, label: '关闭', iconKey: iconKeys.close, style: 'display: none;'}
+            , () => doShowSettingsText(false)));
+        settingDiv.appendChild(embyButton({id: eleIds.settingReloadBtn, label: '刷新', iconKey: iconKeys.refresh, style: 'display: none;margin-left: auto;'}
+            , () => document.getElementById(eleIds.settingsText).value = getSettingsJson(2)));
+        settingDiv.appendChild(embyButton({id: eleIds.settingShowBtn, label: '配置', iconKey: iconKeys.more, style: 'margin-left: auto;'}
+            , () => doShowSettingsText(true)));
+        settingDiv.appendChild(embyButton({ id: eleIds.settingsImportBtn, label: '应用', iconKey: iconKeys.done, style: 'display: none;' }, () => {
+                    lsMultiSet(JSON.parse(document.getElementById(eleIds.settingsText).value));
+                    loadDanmaku(LOAD_TYPE.INIT);
+                    closeEmbyDialog();
+                })
         );
     }
     
@@ -1026,12 +1041,12 @@
     function doDanmakuSwitch() {
         console.log('切换弹幕开关');
         const flag = !lsGetItem(lsKeys.switch.id);
-        if (flag) {
-            window.ede.danmaku.show();
-            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = iconKeys.comment;
-        } else {
-            window.ede.danmaku.hide();
-            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = iconKeys.comments_disabled;
+        flag ? window.ede.danmaku.show() : window.ede.danmaku.hide();
+        document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = flag ? iconKeys.comment : iconKeys.comments_disabled;
+        const switchElement = document.getElementById(eleIds.danmakuSwitch);
+        if (switchElement) {
+            switchElement.firstChild.innerHTML = flag ? iconKeys.switch_on : iconKeys.switch_off;
+            switchElement.style.color = flag ? '#52b54b' : '';
         }
         lsSetItem(lsKeys.switch.id, flag);
     }
@@ -1105,6 +1120,7 @@
         localStorage.setItem(window.ede.searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
         console.log(`手动匹配信息:`, episodeInfo);
         loadDanmaku(LOAD_TYPE.RELOAD);
+        closeEmbyDialog();
     }
 
     function doDanmakuEngineSelect(index) {
@@ -1182,9 +1198,12 @@
     
     function doShowSettingsText(checked) {
         const settingsTextEle = document.getElementById(eleIds.settingsText);
-        settingsTextEle.hidden = !checked;
-        if (checked) { settingsTextEle.value = getSettingsJson(); }
+        settingsTextEle.style.display = !checked ? 'none' : '';
+        if (checked) { settingsTextEle.value = getSettingsJson(2); }
         document.getElementById(eleIds.settingsImportBtn).style.display = !checked ? 'none' : '';
+        document.getElementById('settingCloseBtn').style.display = !checked ? 'none' : '';
+        document.getElementById('settingReloadBtn').style.display = !checked ? 'none' : '';
+        document.getElementById('settingShowBtn').style.display = checked ? 'none' : '';
     }
 
     function doDanmakuFilterKeywordsBtnClick(event) {
@@ -1426,6 +1445,10 @@
             .catch(error => { console.log(`点击弹出框外部取消: ` + error) });
     }
 
+    function closeEmbyDialog() {
+        document.querySelector('.formDialogFooterItem').dispatchEvent(new Event('click'));
+    }
+
     // see: ../web/modules/common/dialogs/alert.js
     async function embyAlert(opts = {}) {
         const defaultOpts = { text: '', title: '', timeout: 0, html: ''};
@@ -1445,8 +1468,8 @@
         return typeof keyOrFunc === 'function' ? keyOrFunc(option) : option[keyOrFunc];
     }
 
-    function getSettingsJson() {
-        return JSON.stringify(Object.fromEntries(Object.entries(lsKeys).map(([key, value]) => [value.id, lsGetItem(value.id)])), null, 4);
+    function getSettingsJson(space = 4) {
+        return JSON.stringify(Object.fromEntries(Object.entries(lsKeys).map(([key, value]) => [value.id, lsGetItem(value.id)])), null, space);
     }
 
     // 缓存相关方法
