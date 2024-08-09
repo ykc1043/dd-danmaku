@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.22
+// @version      1.23
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -25,7 +25,6 @@
     const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     const check_interval = 200;
     const chConverTtitle = ['当前状态: 未启用', '当前状态: 转换为简体', '当前状态: 转换为繁体'];
-    const danmuCache = {};
     const LOAD_TYPE = {
         CHECK: 'check',
         INIT: 'init',
@@ -60,6 +59,7 @@
         engine: { id: 'danmakuEngine', defaultValue: 'canvas' },
         filterKeywords: { id: 'danmakuFilterKeywords', defaultValue: '' },
         filterKeywordsEnable: { id: 'danmakuFilterKeywordsEnable', defaultValue: true },
+        danmuList: { id: 'danmakuDanmuList', defaultValue: 0 },
     };
     const eleIds = {
         danmakuSwitchBtn: 'danmakuSwitchBtn',
@@ -92,6 +92,8 @@
         danmakuChConverDiv: 'danmakuChConverDiv',
         danmakuFilterLevelDiv: 'danmakuFilterLevelDiv',
         danmakuHeightRateDiv: 'danmakuHeightRateDiv',
+        danmuListDiv: 'danmuListDiv',
+        danmuListText: 'danmakuListText',
         filterKeywordsDiv: 'filterKeywordsDiv',
         danmakuSizeDiv: 'danmakuSizeDiv',
         danmakuSizeLabel: 'danmakuSizeLabel',
@@ -172,9 +174,8 @@
     const showSource = {
         source: { id: 'source', name: '弹幕来源' },
         originalUserId: { id: 'originalUserId', name: '来源用户id' },
-        cid: { id: 'cid', name: '弹幕id' },
+        cid: { id: 'cid', name: '来源cid' }, // 非弹幕id,唯一性用cuid
     };
-    // 弹幕引擎
     const danmakuEngineOpts = [
         { id: 'canvas', name: 'canvas' },
         { id: 'dom', name: 'dom' },
@@ -206,6 +207,15 @@
         { label: '+5',  styleOffset: '5',   iconKey: iconKeys.forward_5,     style: embyOffsetBtnStyle },
         { label: '+10', styleOffset: '10',  iconKey: iconKeys.forward_10,    style: embyOffsetBtnStyle },
         { label: '+30', styleOffset: '30',  iconKey: iconKeys.forward_30,    style: embyOffsetBtnStyle },
+    ];
+    const danmuListOpts = [
+        { id: '0', name: '未启用' , onChange: () => [] },
+        { id: '1', name: '显示屏中', onChange: (ede) => ede.danmaku._.runningList },
+        { id: '2', name: '显示所有', onChange: (ede) => ede.commentsParsed },
+        { id: '3', name: '显示加载', onChange: (ede) => ede.danmaku.comments },
+        { id: '4', name: '显示被过滤', onChange: (ede) => {
+            return ede.commentsParsed.filter(s => !ede.danmaku.comments.some(t => s.cuid === t.cuid))
+        } },
     ];
     
     // ------ 程序内部使用,请勿更改 end ------
@@ -243,7 +253,9 @@
             this.episode_info = null;
             this.ob = null;
             this.loading = false;
+            this.danmuCache = {};
             this.destroyTimeoutIds = [];
+            this.commentsParsed = [];
         }
     }
 
@@ -443,7 +455,9 @@
             window.ede.danmaku.destroy();
             window.ede.danmaku = null;
         }
-        let _comments = danmakuFilter(danmakuParser(comments));
+        const commentsParsed = danmakuParser(comments);
+        window.ede.commentsParsed = commentsParsed;
+        let _comments = danmakuFilter(commentsParsed);
         console.log('弹幕加载成功: ' + _comments.length);
 
         const _container = document.querySelector(mediaContainerQueryStr);
@@ -529,8 +543,8 @@
             .then(
                 (episodeId) => {
                     if (episodeId) {
-                        if (loadType === LOAD_TYPE.RELOAD && danmuCache[episodeId]) {
-                            createDanmaku(danmuCache[episodeId])
+                        if (loadType === LOAD_TYPE.RELOAD && window.ede.danmuCache[episodeId]) {
+                            createDanmaku(window.ede.danmuCache[episodeId])
                                 .then(() => {
                                     console.log('弹幕就位');
                                     // embyToast({ text: `弹幕就位,已加载 ${window.ede.danmaku?.comments.length} 条弹幕` });
@@ -540,12 +554,11 @@
                                 });
                         } else {
                             getComments(episodeId).then((comments) => {
-                                danmuCache[episodeId] = comments;
-                                window.ede.downloadSum = comments.length;
+                                window.ede.danmuCache[episodeId] = comments;
                                 createDanmaku(comments)
                                     .then(() => {
                                         console.log('弹幕就位');
-                                        embyToast({ text: `弹幕就位,已获取 ${window.ede.downloadSum} 条弹幕` });
+                                        embyToast({ text: `弹幕就位,已获取 ${comments.length} 条弹幕` });
                                     })
                                     .catch((err) => {
                                         console.log(err);
@@ -702,6 +715,7 @@
                     [showSource.originalUserId.id]: values[3].match(sourceUidReg)?.[2] || values[3],
                 };
                 cmt.text += showSourceIds.map(id => id === showSource.source.id ? `,[${cmt[id]}]` : ',' + cmt[id]).join('');
+                cmt.cuid = cmt[showSource.cid.id] + ',' + cmt[showSource.originalUserId.id];
                 return cmt;
             })
             .filter((x) => x);
@@ -728,7 +742,7 @@
 
         const dialogContainer = document.getElementById(eleIds.dialogContainer);
         let formDialogHeader = document.querySelector('.formDialogHeader');
-        let formDialogFooter = document.querySelector('.formDialogFooter');
+        const formDialogFooter = document.querySelector('.formDialogFooter');
         if (!dialogContainer) {
             window.ede.destroyTimeoutIds.push(setTimeout(() => {
                 console.log("retry dialogContainer!");
@@ -736,9 +750,7 @@
             }, check_interval));
             return;
         }
-        if(!formDialogHeader) {
-            formDialogHeader = dialogContainer;
-        }
+        formDialogHeader = formDialogHeader || dialogContainer;
         const tabsMenuContainer = document.createElement('div');
         tabsMenuContainer.className = embyTabsMenuClass;
         tabsMenuContainer.appendChild(embyTabs(danmakuTabOpts, danmakuTabOpts[0].id, 'id', 'name', (index) => {
@@ -860,7 +872,8 @@
                                 <div id="${eleIds.danmakuEpisodeLoad}"></div>
                             </div>
                         </div>
-                        <img id="${eleIds.searchImg}" style="width: 20%;margin: 2%;" loading="lazy" decoding="async" draggable="false" class="coveredImage-noScale"></img>
+                        <img id="${eleIds.searchImg}" style="width: 20%;height: 100%;margin: 2%;"
+                            loading="lazy" decoding="async" draggable="false" class="coveredImage-noScale"></img>
                         </div>
                     </div>
                 <div>
@@ -878,18 +891,33 @@
         container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(loadBtn);
     }
 
+    // function a(comments) {
+    //     const container = document.createElement('div');
+    //     window.ede.danmaku._.runningList.map(cmt => {
+    //         const node = document.createElement('div');
+    //         node.textContent = cmt.text;
+    //         if (cmt.style) {
+    //             for (const key in cmt.style) {
+    //                 node.style[key] = cmt.style[key];
+    //             }
+    //         }
+    //         container.appendChild(node);
+    //     });
+    //     return container.innerHTML;
+    // }
+
     function buildCurrentDanmakuInfo(containerId) {
         const container = document.getElementById(containerId);
         if (!container || !window.ede.episode_info) { return; }
         const { episodeTitle, animeId, animeTitle } = window.ede.episode_info;
         const imgSrc = `https://img.dandanplay.net/anime/${animeId}.jpg`;
         const loadSum = window.ede.danmaku?.comments.length ?? 0;
-        const downloadSum = window.ede.downloadSum;
+        const downloadSum = window.ede.commentsParsed.length;
         let template = `
             <div style="display: flex;">
                 ${animeId === -1 ? '' :
-                `<img src="${imgSrc}" style="width: 20%;margin-right: 2%;" loading="lazy" decoding="async" draggable="false" class="coveredImage-noScale"></img>`
-                }
+                `<img src="${imgSrc}" style="width: 20%;height: 100%;margin-right: 2%;" 
+                    loading="lazy" decoding="async" draggable="false" class="coveredImage-noScale"></img>`}
                 <div>
                     <div>
                         <label class="${embyLabelClass}">媒体名: </label>
@@ -903,15 +931,33 @@
                     <div>
                         <label class="${embyLabelClass}">其它信息: </label>
                         <div class="${embyTextDivClass}">
-                            获取总条数: ${downloadSum}, 
-                            加载总条数: ${loadSum}, 
-                            被过滤条数: ${downloadSum - loadSum}
+                            获取总数: ${downloadSum}, 
+                            加载总数: ${loadSum}, 
+                            被过滤数: ${downloadSum - loadSum}
                         </div>
                     </div>
                 </div>
             </div>
+            <div style="margin-top: 2%;">
+                <label class="${embyLabelClass}">弹幕列表: </label>
+                <div id="${eleIds.danmuListDiv}" style="margin: 1% 0;"></div>
+                <textarea id="${eleIds.danmuListText}" hidden readOnly style="resize: true;width: 100%" rows="8" 
+                    is="emby-textarea" class="txtOverview emby-textarea"></textarea>
+            </div>
         `;
         container.innerHTML = template.trim();
+
+        container.querySelector('#' + eleIds.danmuListDiv).appendChild(
+            embyTabs(danmuListOpts, lsKeys.danmuList.defaultValue, 'id', 'name', doDanmuListOptsChange)
+        );
+    }
+
+    function doDanmuListOptsChange(index) {
+        // lsCheckSet(lsKeys.danmuList.id, danmuListOpts[index].id); // 减轻负担,默认不启用
+        const danmuListEle = document.getElementById(eleIds.danmuListText);
+        danmuListEle.hidden = index == lsKeys.danmuList.defaultValue;
+        danmuListEle.value = danmuListOpts[index].onChange(window.ede)
+            .map((cmt, i) => `${i + 1}: ${cmt.text},[${cmt.source}],${cmt.originalUserId},${cmt.cid}`).join('\n');
     }
 
     function buildDanmakuFilter(containerId) {
@@ -958,7 +1004,7 @@
         );
         container.querySelector('#' + eleIds.danmakuHeightRateDiv).appendChild(
             embyTabs(danmakuHeightRateOpts, lsGetItem(lsKeys.heightRate.id) 
-                , 'id', 'name', danmakuHeightRateChange)
+                , 'id', 'name', doDanmakuHeightRateChange)
         );
         // 屏蔽关键词
         const keywordsContainer = container.querySelector('#' + eleIds.filterKeywordsDiv);
@@ -1088,7 +1134,7 @@
         if (lsCheckSet(lsKeys.filterLevel.id, level)) { loadDanmaku(LOAD_TYPE.RELOAD); }
     }
 
-    function danmakuHeightRateChange(index) {
+    function doDanmakuHeightRateChange(index) {
         const valueStr = danmakuHeightRateOpts[index].id;
         console.log(`切换弹幕高度比例: ${valueStr}`);
         if (lsCheckSet(lsKeys.heightRate.id, valueStr)) { loadDanmaku(LOAD_TYPE.RELOAD); }
