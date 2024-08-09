@@ -112,8 +112,8 @@
         replay_10:  'replay_10',
         replay_5:   'replay_5',
         replay:   'replay',
-        restart_alt:  'restart_alt',
-        forward_media:   'forward_media',
+        reset:  'repeat',
+        forward_media:   'forward_media', // electron中图标不正确,使用replay反转
         forward_5:   'forward_5',
         forward_10:  'forward_10',
         forward_30:  'forward_30',
@@ -198,15 +198,15 @@
         { id: '0.25', name: '25%' },
     ];
     const danmakuStyleOffsetBtns = [
-        { label: '-30', styleOffset: '-30', iconKey: iconKeys.replay_30,     style: embyOffsetBtnStyle },
-        { label: '-10', styleOffset: '-10', iconKey: iconKeys.replay_10,     style: embyOffsetBtnStyle },
-        { label: '-5',  styleOffset: '-5',  iconKey: iconKeys.replay_5,      style: embyOffsetBtnStyle },
-        { label: '-1',  styleOffset: '-1',  iconKey: iconKeys.replay,        style: embyOffsetBtnStyle },
-        { label: '0',   styleOffset: '0',   iconKey: iconKeys.restart_alt,   style: embyOffsetBtnStyle },
-        { label: '+1',  styleOffset: '1',   iconKey: iconKeys.forward_media, style: embyOffsetBtnStyle },
-        { label: '+5',  styleOffset: '5',   iconKey: iconKeys.forward_5,     style: embyOffsetBtnStyle },
-        { label: '+10', styleOffset: '10',  iconKey: iconKeys.forward_10,    style: embyOffsetBtnStyle },
-        { label: '+30', styleOffset: '30',  iconKey: iconKeys.forward_30,    style: embyOffsetBtnStyle },
+        { label: '-30', styleOffset: '-30', iconKey: iconKeys.replay_30,  style: embyOffsetBtnStyle },
+        { label: '-10', styleOffset: '-10', iconKey: iconKeys.replay_10,  style: embyOffsetBtnStyle },
+        { label: '-5',  styleOffset: '-5',  iconKey: iconKeys.replay_5,   style: embyOffsetBtnStyle },
+        { label: '-1',  styleOffset: '-1',  iconKey: iconKeys.replay,     style: embyOffsetBtnStyle },
+        { label: '0',   styleOffset: '0',   iconKey: iconKeys.reset,      style: embyOffsetBtnStyle },
+        { label: '+1',  styleOffset: '1',   iconKey: iconKeys.replay,     style: embyOffsetBtnStyle + ' transform: rotateY(180deg);' },
+        { label: '+5',  styleOffset: '5',   iconKey: iconKeys.forward_5,  style: embyOffsetBtnStyle },
+        { label: '+10', styleOffset: '10',  iconKey: iconKeys.forward_10, style: embyOffsetBtnStyle },
+        { label: '+30', styleOffset: '30',  iconKey: iconKeys.forward_30, style: embyOffsetBtnStyle },
     ];
     const danmuListOpts = [
         { id: '0', name: '未启用' , onChange: () => [] },
