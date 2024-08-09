@@ -21,7 +21,6 @@
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
     const requireDanmakuPath = "https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js";
     // ------ 用户配置 start ------
-    const showBtnsTab = false;  // 调试使用,是否在弹框内显示按钮列表菜单
     // ------ 程序内部使用,请勿更改 start ------
     const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     const check_interval = 200;
@@ -105,24 +104,24 @@
         filterKeywordsEnableId: 'filterKeywordsEnableId',
         filterKeywordsId: 'filterKeywordsId',
     };
+    // https://fonts.google.com/icons
     const iconKeys = {
-        sub30:  '&#xe05a;',
-        sub10:  '&#xe059;',
-        sub5:   '&#xe05b;',
-        sub1:   '&#xe042;',
-        reset:  '&#xe040;',
-        add1:   '&#xe042;',
-        add5:   '&#xe058;',
-        add10:  '&#xe056;',
-        add30:  '&#xe057;',
-        switchShow: '&#xe0b9;',
-        switchHide: '&#xe7a2;',
+        replay_30:  'replay_30',
+        replay_10:  'replay_10',
+        replay_5:   'replay_5',
+        replay:   'replay',
+        restart_alt:  'restart_alt',
+        forward_media:   'forward_media',
+        forward_5:   'forward_5',
+        forward_10:  'forward_10',
+        forward_30:  'forward_30',
+        comment: 'comment',
+        comments_disabled: 'comments_disabled',
         setting: 'tune',
         search: 'search',
-        check: 'check',
+        done: 'done_all',
+        done_disabled: 'remove_done',
     };
-    const knownBtns = ['&#xe0b9;','&#xe7a2;','&#xe881;','&#xe927;','&#xe0e0;','&#xe0f0;','&#xe3e0;',
-        '&#xe3d0;', '&#xe3d1;', '&#xe3d2;', 'tune','search','check'];
     // emby ui class
     const embyLabelClass = 'inputLabel';
     const embyInputClass = 'txtName txtInput-withlockedfield emby-input emby-input-largerfont emby-input-smaller';
@@ -139,7 +138,6 @@
     const embySliderListStyle = 'display: flex;flex-direction: column;justify-content: center;align-items: center;'; // 容器内元素垂直排列,水平居中 
     const embySliderStyle = 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;'; // 容器内元素横向并排,垂直居中
     const embyOffsetBtnStyle = 'margin: 0;padding: 0;';
-    const embyCheckGreenStyle = 'color: #388e3c;';
 
     // 手动搜索变量
     let searchDanmakuOpts = {};
@@ -147,7 +145,7 @@
     let currentDanmakuInfoContainerId = 'danmakuTab2';
     // 播放界面下方按钮
     const mediaBtnOpts = [
-        { id: eleIds.danmakuSwitchBtn, label: '弹幕开关', iconKey: iconKeys.switchShow, onClick: doDanmakuSwitch },
+        { id: eleIds.danmakuSwitchBtn, label: '弹幕开关', iconKey: iconKeys.comment, onClick: doDanmakuSwitch },
         { label: '弹幕设置', iconKey: iconKeys.setting, onClick: createDialog },
     ];
     // 菜单tabs
@@ -156,7 +154,6 @@
         { id: 'danmakuTab1', name: '手动匹配', buildMethod: buildSearchEpisode },
         { id: currentDanmakuInfoContainerId, name: '弹幕信息', buildMethod: buildCurrentDanmakuInfo },
         { id: 'danmakuTab3', name: '弹幕屏蔽', buildMethod: buildDanmakuFilter },
-        { id: 'danmakuTab4', name: 'btns', buildMethod: buildBtns , hidden: !showBtnsTab },
     ];
     // 弹幕类型过滤
     const danmakuTypeFilterOpts = {
@@ -200,15 +197,15 @@
         { id: '0.25', name: '25%' },
     ];
     const danmakuStyleOffsetBtns = [
-        { label: '-30', styleOffset: '-30', iconKey: iconKeys.sub30, style: embyOffsetBtnStyle },
-        { label: '-10', styleOffset: '-10', iconKey: iconKeys.sub10, style: embyOffsetBtnStyle },
-        { label: '-5',  styleOffset: '-5',  iconKey: iconKeys.sub5,  style: embyOffsetBtnStyle },
-        { label: '-1',  styleOffset: '-1',  iconKey: iconKeys.sub1,  style: embyOffsetBtnStyle },
-        { label: '0',   styleOffset: '0',   iconKey: iconKeys.reset, style: embyOffsetBtnStyle },
-        { label: '+1',  styleOffset: '1',   iconKey: iconKeys.add1,  style: embyOffsetBtnStyle + ' transform: rotateY(180deg);' },
-        { label: '+5',  styleOffset: '5',   iconKey: iconKeys.add5,  style: embyOffsetBtnStyle },
-        { label: '+10', styleOffset: '10',  iconKey: iconKeys.add10, style: embyOffsetBtnStyle },
-        { label: '+30', styleOffset: '30',  iconKey: iconKeys.add30, style: embyOffsetBtnStyle },
+        { label: '-30', styleOffset: '-30', iconKey: iconKeys.replay_30,     style: embyOffsetBtnStyle },
+        { label: '-10', styleOffset: '-10', iconKey: iconKeys.replay_10,     style: embyOffsetBtnStyle },
+        { label: '-5',  styleOffset: '-5',  iconKey: iconKeys.replay_5,      style: embyOffsetBtnStyle },
+        { label: '-1',  styleOffset: '-1',  iconKey: iconKeys.replay,        style: embyOffsetBtnStyle },
+        { label: '0',   styleOffset: '0',   iconKey: iconKeys.restart_alt,   style: embyOffsetBtnStyle },
+        { label: '+1',  styleOffset: '1',   iconKey: iconKeys.forward_media, style: embyOffsetBtnStyle },
+        { label: '+5',  styleOffset: '5',   iconKey: iconKeys.forward_5,     style: embyOffsetBtnStyle },
+        { label: '+10', styleOffset: '10',  iconKey: iconKeys.forward_10,    style: embyOffsetBtnStyle },
+        { label: '+30', styleOffset: '30',  iconKey: iconKeys.forward_30,    style: embyOffsetBtnStyle },
     ];
     
     // ------ 程序内部使用,请勿更改 end ------
@@ -876,7 +873,7 @@
         const searchBtn = embyButton({id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: iconKeys.search}, doDanmakuSearchEpisode);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchInput);
         container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchBtn);
-        const loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: iconKeys.check, style: embyCheckGreenStyle}
+        const loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: iconKeys.done }
             , doDanmakuSwitchEpisode);
         container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(loadBtn);
     }
@@ -966,7 +963,7 @@
         // 屏蔽关键词
         const keywordsContainer = container.querySelector('#' + eleIds.filterKeywordsDiv);
         const keywordsEnableDiv = keywordsContainer.appendChild(document.createElement('div'));
-        const keywordsBtn = embyButton({ label: '加载关键词过滤', iconKey: iconKeys.check }, doDanmakuFilterKeywordsBtnClick);
+        const keywordsBtn = embyButton({ label: '加载关键词过滤', iconKey: iconKeys.done_disabled }, doDanmakuFilterKeywordsBtnClick);
         keywordsBtn.disabled = true;
         keywordsEnableDiv.setAttribute('style', 'display: flex; justify-content: space-between; align-items: center; width: 90%;');
         keywordsEnableDiv.appendChild(embyCheckbox(eleIds.filterKeywordsEnableId, '', '启用', ''
@@ -985,31 +982,16 @@
         label.className = 'fieldDescription';
         keywordsContainer.appendChild(document.createElement('div')).appendChild(label);
     }
-
-    function buildBtns(containerId) {
-        const container = document.getElementById(containerId);
-        let btns = [...knownBtns];
-        // 生成从0开始的十六进制表示，直到长度超过3位
-        for (let i = 0; ; i++) {
-            let hex = i.toString(16).toUpperCase();
-            if (hex.length > 3) break;
-            hex = hex.padStart(3, '0');
-            btns.push('&#xe' + hex + ';');
-        }
-        btns.forEach(key => {
-            container.appendChild(embyButton({label: key, iconKey: key}));
-        });
-    }
     
     function doDanmakuSwitch() {
         console.log('切换弹幕开关');
         const flag = !lsGetItem(lsKeys.switch.id);
         if (flag) {
             window.ede.danmaku.show();
-            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = iconKeys.switchShow;
+            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = iconKeys.comment;
         } else {
             window.ede.danmaku.hide();
-            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = iconKeys.switchHide;
+            document.getElementById(eleIds.danmakuSwitchBtn).firstChild.innerHTML = iconKeys.comments_disabled;
         }
         lsSetItem(lsKeys.switch.id, flag);
     }
@@ -1167,7 +1149,7 @@
 
     function updateFilterKeywordsBtn(btn, flag, keywords) {
         const isSame = lsCheckOld(lsKeys.filterKeywordsEnable.id, flag) && lsCheckOld(lsKeys.filterKeywords.id, keywords);
-        btn.style = isSame ? '' : embyCheckGreenStyle;
+        btn.firstChild.innerHTML = isSame ? iconKeys.done_disabled : iconKeys.done;
         btn.disabled = isSame;
     }
 
