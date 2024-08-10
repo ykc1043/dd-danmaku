@@ -958,7 +958,7 @@
             <div style="margin-top: 2%;">
                 <label class="${embyLabelClass}">弹幕列表: </label>
                 <div id="${eleIds.danmuListDiv}" style="margin: 1% 0;"></div>
-                <textarea id="${eleIds.danmuListText}" hidden readOnly style="resize: vertical;width: 100%" rows="8" 
+                <textarea id="${eleIds.danmuListText}" readOnly style="display: none;resize: vertical;width: 100%" rows="8" 
                     is="emby-textarea" class="txtOverview emby-textarea"></textarea>
             </div>
         `;
@@ -1152,7 +1152,7 @@
 
     function doDanmuListOptsChange(index) {
         const danmuListEle = document.getElementById(eleIds.danmuListText);
-        danmuListEle.hidden = index == lsKeys.danmuList.defaultValue;
+        danmuListEle.style.display = index == lsKeys.danmuList.defaultValue ? 'none' : '';
         danmuListEle.value = danmuListOpts[index].onChange(window.ede)
             .map((cmt, i) => `${i + 1}: ${cmt.text},[${cmt.source}],${cmt.originalUserId},${cmt.cid}`).join('\n');
     }
