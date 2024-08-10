@@ -397,7 +397,7 @@
             return JSON.parse(window.localStorage.getItem(_episode_key));
         }
 
-        const animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
+        let animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
         if (is_auto && animaInfo.animes.length == 0) {
             // from: https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L886
             console.log(`标题名: ${animeName},自动匹配未查询到结果,将使用原标题名,重试一次`);
@@ -884,7 +884,7 @@
                 })
         );
     }
-    
+
     function buildSearchEpisode(containerId) {
         const container = document.getElementById(containerId);
         let template = `
