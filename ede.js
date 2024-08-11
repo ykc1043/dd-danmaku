@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.25
+// @version      1.26
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -85,7 +85,7 @@
         danmakuSpeedLabel: 'danmakuSpeedLabel',
         timelineOffsetDiv: 'timelineOffsetDiv',
         timelineOffsetLabel: 'timelineOffsetLabel',
-        settingsDiv: 'settingsDiv',
+        settingsCtrl: 'settingsCtrl',
         settingsText: 'settingsText',
         settingsImportBtn: 'settingsImportBtn',
         settingShowBtn: 'settingShowBtn',
@@ -93,6 +93,8 @@
         settingReloadBtn: 'settingReloadBtn',
         filterKeywordsEnableId: 'filterKeywordsEnableId',
         filterKeywordsId: 'filterKeywordsId',
+        consoleLogCtrl: 'consoleLogCtrl',
+        consoleLogText: 'consoleLogText',
     };
     const embyOffsetBtnStyle = 'margin: 0;padding: 0;';
     // https://fonts.google.com/icons
@@ -117,6 +119,7 @@
         more: 'more_horiz',
         close: 'close',
         refresh: 'refresh',
+        block: 'block',
     };
 
     // 此id等同于danmakuTabOpts内的弹幕信息的id
@@ -132,6 +135,7 @@
         { id: 'danmakuTab1', name: '手动匹配', buildMethod: buildSearchEpisode },
         { id: currentDanmakuInfoContainerId, name: '弹幕信息', buildMethod: buildCurrentDanmakuInfo },
         { id: 'danmakuTab3', name: '弹幕屏蔽', buildMethod: buildDanmakuFilter },
+        { id: 'danmakuTab4', name: '调试信息', buildMethod: buildDebugInfo },
     ];
     // 弹幕类型过滤
     const danmakuTypeFilterOpts = {
@@ -264,7 +268,54 @@
             this.destroyTimeoutIds = [];
             this.commentsParsed = [];
             this.searchDanmakuOpts = {}; // 手动搜索变量
+            this.appLogAspect = {}; // 应用日志切面
         }
+    }
+
+    class AppLogAspect {
+        constructor() {
+            this.originalError = console.error;
+            this.originalLog = console.log;
+            this.value = '';
+            this.listeners = [];
+        }
+        init() {
+            console.error = (...args) => {
+                this.originalError.apply(console, args);
+                this.value += this.format('ERROR', args);
+                this.notifyListeners();
+            };
+            console.log = (...args) => {
+                this.originalLog.apply(console, args);
+                this.value += this.format('INFO', args);
+                this.notifyListeners();
+            };
+            window.onerror = (...args) => { console.error(args); }
+            return this;
+        }
+        destroy(clearValue = true) {
+            console.error = this.originalError;
+            console.log = this.originalLog;
+            window.onerror = null;
+            this.originalError = null;
+            this.originalLog = null;
+            clearValue && (this.value = '');
+            this.listeners = [];
+            return this;
+          }
+        format(level, args) {
+            return `[${new Date(Date.now()).toLocaleString()}] [${level}] : `
+                + args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') + '\n';
+        }
+        on(valueChangedCallback) {
+            if (valueChangedCallback.toString().includes('console.log') 
+                || valueChangedCallback.toString().includes('console.error')) {
+                throw new Error('The callback function must not contain console.log or console.error to avoid infinite loops.');
+            }
+            this.listeners.push(() => valueChangedCallback(this.value));
+        }
+        notifyListeners() { this.listeners.forEach(listener => listener(this.value)); }
+        clearValue() { this.value = ''; this.notifyListeners(); }
     }
 
     function initListener() {
@@ -277,10 +328,7 @@
         if (_media.getAttribute('ede_listening')) { return; }
         console.log('正在初始化Listener');
         _media.setAttribute('ede_listening', true);
-        _media.addEventListener('play', () => {
-            console.log('H5VideoPlayListener: 初始化弹幕信息');
-            loadDanmaku(LOAD_TYPE.INIT);
-        });
+        _media.addEventListener('play', loadDanmaku);
         console.log('Listener初始化完成');
     }
 
@@ -764,7 +812,7 @@
         tabsMenuContainer.className = embyTabsMenuClass;
         tabsMenuContainer.appendChild(embyTabs(danmakuTabOpts, danmakuTabOpts[0].id, 'id', 'name', (index) => {
             danmakuTabOpts.forEach((obj, i) => {
-                let elem = document.getElementById(obj.id);
+                const elem = document.getElementById(obj.id);
                 if (elem) { elem.hidden = i !== index; }
             });
         }));
@@ -820,7 +868,7 @@
                     </div>
                 </div>
                 <div style="width: 20em;">
-                    <div id="${eleIds.settingsDiv}" style="margin-bottom: 0.2em;display: flex;justify-content: space-between;"></div>
+                    <div id="${eleIds.settingsCtrl}" style="margin-bottom: 0.2em;display: flex;justify-content: space-between;"></div>
                     <textarea id="${eleIds.settingsText}" style="display: none;resize: vertical;width: 100%" rows="14" 
                         is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                 </div>
@@ -870,18 +918,25 @@
             }));
         });
         // 配置 JSON 导入,导出
-        let settingDiv = container.querySelector('#' + eleIds.settingsDiv);
-        settingDiv.appendChild(embyButton({id: eleIds.settingCloseBtn, label: '关闭', iconKey: iconKeys.close, style: 'display: none;'}
-            , () => doShowSettingsText(false)));
-        settingDiv.appendChild(embyButton({id: eleIds.settingReloadBtn, label: '刷新', iconKey: iconKeys.refresh, style: 'display: none;margin-left: auto;'}
-            , () => document.getElementById(eleIds.settingsText).value = getSettingsJson(2)));
-        settingDiv.appendChild(embyButton({id: eleIds.settingShowBtn, label: '配置', iconKey: iconKeys.more, style: 'margin-left: auto;'}
-            , () => doShowSettingsText(true)));
-        settingDiv.appendChild(embyButton({ id: eleIds.settingsImportBtn, label: '应用', iconKey: iconKeys.done, style: 'display: none;' }, () => {
-                    lsMultiSet(JSON.parse(document.getElementById(eleIds.settingsText).value));
-                    loadDanmaku(LOAD_TYPE.INIT);
-                    closeEmbyDialog();
-                })
+        const settingsCtrlEle = container.querySelector('#' + eleIds.settingsCtrl);
+        settingsCtrlEle.appendChild(
+            embyButton({id: eleIds.settingShowBtn, label: '配置', iconKey: iconKeys.more, style: 'margin-left: auto;'}
+                , () => doShowSettingsText(true))
+        );
+        settingsCtrlEle.appendChild(
+            embyButton({ id: eleIds.settingsImportBtn, label: '应用', iconKey: iconKeys.done, style: 'display: none;' }, () => {
+                lsMultiSet(JSON.parse(document.getElementById(eleIds.settingsText).value));
+                loadDanmaku(LOAD_TYPE.INIT);
+                closeEmbyDialog();
+            })
+        );
+        settingsCtrlEle.appendChild(
+            embyButton({id: eleIds.settingReloadBtn, label: '刷新', iconKey: iconKeys.refresh, style: 'display: none;margin-right: auto;'}
+                , () => document.getElementById(eleIds.settingsText).value = getSettingsJson(2))
+        );
+        settingsCtrlEle.appendChild(
+            embyButton({id: eleIds.settingCloseBtn, label: '关闭', iconKey: iconKeys.close, style: 'display: none;'}
+                , () => doShowSettingsText(false))
         );
     }
 
@@ -1036,6 +1091,41 @@
         label.innerText = `关键词/正则匹配过滤,支持过滤[正文,${Object.values(showSource).map(o => o.name).join()}],多个表达式用换行分隔`;
         label.className = 'fieldDescription';
         keywordsContainer.appendChild(document.createElement('div')).appendChild(label);
+    }
+
+    function buildDebugInfo(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) { return; }
+        let template = `
+            <div style="display: flex;justify-content: space-between;align-items: center;">
+                <label class="${embyLabelClass}">控制台日志: </label>
+                <div id="${eleIds.consoleLogCtrl}" style="margin-bottom: 0.2em;display: flex;justify-content: space-between;"></div>
+            </div>
+            <textarea id="${eleIds.consoleLogText}" readOnly style="resize: vertical;width: 100%" rows="14"
+                is="emby-textarea" class="txtOverview emby-textarea"></textarea>
+        `;
+        container.innerHTML = template.trim();
+        buildConsoleLog(container);
+    }
+
+    function buildConsoleLog(container) {
+        const consoleLogTextEle = container.querySelector('#' + eleIds.consoleLogText);
+        consoleLogTextEle.value = window.ede.appLogAspect.value;
+        window.ede.appLogAspect.on(newValue => {
+            if (consoleLogTextEle.value.length !== newValue.length) {
+                consoleLogTextEle.value = newValue;
+                consoleLogTextEle.scrollTop = consoleLogTextEle.scrollHeight;
+            }
+        });
+        const consoleLogCtrlEle = container.querySelector('#' + eleIds.consoleLogCtrl);
+        // consoleLogCtrlEle.appendChild(
+        //     embyButton({ label: '手动刷新', iconKey: iconKeys.refresh, style: 'margin-right: auto;'}
+        //         , () => { consoleLogTextEle.value = window.ede.appLogAspect.value; consoleLogTextEle.scrollTop = consoleLogTextEle.scrollHeight; })
+        // );
+        consoleLogCtrlEle.appendChild(
+            embyButton({ label: '清除', iconKey: iconKeys.block, style: 'margin-right: auto;' }
+                , () => { consoleLogTextEle.value = ''; window.ede.appLogAspect.value = ''; })
+        );
     }
     
     function doDanmakuSwitch() {
@@ -1526,7 +1616,6 @@
             if (!playbackManager || !events) { return; }
             const player = playbackManager.getCurrentPlayer();
             const playState = playbackManager.getPlayerState().PlayState;
-            console.log(`PlaybackRate: ${playState.PlaybackRate}`);
             Object.entries(eventsMap).forEach(([eventName, fn]) => {
                 events.off(player, eventName, fn);
                 events.on(player, eventName, (e, ...args) => {
@@ -1565,16 +1654,16 @@
     }
 
     function beforeDestroy() {
-        // 此段销毁不重要,可有可无,仅是规范使用
-        // 清除弹幕,但未销毁 danmaku 实例
-        if (window.ede.danmaku) { window.ede.danmaku.clear(); }
-        // 以下重要,销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
-        const danmakuCtrEle = document.getElementById(eleIds.danmakuCtr);
-        if (danmakuCtrEle) { danmakuCtrEle.remove(); }
-        // 以下重要,销毁定时器
+        // 此段销毁不重要,可有可无,仅是规范使用,清除弹幕,但未销毁 danmaku 实例
+        window.ede?.danmaku?.clear();
+        window.ede?.appLogAspect?.destroy();
+        // 销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
+        document.getElementById(eleIds.danmakuCtr)?.remove();
+        // 销毁定时器
         window.ede.destroyTimeoutIds.forEach(id => clearTimeout(id));
         window.ede.destroyTimeoutIds = [];
-        lsSetItem(lsKeys.timelineOffset.id, lsKeys.timelineOffset.defaultValue); // 退出播放页面重置轴偏秒
+        // 退出播放页面重置轴偏秒
+        lsSetItem(lsKeys.timelineOffset.id, lsKeys.timelineOffset.defaultValue);
     }
 
     // emby/jellyfin CustomEvent. see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
@@ -1582,15 +1671,13 @@
         console.log('viewshow', e);
         if (e.detail.type === 'video-osd') {
             window.ede = new EDE();
+            window.ede.appLogAspect = new AppLogAspect().init();
             initUI();
             initH5VideoAdapter();
             // loadDanmaku(LOAD_TYPE.INIT);
             initListener();
         }
     });
-    document.addEventListener('viewbeforehide', function (e) {
-        console.log('viewbeforehide', e);
-        if ( e.detail.type === 'video-osd') { beforeDestroy(); }
-    });
+    document.addEventListener('viewbeforehide', e => e.detail.type === 'video-osd' && beforeDestroy());
 
 })();
