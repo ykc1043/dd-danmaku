@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.26
+// @version      1.27
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -20,7 +20,7 @@
     // Danmaku 依赖路径,index.html 引入的和篡改猴环境不用填,依赖已内置,被 eval() 执行的特殊环境下使用,支持相对绝对网络路径
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
     const requireDanmakuPath = "https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js";
-    // ------ 用户配置 start ------
+    // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
     const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
     const check_interval = 200;
@@ -445,6 +445,7 @@
             return JSON.parse(window.localStorage.getItem(_episode_key));
         }
 
+        let animeOriginalTitle = null;
         let animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
         if (is_auto && animaInfo.animes.length == 0) {
             // from: https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L886
@@ -454,6 +455,7 @@
                 animeName = seriesOrMovieInfo.OriginalTitle;
                 animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
                 if (animaInfo.animes.length > 0) { console.log(`使用原标题名: ${animeName},自动匹配成功`); }
+                animeOriginalTitle = animeName;
             }
         }
         if (animaInfo.animes.length == 0) {
@@ -478,6 +480,7 @@
                 : null,
             animeId: animaInfo.animes[selectAnime_id].animeId,
             animeTitle: animaInfo.animes[selectAnime_id].animeTitle,
+            animeOriginalTitle,
         };
         localStorage.setItem(_episode_key, JSON.stringify(episodeInfo));
         return episodeInfo;
@@ -602,7 +605,6 @@
                             createDanmaku(window.ede.danmuCache[episodeId])
                                 .then(() => {
                                     console.log('弹幕就位');
-                                    // embyToast({ text: `弹幕就位,已加载 ${window.ede.danmaku?.comments.length} 条弹幕` });
                                 })
                                 .catch((err) => {
                                     console.log(err);
@@ -786,14 +788,14 @@
     async function afterEmbyDialogCreated() {
         require(["css!modules/emby-elements/emby-textarea/emby-textarea.css"]);
         const itemInfoMap = await getMapByEmbyItemInfo();
-        const { _id_key, _name_key, _episode_key, animeId, animeName, episode } = itemInfoMap;
         window.ede.searchDanmakuOpts = {
-            _id_key: _id_key,
-            _name_key: _name_key,
-            _episode_key: _episode_key,
-            animeId: animeId,
-            animeName: animeName,
-            episode: (parseInt(episode) || 1) - 1, // convert to index
+            _id_key: itemInfoMap._id_key,
+            _name_key: itemInfoMap._name_key,
+            _episode_key: itemInfoMap._episode_key,
+            animeId: itemInfoMap.animeId,
+            animeName: itemInfoMap.animeName,
+            seriesOrMovieId: itemInfoMap.seriesOrMovieId,
+            episode: (parseInt(itemInfoMap.episode) || 1) - 1, // convert to index
             animes: [],
         }
 
@@ -838,7 +840,9 @@
         let template =  `
             <div style="display: flex;justify-content: space-between;">
                 <div>
-                    <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;"><label class="${embyLabelClass}">弹幕开关 </label></div>
+                    <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;">
+                        <label class="${embyLabelClass}">弹幕开关 </label>
+                    </div>
                     <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
                         <label class="${embyLabelClass}">简繁转换: </label>
                     </div>
@@ -877,8 +881,10 @@
         container.innerHTML = template.trim();
 
         container.querySelector('#' + eleIds.danmakuSwitchDiv).prepend(
-            embyButton({id: eleIds.danmakuSwitch, label: '弹幕开关', iconKey: lsGetItem(lsKeys.switch.id) ? iconKeys.switch_on : iconKeys.switch_off, 
-                style: lsGetItem(lsKeys.switch.id) ? 'color:#52b54b;font-size:1.5em;padding:0;': 'font-size:1.5em;padding:0;'}, doDanmakuSwitch)
+            embyButton({id: eleIds.danmakuSwitch, label: '弹幕开关'
+                , iconKey: lsGetItem(lsKeys.switch.id) ? iconKeys.switch_on : iconKeys.switch_off
+                , style: lsGetItem(lsKeys.switch.id) ? 'color:#52b54b;font-size:1.5em;padding:0;': 'font-size:1.5em;padding:0;'}
+                , doDanmakuSwitch)
         );
         container.querySelector('#' + eleIds.danmakuChConverDiv).appendChild(
             embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange)
@@ -891,11 +897,11 @@
         const fontOpacity = lsGetItem(lsKeys.fontOpacity.id);
         const danmakuSpeed = lsGetItem(lsKeys.speed.id);
         const sizeSlider = embySlider({ labelId: eleIds.danmakuSizeLabel, key: lsKeys.fontSizeRate.id }
-            , { value: fontSizeRate}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
+            , { value: fontSizeRate }, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
         const alphaSlider = embySlider({ labelId: eleIds.danmakuOpacityLabel, key: lsKeys.fontOpacity.id }
-            , { max: 1, value: fontOpacity}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
+            , { max: 1, value: fontOpacity }, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
         const speedSlider = embySlider({ labelId: eleIds.danmakuSpeedLabel, key: lsKeys.speed.id }
-            , { value: danmakuSpeed}, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
+            , { value: danmakuSpeed }, onDanmakuStyleChange, onDanmakuStyleChangeLabel);
         container.querySelector('#' + eleIds.danmakuSizeDiv).appendChild(sizeSlider);
         container.querySelector('#' + eleIds.danmakuOpacityDiv).appendChild(alphaSlider);
         container.querySelector('#' + eleIds.danmakuSpeedDiv).appendChild(speedSlider);
@@ -908,9 +914,9 @@
         onDanmakuStyleChangeLabel(lsGetItem(lsKeys.timelineOffset.id), timelineOffsetOpts);
         timelineOffsetBtns.forEach(btn => {
             btnContainer.appendChild(embyButton(btn, (e) => {
-                if (e.currentTarget) {
+                if (e.target) {
                     let oldValue = lsGetItem(lsKeys.timelineOffset.id);
-                    let newValue = oldValue + (parseFloat(e.currentTarget.getAttribute('valueOffset')) || 0);
+                    let newValue = oldValue + (parseFloat(e.target.getAttribute('valueOffset')) || 0);
                     // 如果 offset 为 0,则 newValue 应该设置为 0
                     if (newValue === oldValue) { newValue = 0; }
                     onDanmakuStyleChange(newValue, timelineOffsetOpts);
@@ -920,7 +926,7 @@
         // 配置 JSON 导入,导出
         const settingsCtrlEle = container.querySelector('#' + eleIds.settingsCtrl);
         settingsCtrlEle.appendChild(
-            embyButton({id: eleIds.settingShowBtn, label: '配置', iconKey: iconKeys.more, style: 'margin-left: auto;'}
+            embyButton({ id: eleIds.settingShowBtn, label: '配置', iconKey: iconKeys.more, style: 'margin-left: auto;' }
                 , () => doShowSettingsText(true))
         );
         settingsCtrlEle.appendChild(
@@ -931,11 +937,11 @@
             })
         );
         settingsCtrlEle.appendChild(
-            embyButton({id: eleIds.settingReloadBtn, label: '刷新', iconKey: iconKeys.refresh, style: 'display: none;margin-right: auto;'}
+            embyButton({ id: eleIds.settingReloadBtn, label: '刷新', iconKey: iconKeys.refresh, style: 'display: none;margin-right: auto;' }
                 , () => document.getElementById(eleIds.settingsText).value = getSettingsJson(2))
         );
         settingsCtrlEle.appendChild(
-            embyButton({id: eleIds.settingCloseBtn, label: '关闭', iconKey: iconKeys.close, style: 'display: none;'}
+            embyButton({ id: eleIds.settingCloseBtn, label: '关闭', iconKey: iconKeys.close, style: 'display: none;' }
                 , () => doShowSettingsText(false))
         );
     }
@@ -969,13 +975,18 @@
             </div>
         `;
         container.innerHTML = template.trim();
-        const searchInput = embyInput(eleIds.danmakuSearchName, null, window.ede.searchDanmakuOpts.animeName);
-        const searchBtn = embyButton({id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: iconKeys.search}, doDanmakuSearchEpisode);
-        container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchInput);
-        container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(searchBtn);
-        const loadBtn = embyButton({id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: iconKeys.done }
-            , doDanmakuSwitchEpisode);
-        container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(loadBtn);
+        container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(
+            embyInput(eleIds.danmakuSearchName, null, window.ede.searchDanmakuOpts.animeName, doDanmakuSearchEpisode)
+        );
+        container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(
+            embyButton({ id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: iconKeys.search}, doDanmakuSearchEpisode)
+        );
+        container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(
+            embyButton({ label: '切换[原]标题', iconKey: iconKeys.refresh }, doSearchTitleSwtich)
+        );
+        container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(
+            embyButton({ id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: iconKeys.done }, doDanmakuSwitchEpisode)
+        );
     }
 
     function buildCurrentDanmakuInfo(containerId) {
@@ -1118,10 +1129,6 @@
             }
         });
         const consoleLogCtrlEle = container.querySelector('#' + eleIds.consoleLogCtrl);
-        // consoleLogCtrlEle.appendChild(
-        //     embyButton({ label: '手动刷新', iconKey: iconKeys.refresh, style: 'margin-right: auto;'}
-        //         , () => { consoleLogTextEle.value = window.ede.appLogAspect.value; consoleLogTextEle.scrollTop = consoleLogTextEle.scrollHeight; })
-        // );
         consoleLogCtrlEle.appendChild(
             embyButton({ label: '清除', iconKey: iconKeys.block, style: 'margin-right: auto;' }
                 , () => { consoleLogTextEle.value = ''; window.ede.appLogAspect.value = ''; })
@@ -1180,7 +1187,32 @@
         document.getElementById(eleIds.danmakuSwitchEpisode).disabled = false;
         document.getElementById(eleIds.searchImg).src = 
             `https://img.dandanplay.net/anime/${animes[selectAnimeIdx].animeId}.jpg`;
-    }  
+    }
+
+    function doSearchTitleSwtich(e) {
+        const searchInputEle = document.getElementById(eleIds.danmakuSearchName);
+        const attrKey = 'isOriginalTitle';
+        if ('1' === e.target.getAttribute(attrKey)) {
+            e.target.setAttribute(attrKey, '0');
+            return searchInputEle.value = window.ede.searchDanmakuOpts.animeName;
+        }
+        const { _episode_key, seriesOrMovieId } = window.ede.searchDanmakuOpts;
+        const episode_info = JSON.parse(localStorage.getItem(_episode_key));
+        const { animeOriginalTitle } = episode_info; 
+        if (animeOriginalTitle) {
+            e.target.setAttribute(attrKey, '1');
+            return searchInputEle.value = animeOriginalTitle;
+        }
+        ApiClient.getItem(ApiClient.getCurrentUserId(), seriesOrMovieId).then(item => {
+            if (item.OriginalTitle) {
+                e.target.setAttribute(attrKey, '1');
+                searchInputEle.value = item.OriginalTitle;
+                episode_info.animeOriginalTitle = item.OriginalTitle;
+                localStorage.setItem(_episode_key, JSON.stringify(episode_info));
+                window.ede.episode_info.animeOriginalTitle = item.OriginalTitle;
+            }
+        });
+    }
 
     function doDanmakuAnimeSelect(value, index, option) {
         const numDiv = document.getElementById(eleIds.danmakuEpisodeNumDiv);
@@ -1243,8 +1275,11 @@
     function doDanmuListOptsChange(index) {
         const danmuListEle = document.getElementById(eleIds.danmuListText);
         danmuListEle.style.display = index == lsKeys.danmuList.defaultValue ? 'none' : '';
+        const f = new Intl.DateTimeFormat('default', { minute: '2-digit', second: '2-digit' });
         danmuListEle.value = danmuListOpts[index].onChange(window.ede)
-            .map((cmt, i) => `${i + 1}: ${cmt.text},[${cmt.source}],${cmt.originalUserId},${cmt.cid}`).join('\n');
+            .map((c, i) => `[${i + 1}] [${f.format(new Date(c.time * 1000))}] : `
+                + `${c.text} [${c.source}],[${c.originalUserId}],[${c.cid}]`
+            ).join('\n');
     }
 
     function doDanmakuTypeFilterSelect() {
@@ -1254,7 +1289,6 @@
         loadDanmaku(LOAD_TYPE.RELOAD);
         const idNameMap = new Map(Object.values(danmakuTypeFilterOpts).map(opt => [opt.id, opt.name]));
         console.log(`当前弹幕类型过滤为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}`);
-        // embyToast({ text: `已生效,当前弹幕类型过滤为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}` });
     }
 
     function doDanmakuSourceFilterSelect() {
@@ -1316,12 +1350,15 @@
         btn.disabled = isSame;
     }
 
-    function embyInput(id, style, value, onChange) {
+    function embyInput(id, style, value, onEnter, onChange) {
         const input = document.createElement('input', { is: 'emby-input' });
         input.setAttribute('id', id);
         input.setAttribute('style', style);
         input.setAttribute('value', value);
         input.className = embyInputClass;
+        if (typeof onEnter === 'function') { 
+            input.addEventListener('keyup', (e) => { if (e.key === 'Enter') { onEnter(e); } });
+        }
         if (typeof onChange === 'function') { input.addEventListener('change', onChange); }
         return input;
     }
@@ -1339,7 +1376,7 @@
         if (props.iconKey) {
             button.setAttribute('title', props.label);
             button.setAttribute('aria-label', props.label);
-            button.innerHTML = `<i class="md-icon autortl">${props.iconKey}</i>`;
+            button.innerHTML = `<i class="md-icon autortl" style="pointer-events: none;">${props.iconKey}</i>`;
             button.className = embyIconButtonClass;
         } else {
             button.className = 'btnOption raised emby-button';
