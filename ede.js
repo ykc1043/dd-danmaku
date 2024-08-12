@@ -120,6 +120,7 @@
         close: 'close',
         refresh: 'refresh',
         block: 'block',
+        text_format: 'translate',
     };
 
     // 此id等同于danmakuTabOpts内的弹幕信息的id
@@ -838,7 +839,7 @@
     function buildDanmakuSetting(containerId) {
         const container = document.getElementById(containerId);
         let template =  `
-            <div style="display: flex;justify-content: space-between;">
+            <div style="display: flex; justify-content: center;">
                 <div>
                     <div id="${eleIds.danmakuSwitchDiv}" style="margin-bottom: 0.2em;">
                         <label class="${embyLabelClass}">弹幕开关 </label>
@@ -870,9 +871,7 @@
                         <div id="${eleIds.timelineOffsetDiv}" style="width: 15.5em; text-align: center;"></div>
                         <label id="${eleIds.timelineOffsetLabel}" style="width:4em;"></label>
                     </div>
-                </div>
-                <div style="width: 20em;">
-                    <div id="${eleIds.settingsCtrl}" style="margin-bottom: 0.2em;display: flex;justify-content: space-between;"></div>
+                    <div id="${eleIds.settingsCtrl}" style="margin: 0.6em 0;display: flex;"></div>
                     <textarea id="${eleIds.settingsText}" style="display: none;resize: vertical;width: 100%" rows="14" 
                         is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                 </div>
@@ -926,23 +925,23 @@
         // 配置 JSON 导入,导出
         const settingsCtrlEle = container.querySelector('#' + eleIds.settingsCtrl);
         settingsCtrlEle.appendChild(
-            embyButton({ id: eleIds.settingShowBtn, label: '配置', iconKey: iconKeys.more, style: 'margin-left: auto;' }
+            embyButton({ id: eleIds.settingShowBtn, label: '配置', iconKey: iconKeys.more }
                 , () => doShowSettingsText(true))
         );
+        settingsCtrlEle.appendChild(
+            embyButton({ id: eleIds.settingCloseBtn, label: '关闭', iconKey: iconKeys.close, style: 'display: none;' }
+                , () => doShowSettingsText(false))
+        );
+        settingsCtrlEle.appendChild(
+            embyButton({ id: eleIds.settingReloadBtn, label: '刷新', iconKey: iconKeys.refresh, style: 'display: none;' }
+                , () => document.getElementById(eleIds.settingsText).value = getSettingsJson(2))
+            );
         settingsCtrlEle.appendChild(
             embyButton({ id: eleIds.settingsImportBtn, label: '应用', iconKey: iconKeys.done, style: 'display: none;' }, () => {
                 lsMultiSet(JSON.parse(document.getElementById(eleIds.settingsText).value));
                 loadDanmaku(LOAD_TYPE.INIT);
                 closeEmbyDialog();
             })
-        );
-        settingsCtrlEle.appendChild(
-            embyButton({ id: eleIds.settingReloadBtn, label: '刷新', iconKey: iconKeys.refresh, style: 'display: none;margin-right: auto;' }
-                , () => document.getElementById(eleIds.settingsText).value = getSettingsJson(2))
-        );
-        settingsCtrlEle.appendChild(
-            embyButton({ id: eleIds.settingCloseBtn, label: '关闭', iconKey: iconKeys.close, style: 'display: none;' }
-                , () => doShowSettingsText(false))
         );
     }
 
@@ -975,15 +974,12 @@
             </div>
         `;
         container.innerHTML = template.trim();
-        container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(
-            embyInput(eleIds.danmakuSearchName, null, window.ede.searchDanmakuOpts.animeName, doDanmakuSearchEpisode)
-        );
-        container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(
-            embyButton({ id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: iconKeys.search}, doDanmakuSearchEpisode)
-        );
-        container.querySelector('#' + eleIds.danmakuSearchNameDiv).appendChild(
-            embyButton({ label: '切换[原]标题', iconKey: iconKeys.refresh }, doSearchTitleSwtich)
-        );
+        const searchNameDiv = container.querySelector('#' + eleIds.danmakuSearchNameDiv);
+        searchNameDiv.appendChild(embyInput(eleIds.danmakuSearchName, 'width: 78%;', window.ede.searchDanmakuOpts.animeName
+            , doDanmakuSearchEpisode));
+        searchNameDiv.appendChild(embyButton({ id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: iconKeys.search}
+            , doDanmakuSearchEpisode));
+        searchNameDiv.appendChild(embyButton({ label: '切换[原]标题', iconKey: iconKeys.text_format }, doSearchTitleSwtich));
         container.querySelector('#' + eleIds.danmakuEpisodeLoad).appendChild(
             embyButton({ id: eleIds.danmakuSwitchEpisode, label: '加载弹幕', iconKey: iconKeys.done }, doDanmakuSwitchEpisode)
         );
@@ -1492,18 +1488,12 @@
     *   orient: 'vertical' | 'horizontal' 垂直/水平 
     */
     function embySlider(props = {}, options = {}, onChange, onSliding) {
-        const defaultOpts = { min: 0.1, max: 3, step: 0.1, orient: 'horizontal', bubble: false, hoverthumb: true , style: ''};
+        const defaultOpts = { min: 0.1, max: 3, step: 0.1, orient: 'horizontal', 'data-bubble': false, 'data-hoverthumb': true , style: ''};
         options = { ...defaultOpts, ...options };
         const slider = document.createElement('input', { is: 'emby-slider' });
         slider.setAttribute('type', 'range');
         if (props.id) { slider.setAttribute('id', props.id); }
-        slider.setAttribute('min', options.min);
-        slider.setAttribute('max', options.max);
-        slider.setAttribute('step', options.step);
-        slider.setAttribute('style', options.style);
-        slider.setAttribute('orient', options.orient);
-        slider.setAttribute('data-bubble', options.bubble);  // To show the value bubble
-        slider.setAttribute('data-hoverthumb', options.hoverthumb);
+        Object.entries(options).forEach(([key, value]) => slider.setAttribute(key, value));
         if (options.value) { slider.setValue(options.value);}
         if (typeof onChange === 'function') {
             // Trigger after end of tap/swipe
