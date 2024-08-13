@@ -797,6 +797,7 @@
 
     async function afterEmbyDialogCreated() {
         require(["css!modules/emby-elements/emby-textarea/emby-textarea.css"]);
+        require(["css!modules/emby-elements/emby-select/emby-select.css"]);
         const itemInfoMap = await getMapByEmbyItemInfo();
         window.ede.searchDanmakuOpts = {
             _id_key: itemInfoMap._id_key,
@@ -980,7 +981,7 @@
         `;
         container.innerHTML = template.trim();
         const searchNameDiv = container.querySelector('#' + eleIds.danmakuSearchNameDiv);
-        searchNameDiv.appendChild(embyInput(eleIds.danmakuSearchName, null, window.ede.searchDanmakuOpts.animeName
+        searchNameDiv.appendChild(embyInput({id: eleIds.danmakuSearchName, value: window.ede.searchDanmakuOpts.animeName, type: 'search'}
             , doDanmakuSearchEpisode));
         searchNameDiv.appendChild(embyButton({ id: eleIds.danmakuSearchEpisode, label: '搜索', iconKey: iconKeys.search}
             , doDanmakuSearchEpisode));
@@ -1094,10 +1095,9 @@
         );
         keywordsEnableDiv.appendChild(document.createElement('div')).appendChild(keywordsBtn);
         keywordsContainer.appendChild(document.createElement('div')).appendChild(
-            embyTextarea(eleIds.filterKeywordsId, lsGetItem(lsKeys.filterKeywords.id)
-            , 'width: 100%;margin-top: 0.2em;', 8, null, false
-            , (event) => updateFilterKeywordsBtn(keywordsBtn, document.getElementById(eleIds.filterKeywordsEnableId).checked
-                , event.target.value.trim()))
+            embyTextarea({id: eleIds.filterKeywordsId, value: lsGetItem(lsKeys.filterKeywords.id)
+                , style: 'width: 100%;margin-top: 0.2em;', rows: 8}, (event) => updateFilterKeywordsBtn(keywordsBtn
+                , document.getElementById(eleIds.filterKeywordsEnableId).checked, event.target.value.trim()))
         );
         const label = document.createElement('label');
         label.innerText = `关键词/正则匹配过滤,支持过滤[正文,${Object.values(showSource).map(o => o.name).join()}],多个表达式用换行分隔`;
@@ -1370,23 +1370,38 @@
         }
     }
 
-    function embyInput(id, style, value, onEnter, onChange) {
+    /** props: {id: 'inputId', value: '', type: '', style: '',...} for setAttribute(key, value)
+     * function will not setAttribute
+     */
+    function embyInput(props, onEnter, onChange) {
         const input = document.createElement('input', { is: 'emby-input' });
-        if (id) { input.setAttribute('id', id); }
-        if (style) { input.setAttribute('style', style); }
-        if (value) { input.setAttribute('value', value); }
+        Object.entries(props).forEach(([key, value]) => {
+            if (typeof value !== 'function') { input.setAttribute(key, value); }
+        });
         input.className = embyInputClass; // searchfields-txtSearch: 半圆角
         if (typeof onEnter === 'function') {
             input.addEventListener('keyup', (e) => { if (e.key === 'Enter') { onEnter(e); } });
         }
         if (typeof onChange === 'function') { input.addEventListener('change', onChange); }
+        // 控制器输入左右超出边界时切换元素
+        input.addEventListener('keydown', (event) => {
+            if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && 
+                    ((input.selectionStart === 0 && event.key === 'ArrowLeft') ||
+                        (input.selectionEnd === input.value.length && event.key === 'ArrowRight'))) {
+                event.stopPropagation();
+                event.preventDefault()
+                var options = {sourceElement: event.target, repeat: event.repeat, originalEvent: event };
+                require(['inputmanager'], (inputmanager) => {
+                    inputmanager.trigger(event.key.replace('Arrow', '').toLowerCase(), options);
+                });
+            }
+        });
         return input;
     }
 
-    /** props: {id: 'btnId', label: 'label text', style: '', iconKey: '', ...} 
-     * for setAttribute(key, value)
-     * 'iconKey' will not setAttribute
-     * */
+    /** props: {id: 'btnId', label: 'label text', style: '', iconKey: '',...} for setAttribute(key, value)
+     * 'iconKey' will innerHTML <i>iconKey</i>|function will not setAttribute
+     */
     function embyButton(props, onClick) {
         const button = document.createElement('button', { is: 'emby-button' });
         button.setAttribute('type', 'button');
@@ -1495,15 +1510,22 @@
         return checkboxLabel;
     }
 
-    function embyTextarea(id, value, style, rows = 10, styleResize, readonly = false, onBlur) {
+    /** props: {id: 'textareaId',value: '', rows: 10,style: '', styleResize:''|'vertical'|'horizontal'
+     *      , style: '', readonly: false} for setAttribute(key, value)
+     * function will not setAttribute
+     */
+    function embyTextarea(props, onBlur) {
+        const defaultProps = { rows: 10, styleResize: 'vertical', readonly: false };
+        props = { ...defaultProps, ...props };
         const textarea = document.createElement('textarea', { is: 'emby-textarea' });
-        textarea.setAttribute('id', id);
-        textarea.setAttribute('style', style);
-        textarea.setAttribute('rows', rows);
+        Object.entries(props).forEach(([key, value]) => {
+            if (typeof value !== 'function' && key !== 'readonly' 
+                && key !== 'styleResize' && key !== 'value') { textarea.setAttribute(key, value); }
+        });
         textarea.className = 'txtOverview emby-textarea';
-        textarea.readOnly = readonly;
-        textarea.style.resize = styleResize ?? 'vertical';
-        textarea.value = value;
+        textarea.readOnly = props.readonly;
+        textarea.style.resize = props.styleResize;
+        textarea.value = props.value;
         if (typeof onBlur === 'function') { textarea.addEventListener('blur', onBlur); }
         return textarea;
     }
@@ -1519,6 +1541,7 @@
         if (props.id) { slider.setAttribute('id', props.id); }
         Object.entries(options).forEach(([key, value]) => slider.setAttribute(key, value));
         if (options.value) { slider.setValue(options.value);}
+        // other EventListeners : 'beginediting'(every step), 'endediting'(end of tap/swipe)
         if (typeof onChange === 'function') {
             // Trigger after end of tap/swipe
             slider.addEventListener('change', e => onChange(e.target.value, props));
@@ -1527,15 +1550,7 @@
             // when clicking/sliding, trigger every step
             slider.addEventListener('input', e => onSliding(e.target.value, props));
         }
-        /* slider.addEventListener('beginediting', function(event) {
-            // when clicking/sliding, trigger every step
-            console.log('Slider editing started');
-        });
-        slider.addEventListener('endediting', function(event) {
-            // Trigger after end of tap/swipe
-            console.log('Slider editing ended');
-        }); */
-        // Add keyboard event listeners to the slider
+        // 以下兼容旧版本emby,控制器操作锁定滑块焦点
         slider.addEventListener('keydown', e => {
             const step = parseFloat(slider.step) || 1;
             const min = parseFloat(slider.min);
