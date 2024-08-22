@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.28
+// @version      1.29
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -20,9 +20,11 @@
     // Danmaku 依赖路径,index.html 引入的和篡改猴环境不用填,依赖已内置,被 eval() 执行的特殊环境下使用,支持相对绝对网络路径
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
     const requireDanmakuPath = "https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js";
+    // 跨域代理 cf_worker
+    const corsProxy = 'https://api.9-ch.com/cors/';
     // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
-    const dandanplayApi = "https://api.9-ch.com/cors/https://api.dandanplay.net/api/v2";
+    const apiPrefix = corsProxy + 'https://api.dandanplay.net/api/v2';
     const check_interval = 200;
     const LOAD_TYPE = {
         CHECK: 'check',
@@ -237,7 +239,7 @@
         throw new Error();
     } catch(e) {
         const stackTrace = e.stack;
-        skipInnerModule = !!stackTrace && stackTrace.includes('eval');
+        skipInnerModule = !!stackTrace && stackTrace.includes('CustomCssJS');
         // console.log('ignore this not error, callee:', e);
     }
     if (!skipInnerModule) {
@@ -386,7 +388,7 @@
 
     async function fetchSearchEpisodes(anime, episode, withRelated = true) {
         if (!anime) { throw new Error('anime is required'); }
-        const searchUrl = `${dandanplayApi}/search/episodes?anime=${anime}&withRelated=${withRelated}
+        const searchUrl = `${apiPrefix}/search/episodes?anime=${anime}&withRelated=${withRelated}
             ${episode ? `&episode=${episode}` : ''}`;
         const animaInfo = await fetch(searchUrl, {
             method: 'GET',
@@ -497,7 +499,7 @@
     }
 
     function getComments(episodeId) {
-        const url = dandanplayApi + '/comment/' + episodeId + '?withRelated=true&chConvert=' + window.ede.chConvert;
+        const url = apiPrefix + '/comment/' + episodeId + '?withRelated=true&chConvert=' + window.ede.chConvert;
         return fetch(url, {
             method: 'GET',
             headers: {
@@ -1722,7 +1724,7 @@
     function beforeDestroy() {
         // 此段销毁不重要,可有可无,仅是规范使用,清除弹幕,但未销毁 danmaku 实例
         window.ede.danmaku?.clear();
-        window.ede.appLogAspect.destroy();
+        window.ede.appLogAspect?.destroy();
         window.ede.appLogAspect = null;
         // 销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
         document.getElementById(eleIds.danmakuCtr)?.remove();
