@@ -21,7 +21,8 @@
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
     const requireDanmakuPath = "https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js";
     // 跨域代理 cf_worker
-    const corsProxy = 'https://api.9-ch.com/cors/';
+    // const corsProxy = 'https://api.9-ch.com/cors/';
+    const corsProxy = 'https://ddplay-api.7o7o.cc/cors/';
     // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
     const apiPrefix = corsProxy + 'https://api.dandanplay.net/api/v2';
