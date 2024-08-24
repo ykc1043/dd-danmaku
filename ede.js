@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.29
+// @version      1.30
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -33,9 +33,8 @@
         RELOAD: 'reload', // 优先走缓存,其余类型走接口
         SEARCH: 'search',
     };
-    // apiClient.isMinServerVersion("4.8.0.56")
-    const appVersion = parseFloat(document.querySelector('html').getAttribute('data-appversion')?.substring(0, 3));
-    const isVersionOld = appVersion ? appVersion < 4.8 : true;
+    // ApiClient.isMinServerVersion("4.8.0.00"); 可以精确对比客户端指定版本小于当前版本,但此处暂时不需要
+    const isVersionOld = parseFloat(ApiClient.serverVersion()) < 4.8;
     // htmlVideoPlayerContainer
     let mediaContainerQueryStr = '.graphicContentContainer';
     if (isVersionOld) {
@@ -627,7 +626,7 @@
                                 createDanmaku(comments)
                                     .then(() => {
                                         console.log('弹幕就位');
-                                        embyToast({ text: `弹幕就位,已获取 ${comments.length} 条弹幕` });
+                                        // embyToast({ text: `弹幕就位,已获取 ${comments.length} 条弹幕` });
                                     })
                                     .catch((err) => {
                                         console.log(err);
@@ -1615,7 +1614,7 @@
             .catch(error => { console.log(`点击弹出框外部取消: ` + error) });
     }
 
-    // see: ../web/modules/toast/toast.js
+    // see: ../web/modules/toast/toast.js, 严禁滥用,因遮挡画面影响体验
     async function embyToast(opts = {}) {
         const defaultOpts = { text: '', secondaryText: '', icon: '', iconStrikeThrough: false};
         opts = { ...defaultOpts, ...opts };
@@ -1702,12 +1701,13 @@
         if (_media) { return; }
         console.log('页面上不存在 video 标签,适配器处理开始');
         _media = document.createElement('video');
+        _media.style.display = 'none';
         _media.id = eleIds.h5VideoAdapter;
         _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
         document.body.prepend(_media);
         _media.play();
 
-        // 需在其它事件中实现,同步 video 适配器播放倍率,有 bug 未实现且只显示半屏,暂时注释
+        // 需在其它事件中实现,同步 video 适配器播放倍率,有 bug 未实现,导致弹幕只显示横向半屏,暂时注释
         // if (!_media.src) {
         //     _media.playbackRate = data.playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
         // }
@@ -1718,7 +1718,6 @@
             'unpause': (e, data) => _media.dispatchEvent(new Event('play')),
         });
         console.log('已创建虚拟 video 标签,适配器处理正确结束');
-        embyToast({ text: `已创建虚拟 video 标签,适配器处理正确结束` });
     }
 
     function beforeDestroy() {
