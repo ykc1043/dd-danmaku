@@ -14,7 +14,7 @@
 
 ### 二.修改服务端
 
-修改文件 /system/dashboard-ui/index.html (Docker版,其他类似),在`</body>`前添加如下标签,注意必须位于 `<script src="apploader.js" defer></script>` 之后,否则将导致卡 LOGO
+修改文件 /system/dashboard-ui/index.html (Docker版,其他类似),在`</body>`前添加如下标签
 
 ```
 <script src="https://cdn.jsdelivr.net/gh/RyoLee/emby-danmaku@gh-pages/ede.user.js" defer></script>
