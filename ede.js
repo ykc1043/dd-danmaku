@@ -33,15 +33,10 @@
         RELOAD: 'reload', // 优先走缓存,其余类型走接口
         SEARCH: 'search',
     };
-    // ApiClient.isMinServerVersion("4.8.0.00"); 可以精确对比客户端指定版本小于当前版本,但此处暂时不需要
-    const isVersionOld = parseFloat(ApiClient.serverVersion()) < 4.8;
+    let isVersionOld = false;
     // htmlVideoPlayerContainer
     let mediaContainerQueryStr = '.graphicContentContainer';
-    if (isVersionOld) {
-        mediaContainerQueryStr = 'div[data-type="video-osd"]';
-    }
     const notHide = ':not(.hide)';
-    mediaContainerQueryStr += notHide;
     const mediaQueryStr = 'video';
 
     const eleIds = {
@@ -347,6 +342,13 @@
         // 已初始化
         if (document.getElementById(eleIds.danmakuCtr)) { return; }
         console.log('正在初始化UI');
+
+        // ApiClient.isMinServerVersion("4.8.0.00"); 可以精确对比客户端指定版本小于当前版本,但此处暂时不需要
+        if (parseFloat(ApiClient.serverVersion()) < 4.8) {
+            mediaContainerQueryStr = 'div[data-type="video-osd"]';
+            isVersionOld = true;
+        }
+        mediaContainerQueryStr += notHide;
 
         // 弹幕按钮容器 div
         const parent = document.querySelector(`${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`);
