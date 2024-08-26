@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.30
+// @version      1.31
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -89,6 +89,8 @@
         filterKeywordsId: 'filterKeywordsId',
         consoleLogCtrl: 'consoleLogCtrl',
         consoleLogText: 'consoleLogText',
+        debugCheckbox: 'debugCheckbox',
+        debugButton: 'debugButton',
     };
     const embyOffsetBtnStyle = 'margin: 0;padding: 0;';
     // https://fonts.google.com/icons
@@ -260,7 +262,7 @@
             this.ob = null;
             this.loading = false;
             this.danmuCache = {};
-            this.destroyTimeoutIds = [];
+            this.destroyIntervalIds = [];
             this.commentsParsed = [];
             this.searchDanmakuOpts = {}; // 手动搜索变量
             this.appLogAspect = null; // 应用日志切面
@@ -350,7 +352,7 @@
         }
         mediaContainerQueryStr += notHide;
 
-        // 弹幕按钮容器 div,延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
+        // 弹幕按钮父容器 div,延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
         const mediaQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`;
         waitForElement(mediaQueryStr, (parent) => {
             // 在老客户端上存在右侧按钮,在右侧按钮前添加
@@ -1095,14 +1097,23 @@
     function buildAbout(containerId) {
         const container = document.getElementById(containerId);
         if (!container) { return; }
-        let template = `
+        const template = `
             <div id="${eleIds.consoleLogCtrl}"></div>
             <textarea id="${eleIds.consoleLogText}" readOnly style="resize: vertical;width: 100%;margin-top: 0.6em;" 
                 rows="14" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
-            <div class="fieldDescription">注意开启后原本控制台中调用方将被覆盖,不使用请保持关闭状态<div>
+            <div class="fieldDescription">注意开启后原本控制台中调用方信息将被覆盖,不使用请保持关闭状态</div>
+            <div>
+                <h3>开发者选项</h5>
+                <label class="${embyLabelClass}">调试开关(不持久化,自行开关): </label>
+                <div id="${eleIds.debugCheckbox}"></div>
+                <label class="${embyLabelClass}">调试按钮: </label>
+                <div id="${eleIds.debugButton}"></div>
+            </div>
         `;
         container.innerHTML = template.trim();
         buildConsoleLog(container);
+        buildDebugCheckbox(container);
+        buildDebugButton(container);
     }
 
     function buildConsoleLog(container) {
@@ -1111,11 +1122,49 @@
         consoleLogTextEle.style.display = consoleLogEnable ? '' : 'none';
         if (consoleLogEnable) { doConsoleLogChange(consoleLogEnable); }
         const consoleLogCtrlEle = container.querySelector('#' + eleIds.consoleLogCtrl);
-        consoleLogCtrlEle.appendChild(embyCheckbox({ label: '启用控制台日志' }, consoleLogEnable, doConsoleLogChange));
+        consoleLogCtrlEle.appendChild(embyCheckbox({ label: '控制台日志' }, consoleLogEnable, doConsoleLogChange));
         consoleLogCtrlEle.appendChild(
             embyButton({ label: '清除', iconKey: iconKeys.block }
                 , () => { consoleLogTextEle.value = ''; window.ede.appLogAspect.value = ''; })
         );
+    }
+
+    function buildDebugCheckbox(container) {
+        const debugWrapper = container.querySelector('#' + eleIds.debugCheckbox);
+        // 尽量接近浏览器控制台选定元素背景色
+        const highlightColor  = 'rgba(115, 160, 255, 0.3)';
+        debugWrapper.appendChild(embyCheckbox({ label: '弹幕容器边界' }, false, (checked) => {
+            const wrapper = document.getElementById(eleIds.danmakuWrapper);
+            wrapper.style.backgroundColor = checked ? highlightColor : '';
+            if (!checked) { return; }
+            console.log(`弹幕容器(#${eleIds.danmakuWrapper})宽高像素:`, wrapper.offsetWidth, wrapper.offsetHeight);
+            const stage = wrapper.firstChild;
+            console.log(`实际舞台(${stage.tagName})宽高像素:`, stage.offsetWidth, stage.offsetHeight);
+        }));
+        debugWrapper.appendChild(embyCheckbox({ label: '按钮容器边界' }, false, (checked) => {
+            const wrapper = document.getElementById(eleIds.danmakuCtr);
+            wrapper.style.backgroundColor = checked ? highlightColor : '';
+            if (!checked) { return; }
+            console.log(`按钮容器(#${eleIds.danmakuCtr})宽高像素:`, wrapper.offsetWidth, wrapper.offsetHeight);
+        }));
+    }
+
+    function buildDebugButton(container) {
+        const debugWrapper = container.querySelector('#' + eleIds.debugButton);
+        debugWrapper.appendChild(embyButton({ label: '打印视频加载方' }, () => {
+            const _media = document.querySelector(mediaQueryStr);
+            if (_media.src) {
+                console.log('视频加载方为 Web 端 <video> 标签:', _media.parentNode.outerHTML);
+            } else {
+                console.log('当前 <video> 标签为虚拟适配器:', _media.outerHTML);
+                const _embed = document.querySelector('embed');
+                if (_embed) {
+                    console.log('视频加载方为 <embed> 标签占位的 Native 播放器:', _embed.parentNode.outerHTML);
+                } else {
+                    console.log('视频加载方为无占位标签的 Native 播放器,无信息');
+                }
+            }
+        }));
     }
     
     function doDanmakuSwitch() {
@@ -1521,7 +1570,10 @@
     *   orient: 'vertical' | 'horizontal' 垂直/水平 
     */
     function embySlider(props = {}, options = {}, onChange, onSliding) {
-        const defaultOpts = { min: 0.1, max: 3, step: 0.1, orient: 'horizontal', 'data-bubble': false, 'data-hoverthumb': true , style: ''};
+        const defaultOpts = {
+            min: 0.1, max: 3, step: 0.1, orient: 'horizontal',
+            'data-bubble': false, 'data-hoverthumb': true , style: '',
+        };
         options = { ...defaultOpts, ...options };
         const slider = document.createElement('input', { is: 'emby-slider' });
         slider.setAttribute('type', 'range');
@@ -1544,21 +1596,24 @@
             const max = parseFloat(slider.max);
             let value = parseFloat(slider.value);
             const orient = slider.getAttribute('orient') || 'horizontal';
-            const updateValue = (horizontalDir, verticalDir) => {
-                if ((orient === 'horizontal' && horizontalDir !== 0) || (orient === 'vertical' && verticalDir !== 0)) {
+            function updateValue(horizontalPoint, verticalPoint) {
+                if ((orient === 'horizontal' && horizontalPoint !== 0) || (orient === 'vertical' && verticalPoint !== 0)) {
                     e.preventDefault();
                     e.stopPropagation();
-                    value += horizontalDir * step + verticalDir * step;
+                    value += horizontalPoint * step + verticalPoint * step;
                     value = Math.min(Math.max(value, min), max);
                     slider.value = value;
                     slider.dispatchEvent(new Event('input'));
                     slider.dispatchEvent(new Event('change'));
                 }
             };
-            updateValue(
-                e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0,
-                e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0
-            );
+            const keyToValue = {
+                'ArrowLeft': [-1, 0],
+                'ArrowRight': [1, 0],
+                'ArrowUp': [0, 1],
+                'ArrowDown': [0, -1],
+            };
+            updateValue(...(keyToValue[e.key] || [0, 0]));
         });
         return slider;
     }
@@ -1667,13 +1722,12 @@
             }
         }
         intervalId = setInterval(checkElement, interval);
-        window.ede.destroyTimeoutIds.push(intervalId);
+        window.ede.destroyIntervalIds.push(intervalId);
         if (timeout > 0) {
             timeoutId = setTimeout(() => {
                 clearInterval(intervalId);
                 console.log(`waitForElement: unable to find element[${selector}], timeout: ${timeout}`);
             }, timeout);
-            window.ede.destroyTimeoutIds.push(timeoutId);
         }
     }
 
@@ -1705,17 +1759,27 @@
         _media.id = eleIds.h5VideoAdapter;
         _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
         document.body.prepend(_media);
-        _media.play();
 
-        // 需在其它事件中实现,同步 video 适配器播放倍率,有 bug 未实现,导致弹幕只显示横向半屏,暂时注释
-        // if (!_media.src) {
-        //     _media.playbackRate = data.playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
-        // }
+        _media.play();
+        window.ede.destroyIntervalIds.push(setInterval(() => { _media.currentTime += 100 / 1e3 }, 100));
+
         playbackEventsOn({
             // conver to seconds from Ticks
-            'timeupdate': (e, data) => _media.currentTime = data.playbackManager.currentTime(data.player) / 1e7,
-            'pause': (e, data) => _media.dispatchEvent(new Event('pause')),
-            'unpause': (e, data) => _media.dispatchEvent(new Event('play')),
+            'timeupdate': (e, data) => {
+                _media.currentTime = data.playbackManager.currentTime(data.player) / 1e7;
+                // playbackRate 同步依赖至少 100ms currentTime 变更
+                _media.playbackRate = data.playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
+            },
+            'pause': (e, data) => {
+                _media.dispatchEvent(new Event('pause'));
+                window.ede.destroyIntervalIds.map(id => clearInterval(id));
+                window.ede.destroyIntervalIds = [];
+            },
+            'unpause': (e, data) => {
+                _media.dispatchEvent(new Event('play'));
+                // 只有老版本 Emby Theater 播放首次会进来,所以上面初始化重新添加一次定时器
+                window.ede.destroyIntervalIds.push(setInterval(() => { _media.currentTime += 100 / 1e3 }, 100));
+            },
         });
         console.log('已创建虚拟 video 标签,适配器处理正确结束');
     }
@@ -1727,9 +1791,9 @@
         window.ede.appLogAspect = null;
         // 销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
         document.getElementById(eleIds.danmakuCtr)?.remove();
-        // 销毁定时器
-        window.ede.destroyTimeoutIds.forEach(id => clearTimeout(id));
-        window.ede.destroyTimeoutIds = [];
+        // 销毁可能残留的定时器
+        window.ede.destroyIntervalIds.map(id => clearInterval(id));
+        window.ede.destroyIntervalIds = [];
         // 退出播放页面重置轴偏秒
         lsSetItem(lsKeys.timelineOffset.id, lsKeys.timelineOffset.defaultValue);
     }
