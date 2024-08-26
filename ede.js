@@ -19,7 +19,7 @@
     // ------ 用户配置 start ------
     // Danmaku 依赖路径,index.html 引入的和篡改猴环境不用填,依赖已内置,被 eval() 执行的特殊环境下使用,支持相对绝对网络路径
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
-    const requireDanmakuPath = "https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js";
+    const requireDanmakuPath = 'https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js';
     // 跨域代理 cf_worker
     const corsProxy = 'https://api.9-ch.com/cors/';
     // ------ 用户配置 end ------
@@ -145,8 +145,9 @@
     const danmakuSource = {
         AcFun: { id: 'AcFun', name: 'A站(AcFun)' },
         BiliBili: { id: 'BiliBili', name: 'B站(BiliBili)' },
-        Gamer: { id: 'Gamer', name: '巴哈(Gamer)' },
+        '5dm': { id: '5dm', name: 'D站(5dm)' },
         DanDanPlay: { id: 'DanDanPlay', name: '弹弹(DanDanPlay)' }, // 无弹幕来源的默认值
+        Gamer: { id: 'Gamer', name: '巴哈(Gamer)' },
     };
     const showSource = {
         source: { id: 'source', name: '来源平台' },
@@ -521,7 +522,7 @@
             window.ede.danmaku.destroy();
             window.ede.danmaku = null;
         }
-        const commentsParsed = danmakuParser(comments);
+        const commentsParsed = danmakuParser(comments).sort((a, b) => a.time - b.time);
         window.ede.commentsParsed = commentsParsed;
         let _comments = danmakuFilter(commentsParsed);
         console.log('弹幕加载成功: ' + _comments.length);
@@ -1103,7 +1104,7 @@
                 rows="14" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
             <div class="fieldDescription">注意开启后原本控制台中调用方信息将被覆盖,不使用请保持关闭状态</div>
             <div>
-                <h3>开发者选项</h5>
+                <h3>开发者选项</h3>
                 <label class="${embyLabelClass}">调试开关(不持久化,自行开关): </label>
                 <div id="${eleIds.debugCheckbox}"></div>
                 <label class="${embyLabelClass}">调试按钮: </label>
@@ -1592,8 +1593,8 @@
         // 以下兼容旧版本emby,控制器操作锁定滑块焦点
         slider.addEventListener('keydown', e => {
             const orient = slider.getAttribute('orient') || 'horizontal';
-            if ((orient === 'horizontal' && (e.key === "ArrowLeft" || e.key === "ArrowRight")) ||
-                (orient === 'vertical' && (e.key === "ArrowUp" || e.key === "ArrowDown"))) {
+            if ((orient === 'horizontal' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
+                (orient === 'vertical' && (e.key === 'ArrowUp' || e.key === 'ArrowDown'))) {
                 e.stopPropagation();
             }
         });
@@ -1609,7 +1610,7 @@
         const defaultOpts = { text: '', title: '', timeout: 0, html: '', buttons: [] };
         opts = { ...defaultOpts, ...opts };
         return require(['dialog']).then(items => items[0]?.(opts))
-            .catch(error => { console.log(`点击弹出框外部取消: ` + error) });
+            .catch(error => { console.log('点击弹出框外部取消: ' + error) });
     }
 
     function closeEmbyDialog() {
@@ -1621,7 +1622,7 @@
         const defaultOpts = { text: '', title: '', timeout: 0, html: ''};
         opts = { ...defaultOpts, ...opts };
         return require(['alert']).then(items => items[0]?.(opts))
-            .catch(error => { console.log(`点击弹出框外部取消: ` + error) });
+            .catch(error => { console.log('点击弹出框外部取消: ' + error) });
     }
 
     // see: ../web/modules/toast/toast.js, 严禁滥用,因遮挡画面影响体验
