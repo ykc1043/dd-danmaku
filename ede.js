@@ -350,33 +350,26 @@
         }
         mediaContainerQueryStr += notHide;
 
-        // 弹幕按钮容器 div
-        const parent = document.querySelector(`${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`);
-        // 延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
-        if (!parent) {
-            window.ede.destroyTimeoutIds.push(setTimeout(() => {
-                console.log("retry initUI!");
-                initUI();
-            }, check_interval));
-            return;
-        }
-        // 在老客户端上存在右侧按钮,在右侧按钮前添加
-        const rightButtons = parent.querySelector('.videoOsdBottom-buttons-right');
-
-        const menubar = document.createElement('div');
-        menubar.id = eleIds.danmakuCtr;
-        if (!window.ede.episode_info) {
-            menubar.style.opacity = 0.5;
-        }
-        if (rightButtons) {
-            parent.insertBefore(menubar, rightButtons);
-        } else {
-            parent.append(menubar);
-        }
-        mediaBtnOpts.forEach(opt => {
-            menubar.appendChild(embyButton(opt, opt.onClick));
-        });
-        console.log('UI初始化完成');
+        // 弹幕按钮容器 div,延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
+        const mediaQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`;
+        waitForElement(mediaQueryStr, (parent) => {
+            // 在老客户端上存在右侧按钮,在右侧按钮前添加
+            const rightButtons = parent.querySelector('.videoOsdBottom-buttons-right');
+            const menubar = document.createElement('div');
+            menubar.id = eleIds.danmakuCtr;
+            if (!window.ede.episode_info) {
+                menubar.style.opacity = 0.5;
+            }
+            if (rightButtons) {
+                parent.insertBefore(menubar, rightButtons);
+            } else {
+                parent.append(menubar);
+            }
+            mediaBtnOpts.forEach(opt => {
+                menubar.appendChild(embyButton(opt, opt.onClick));
+            });
+            console.log('UI初始化完成');
+        }, 0);
     }
 
     async function getEmbyItemInfo() {
@@ -792,13 +785,13 @@
             .filter((x) => x);
     }
 
-    async function createDialog() {
+    function createDialog() {
         const html = `<div id="${eleIds.dialogContainer}"></div>`;
         embyDialog({ html, buttons: [{ name: '关闭' }] });
-        afterEmbyDialogCreated();
+        waitForElement('#' + eleIds.dialogContainer, afterEmbyDialogCreated);
     }
 
-    async function afterEmbyDialogCreated() {
+    async function afterEmbyDialogCreated(dialogContainer) {
         require(["css!modules/emby-elements/emby-textarea/emby-textarea.css"]);
         require(["css!modules/emby-elements/emby-select/emby-select.css"]);
         const itemInfoMap = await getMapByEmbyItemInfo();
@@ -812,17 +805,8 @@
             episode: (parseInt(itemInfoMap.episode) || 1) - 1, // convert to index
             animes: [],
         }
-
-        const dialogContainer = document.getElementById(eleIds.dialogContainer);
         let formDialogHeader = document.querySelector('.formDialogHeader');
         const formDialogFooter = document.querySelector('.formDialogFooter');
-        if (!dialogContainer) {
-            window.ede.destroyTimeoutIds.push(setTimeout(() => {
-                console.log("retry dialogContainer!");
-                afterEmbyDialogCreated();
-            }, check_interval));
-            return;
-        }
         formDialogHeader = formDialogHeader || dialogContainer;
         const tabsMenuContainer = document.createElement('div');
         tabsMenuContainer.className = embyTabsMenuClass;
@@ -1560,34 +1544,21 @@
             const max = parseFloat(slider.max);
             let value = parseFloat(slider.value);
             const orient = slider.getAttribute('orient') || 'horizontal';
-            switch (e.key) {
-                case "ArrowLeft":
-                case "ArrowRight":
-                    if (orient === 'horizontal' 
-                            && ((e.key === "ArrowLeft" && value > min) || (e.key === "ArrowRight" && value < max))) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        value += e.key === "ArrowLeft" ? -step : step;
-                        value = Math.min(Math.max(value, min), max);
-                        slider.value = value;
-                        slider.dispatchEvent(new Event('input'));
-                        slider.dispatchEvent(new Event('change'));
-                    }
-                    break;
-                case "ArrowUp":
-                case "ArrowDown":
-                    if (orient === 'vertical' 
-                            && ((e.key === "ArrowDown" && value > min) || (e.key === "ArrowUp" && value < max))) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        value += e.key === "ArrowUp" ? step : -step;
-                        value = Math.min(Math.max(value, min), max);
-                        slider.value = value;
-                        slider.dispatchEvent(new Event('input'));
-                        slider.dispatchEvent(new Event('change'));
-                    }
-                    break;
-            }
+            const updateValue = (horizontalDir, verticalDir) => {
+                if ((orient === 'horizontal' && horizontalDir !== 0) || (orient === 'vertical' && verticalDir !== 0)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    value += horizontalDir * step + verticalDir * step;
+                    value = Math.min(Math.max(value, min), max);
+                    slider.value = value;
+                    slider.dispatchEvent(new Event('input'));
+                    slider.dispatchEvent(new Event('change'));
+                }
+            };
+            updateValue(
+                e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0,
+                e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0
+            );
         });
         return slider;
     }
@@ -1677,6 +1648,33 @@
     }
     function lsGetKeyById(id) {
         return Object.keys(lsKeys).find(key => lsKeys[key].id === id);
+    }
+
+    /**
+     * @param {number} [timeout=10000] - 超时时间,默认10秒,0则不设置超时
+     * @param {number} [interval=check_interval] - 检查间隔,默认200ms
+     * */
+    function waitForElement(selector, callback, timeout = 10000, interval = check_interval) {
+        let intervalId = null;
+        let timeoutId = null;
+        function checkElement() {
+            console.log(`waitForElement: checking element[${selector}]`);
+            const element = document.querySelector(selector);
+            if (element) {
+                clearInterval(intervalId);
+                clearTimeout(timeoutId);
+                callback(element);
+            }
+        }
+        intervalId = setInterval(checkElement, interval);
+        window.ede.destroyTimeoutIds.push(intervalId);
+        if (timeout > 0) {
+            timeoutId = setTimeout(() => {
+                clearInterval(intervalId);
+                console.log(`waitForElement: unable to find element[${selector}], timeout: ${timeout}`);
+            }, timeout);
+            window.ede.destroyTimeoutIds.push(timeoutId);
+        }
     }
 
     // from emby videoosd.js bindToPlayer events, warning: not dom event
