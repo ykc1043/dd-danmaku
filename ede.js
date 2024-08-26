@@ -1591,29 +1591,11 @@
         }
         // 以下兼容旧版本emby,控制器操作锁定滑块焦点
         slider.addEventListener('keydown', e => {
-            const step = parseFloat(slider.step) || 1;
-            const min = parseFloat(slider.min);
-            const max = parseFloat(slider.max);
-            let value = parseFloat(slider.value);
             const orient = slider.getAttribute('orient') || 'horizontal';
-            function updateValue(horizontalPoint, verticalPoint) {
-                if ((orient === 'horizontal' && horizontalPoint !== 0) || (orient === 'vertical' && verticalPoint !== 0)) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    value += horizontalPoint * step + verticalPoint * step;
-                    value = Math.min(Math.max(value, min), max);
-                    slider.value = value;
-                    slider.dispatchEvent(new Event('input'));
-                    slider.dispatchEvent(new Event('change'));
-                }
-            };
-            const keyToValue = {
-                'ArrowLeft': [-1, 0],
-                'ArrowRight': [1, 0],
-                'ArrowUp': [0, 1],
-                'ArrowDown': [0, -1],
-            };
-            updateValue(...(keyToValue[e.key] || [0, 0]));
+            if ((orient === 'horizontal' && (e.key === "ArrowLeft" || e.key === "ArrowRight")) ||
+                (orient === 'vertical' && (e.key === "ArrowUp" || e.key === "ArrowDown"))) {
+                e.stopPropagation();
+            }
         });
         return slider;
     }
