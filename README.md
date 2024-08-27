@@ -10,14 +10,14 @@
 ### 一.浏览器插件
 
 1. [Tampermonkey](https://www.tampermonkey.net/)
-2. [添加脚本](https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@develop/ede.js)
+2. [添加脚本](https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@new-ui/ede.js)
 
 ### 二.修改服务端
 
 修改文件 /system/dashboard-ui/index.html (Docker版,其他类似),在`</body>`前添加如下标签
 
 ```
-<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@develop/ede.js" defer></script>
+<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@new-ui/ede.js" defer></script>
 ```
 该方式安装与浏览器插件安装**可同时使用不冲突**
 
@@ -44,7 +44,7 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
 - 弹幕开关: 切换弹幕显示/隐藏状态
 
 - 弹幕设置: 打开弹幕设置弹窗
-    * 弹幕基础配置: 弹幕开关、简繁转换、弹幕引擎、弹幕样式（大小|透明度|速度|轴偏庙）、配置项
+    * 弹幕设置: 弹幕开关、简繁转换、弹幕引擎、弹幕样式（大小|透明度|速度|轴偏庙）、配置项
     * 手动匹配: 输入影视名称匹配弹幕，默认影视名称，可选择切换原标题
     * 弹幕信息: 当前匹配弹幕信息与弹幕列表
     * 弹幕屏蔽: 屏蔽类型、屏蔽来源平台、显示每条来源、密度等级、高度比例、屏蔽关键词
