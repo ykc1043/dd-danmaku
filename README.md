@@ -58,7 +58,7 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/new-ui/img/newui06.png)
 ## 弹幕
 
-弹幕来源为 [弹弹 play](https://www.dandanplay.com/) ,已开启弹幕聚合(A/B/C 站等网站弹幕融合)
+弹幕来源为 [弹弹 play](https://www.dandanplay.com/) ,已开启弹幕聚合(A/B/C/... 站等网站弹幕聚合)
 
 ## 数据
 
@@ -67,10 +67,8 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
 ## 常见弹幕加载错误/失败原因
 
 1. 译名导致的异常: 如『よふかしのうた』 Emby 识别为《彻夜之歌》后因为弹弹 play 中为《夜曲》导致无法匹配
-2. 存在多季/剧场版/OVA 等导致的异常: 如『OVERLORD』第四季若使用S[N]格式归档(如OVERLORD/S4E1.mkv或OVERLORD/S4/E1.mkv),可能出现匹配失败/错误等现象
-3. 其他加载BUG: ~~鉴定为后端程序猿不会前端还要硬写JS~~,有BUG麻烦 [开个issue](https://github.com/RyoLee/emby-danmaku/issues/new/choose) THX
-4. NewUI 以来的一些更改和注意事项,[PR60](https://github.com/9channel/dd-danmaku/pull/60)
+2. 存在多季/剧场版/OVA 等导致的异常: 如『OVERLORD』第四季若使用S[N]格式归档(如 OVERLORD/S4E1.mkv 或 OVERLORD/S4/E1.mkv),可能出现匹配失败/错误等现象
+3. 其他加载BUG: ~~鉴定为后端程序猿不会前端还要硬写JS~~,有BUG麻烦 [开个issue](https://github.com/chen3861229/dd-danmaku/issues/new/choose) THX
+4. NewUI 以来的一些更改和注意事项, [CHANGLOG](docs/CHANGLOG.md) 或 [PR#60](https://github.com/9channel/dd-danmaku/pull/60)
 
 **首次播放时请检查当前弹幕信息是否正确匹配,若匹配错误请尝试手动匹配**
-
-
