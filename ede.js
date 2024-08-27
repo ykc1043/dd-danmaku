@@ -146,9 +146,10 @@
     const danmakuSource = {
         AcFun: { id: 'AcFun', name: 'A站(AcFun)' },
         BiliBili: { id: 'BiliBili', name: 'B站(BiliBili)' },
-        '5dm': { id: '5dm', name: 'D站(5dm)' },
-        DanDanPlay: { id: 'DanDanPlay', name: '弹弹(DanDanPlay)' }, // 无弹幕来源的默认值
         Gamer: { id: 'Gamer', name: '巴哈(Gamer)' },
+        DanDanPlay: { id: 'DanDanPlay', name: '弹弹(DanDanPlay)' }, // 无弹幕来源的默认值
+        '5dm': { id: '5dm', name: 'D站(5dm)' },
+        '异世界动漫': { id: '异世界动漫', name: '异世界动漫' },
     };
     const showSource = {
         source: { id: 'source', name: '来源平台' },
@@ -782,7 +783,10 @@
                     [showSource.source.id]: values[3].match(sourceUidReg)?.[1] || danmakuSource.DanDanPlay.id,
                     [showSource.originalUserId.id]: values[3].match(sourceUidReg)?.[2] || values[3],
                 };
-                cmt.text += showSourceIds.map(id => id === showSource.source.id ? `,[${cmt[id]}]` : ',' + cmt[id]).join('');
+                if (showSourceIds.length > 0) {
+                    cmt.originalText = cmt.text;
+                    cmt.text += showSourceIds.map(id => id === showSource.source.id ? `,[${cmt[id]}]` : ',' + cmt[id]).join('');
+                }
                 cmt.cuid = cmt[showSource.cid.id] + ',' + cmt[showSource.originalUserId.id];
                 return cmt;
             })
@@ -1309,9 +1313,10 @@
         const danmuListEle = document.getElementById(eleIds.danmuListText);
         danmuListEle.style.display = index == lsKeys.danmuList.defaultValue ? 'none' : '';
         const f = new Intl.DateTimeFormat('default', { minute: '2-digit', second: '2-digit' });
+        const hasShowSourceIds = lsGetItem(lsKeys.showSource.id).length > 0;
         danmuListEle.value = danmuListOpts[index].onChange(window.ede)
             .map((c, i) => `[${i + 1}] [${f.format(new Date(c.time * 1000))}] : `
-                + `${c.text} [${c.source}],[${c.originalUserId}],[${c.cid}]`
+                + `${hasShowSourceIds ? c.originalText : c.text} [${c.source}],[${c.originalUserId}],[${c.cid}]`
             ).join('\n');
     }
 
