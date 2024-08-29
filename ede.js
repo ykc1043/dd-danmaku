@@ -204,7 +204,7 @@
         heightRate: { id: 'danmakuHeightRate', defaultValue: 1 },
         fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1 },
         fontOpacity: { id: 'danmakuFontOpacity', defaultValue: 1 },
-        speed: { id: 'danmakuSpeed', defaultValue: 1 },
+        speed: { id: 'danmakuBaseSpeed', defaultValue: 1 },
         timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0 },
         typeFilter: { id: 'danmakuTypeFilter', defaultValue: [] },
         sourceFilter: { id: 'danmakuSourceFilter', defaultValue: [] },
