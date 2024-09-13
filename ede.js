@@ -220,7 +220,7 @@
         heightRate: { id: 'danmakuHeightRate', defaultValue: 1, name: '高度比例' },
         fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1, name: '大小' },
         fontOpacity: { id: 'danmakuFontOpacity', defaultValue: 1, name: '透明度' },
-        speed: { id: 'danmakuSpeed', defaultValue: 1, name: '速度' },
+        speed: { id: 'danmakuBaseSpeed', defaultValue: 1, name: '速度' },
         timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0, name: '轴偏秒' },
         typeFilter: { id: 'danmakuTypeFilter', defaultValue: [], name: '屏蔽类型' },
         sourceFilter: { id: 'danmakuSourceFilter', defaultValue: [], name: '屏蔽来源平台' },
