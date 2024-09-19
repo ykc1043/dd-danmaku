@@ -20,7 +20,7 @@
     // Danmaku 依赖路径,index.html 引入的和篡改猴环境不用填,依赖已内置,被 CustomCssJS 执行的特殊环境下使用,支持相对绝对网络路径
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
     // const requireDanmakuPath = 'https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js';
-    const requireDanmakuPath = 'https://cdn.jsdelivr.net/gh/lanytcc/Danmaku@v1.1.0-t/dist/danmaku.min.js';
+    const requireDanmakuPath = 'https://cdn.jsdelivr.net/gh/lanytcc/Danmaku@v1.2.0/dist/danmaku.min.js';
     // 跨域代理 cf_worker
     // const corsProxy = 'https://api.9-ch.com/cors/';
     const corsProxy = 'https://ddplay-api.7o7o.cc/cors/';
@@ -31,7 +31,7 @@
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
-        danmakuFork: { version: '1.1.0-t', name: 'Danmaku(Based on 2.0.6)', license: 'MIT License', url: 'https://github.com/lanytcc/Danmaku' },
+        danmakuFork: { version: 'v1.2.0', name: 'Danmaku(Based on 2.0.6)', license: 'MIT License', url: 'https://github.com/lanytcc/Danmaku' },
         dandanplayAPI: { version: 'v2', name: '弹弹play API', license: 'MIT License', url: 'https://github.com/kaedei/dandanplay-libraryindex' },
     };
     const apiPrefix = corsProxy + 'https://api.dandanplay.net/api/v2';
@@ -259,6 +259,7 @@
         // console.log('ignore this not error, callee:', e);
     }
     if (!skipInnerModule) {
+        // 这里内置依赖是工作在浏览器油猴和服务端 index.html 环境下, requireDanmakuPath 是特殊环境 CustomCssJS 下网络加载使用
         /* https://cdn.jsdelivr.net/gh/lanytcc/Danmaku@v1.1.0-t/dist/danmaku.min.js */
         /* eslint-disable */
         // prettier-ignore
