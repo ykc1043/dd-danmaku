@@ -20,7 +20,7 @@
     // Danmaku 依赖路径,index.html 引入的和篡改猴环境不用填,依赖已内置,被 CustomCssJS 执行的特殊环境下使用,支持相对绝对网络路径
     // 默认是相对路径等同 https://emby/web/ 和 /system/dashboard-ui/ ,非浏览器客户端必须使用网络路径
     // const requireDanmakuPath = 'https://fastly.jsdelivr.net/gh/weizhenye/danmaku@2.0.6/dist/danmaku.min.js';
-    const requireDanmakuPath = 'https://cdn.jsdelivr.net/gh/lanytcc/Danmaku@v1.2.0/dist/danmaku.min.js';
+    const requireDanmakuPath = 'https://cdn.jsdelivr.net/gh/lanytcc/Danmaku@v1.2.1/dist/danmaku.min.js';
     // 跨域代理 cf_worker
     // const corsProxy = 'https://api.9-ch.com/cors/';
     const corsProxy = 'https://ddplay-api.7o7o.cc/cors/';
@@ -31,8 +31,9 @@
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
-        danmakuFork: { version: 'v1.2.0', name: 'Danmaku(Based on 2.0.6)', license: 'MIT License', url: 'https://github.com/lanytcc/Danmaku' },
-        dandanplayApi: { version: 'v2', name: '弹弹play API', license: 'MIT License', url: 'https://github.com/kaedei/dandanplay-libraryindex' },
+        danmakuFork: { version: 'v1.2.1', name: 'Danmaku(Based on 2.0.6)', license: 'MIT License', url: 'https://github.com/lanytcc/Danmaku' },
+        dandanplayApi: { version: 'v2', name: '弹弹 play API', license: 'MIT License', url: 'https://github.com/kaedei/dandanplay-libraryindex' },
+        bangumiApi: { version: '2024-01-30', name: 'Bangumi API', license: 'None', url: 'https://github.com/bangumi/api' },
     };
     const dandanplayApi = {
         prefix: corsProxy + 'https://api.dandanplay.net/api/v2',
@@ -193,7 +194,7 @@
         { id: 'danmakuTab0', name: '弹幕设置', buildMethod: buildDanmakuSetting },
         { id: 'danmakuTab1', name: '手动匹配', buildMethod: buildSearchEpisode },
         { id: currentDanmakuInfoContainerId, name: '弹幕信息', buildMethod: buildCurrentDanmakuInfo },
-        { id: 'danmakuTab3', name: '弹幕屏蔽', buildMethod: buildDanmakuFilter },
+        { id: 'danmakuTab3', name: '高级设置', buildMethod: buildProSetting },
         { id: 'danmakuTab4', name: '额外设置', buildMethod: buildExtSetting },
         { id: 'danmakuTab5', name: '关于', buildMethod: buildAbout },
         { id: tabIframeId, name: '内嵌网页', hidden: true, buildMethod: buildIframe },
@@ -209,8 +210,12 @@
     const danmakuSource = {
         AcFun: { id: 'AcFun', name: 'A站(AcFun)' },
         BiliBili: { id: 'BiliBili', name: 'B站(BiliBili)' },
-        Gamer: { id: 'Gamer', name: '巴哈(Gamer)' },
         DanDanPlay: { id: 'DanDanPlay', name: '弹弹(DanDanPlay)' }, // 无弹幕来源的默认值
+        D: { id: 'D', name: 'D' }, // 未知平台
+        Gamer: { id: 'Gamer', name: '巴哈(Gamer)' },
+        iqiyi: { id: 'iqiyi', name: '爱奇艺(iqiyi)' },
+        QQ: { id: 'QQ', name: '腾讯视频(QQ)' },
+        Youku: { id: 'Youku', name: '优酷(Youku)' },
         '5dm': { id: '5dm', name: 'D站(5dm)' },
         '异世界动漫': { id: '异世界动漫', name: '异世界动漫' },
     };
@@ -275,7 +280,7 @@
     const timeoutCallbackClear = () => timeoutCallbackId && clearTimeout(timeoutCallbackId);
     const timeoutCallbackTypeOpts = [
         { id: '0', name: '不启用' , onChange: () => timeoutCallbackClear() },
-        { id: '1', name: '返回上级', onChange: (ms) => {
+        { id: '1', name: '推出播放', onChange: (ms) => {
             timeoutCallbackClear(), timeoutCallbackId = setTimeout(() => { closeEmbyDialog(), Emby.InputManager.trigger('back') }, ms);
         } },
         { id: '2', name: '返回主页', onChange: (ms) => { // Native 播放器不支持.trigger('home'),虽底层一样,但原因未知
@@ -323,6 +328,7 @@
         basic: 'raised emby-button',
         submit: 'button-submit',
         help: 'button-help',
+        help: 'button-link',
         iconButton: 'flex-shrink-zero paper-icon-button-light',
     };
     const colors = {
@@ -344,7 +350,7 @@
     }
     if (!skipInnerModule) {
         // 这里内置依赖是工作在浏览器油猴和服务端 index.html 环境下, requireDanmakuPath 是特殊环境 CustomCssJS 下网络加载使用
-        /* https://cdn.jsdelivr.net/gh/lanytcc/Danmaku@v1.2.0/dist/danmaku.min.js */
+        /* https://cdn.jsdelivr.net/gh/lanytcc/Danmaku@v1.2.1/dist/danmaku.min.js */
         /* eslint-disable */
         // prettier-ignore
         !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t="undefined"!=typeof globalThis?globalThis:t||self).Danmaku=e()}(this,(function(){"use strict";var t=function(){if("undefined"==typeof document)return"transform";for(var t=["oTransform","msTransform","mozTransform","webkitTransform","transform"],e=document.createElement("div").style,i=0;i<t.length;i++)if(t[i]in e)return t[i];return"transform"}();function e(t){var e=document.createElement("div");if(e.style.cssText="position:absolute;","function"==typeof t.render){var i=t.render();if(i instanceof HTMLElement)return e.appendChild(i),e}if(e.textContent=t.text,t.style)for(var n in t.style)e.style[n]=t.style[n];return e}var i={name:"dom",init:function(){var t=document.createElement("div");return t.style.cssText="overflow:hidden;white-space:nowrap;transform:translateZ(0);",t},clear:function(t){for(var e=t.lastChild;e;)t.removeChild(e),e=t.lastChild},resize:function(t,e,i){t.style.width=e+"px",t.style.height=i+"px"},framing:function(){},setup:function(t,i){var n=document.createDocumentFragment(),s=0,r=null;for(s=0;s<i.length;s++)(r=i[s]).node=r.node||e(r),n.appendChild(r.node);for(i.length&&t.appendChild(n),s=0;s<i.length;s++)(r=i[s]).width=r.width||r.node.offsetWidth,r.height=r.height||r.node.offsetHeight},render:function(e,i){i.node.style[t]="translate("+i.x+"px,"+i.y+"px)"},remove:function(t,e){t.removeChild(e.node),this.media||(e.node=null)}},n="undefined"!=typeof window&&window.devicePixelRatio||1,s=Object.create(null);function r(t,e){if("function"==typeof t.render){var i=t.render();if(i instanceof HTMLCanvasElement)return t.width=i.width,t.height=i.height,i}var r=document.createElement("canvas"),o=r.getContext("2d"),h=t.style||{};h.font=h.font||"10px sans-serif",h.textBaseline=h.textBaseline||"bottom";var a=1*h.lineWidth;for(var d in a=a>0&&a!==1/0?Math.ceil(a):1*!!h.strokeStyle,o.font=h.font,t.width=t.width||Math.max(1,Math.ceil(o.measureText(t.text).width)+2*a),t.height=t.height||Math.ceil(function(t,e){if(s[t])return s[t];var i=12,n=t.match(/(\d+(?:\.\d+)?)(px|%|em|rem)(?:\s*\/\s*(\d+(?:\.\d+)?)(px|%|em|rem)?)?/);if(n){var r=1*n[1]||10,o=n[2],h=1*n[3]||1.2,a=n[4];"%"===o&&(r*=e.container/100),"em"===o&&(r*=e.container),"rem"===o&&(r*=e.root),"px"===a&&(i=h),"%"===a&&(i=r*h/100),"em"===a&&(i=r*h),"rem"===a&&(i=e.root*h),void 0===a&&(i=r*h)}return s[t]=i,i}(h.font,e))+2*a,r.width=t.width*n,r.height=t.height*n,o.scale(n,n),h)o[d]=h[d];var l=0;switch(h.textBaseline){case"top":case"hanging":l=a;break;case"middle":l=t.height>>1;break;default:l=t.height-a}return h.strokeStyle&&o.strokeText(t.text,a,l),o.fillText(t.text,a,l),r}function o(t){return 1*window.getComputedStyle(t,null).getPropertyValue("font-size").match(/(.+)px/)[1]}var h={name:"canvas",init:function(t){var e=document.createElement("canvas");return e.context=e.getContext("2d"),e._fontSize={root:o(document.getElementsByTagName("html")[0]),container:o(t)},e},clear:function(t,e){t.context.clearRect(0,0,t.width,t.height);for(var i=0;i<e.length;i++)e[i].canvas=null},resize:function(t,e,i){t.width=e*n,t.height=i*n,t.style.width=e+"px",t.style.height=i+"px"},framing:function(t){t.context.clearRect(0,0,t.width,t.height)},setup:function(t,e){for(var i=0;i<e.length;i++){var n=e[i];n.canvas=r(n,t._fontSize)}},render:function(t,e){t.context.drawImage(e.canvas,e.x*n,e.y*n)},remove:function(t,e){e.canvas=null}};function a(t){const e=this,i=e.media?e.media.currentTime:Date.now()/1e3,n=e.media?e.media.playbackRate:1,s=t.mode,r=t.height,o=e._.height,h=Math.floor(o/r);e._.space[s]&&e._.space[s].length===h||(e._.space[s]=new Array(h).fill(null).map(()=>({endTime:0})));const a=e._.space[s];let d=-1;function l(t,e,i,n,s,r){if(!t||!t.endTime)return!0;if(i>=t.endTime)return!0;if("ltr"===s||"rtl"===s){const o=i-t.startTime,h=i-e.time,a=r._.duration/n,d=r._.width,l=o/a*d,u=h/a*d;let c=0,m=0,f=0,p=0;if("rtl"===s?(c=r._.width-l,m=c+t.width,f=r._.width-u,p=f+e.width):(m=-t.width+l,c=m-t.width,p=-e.width+u,f=p-e.width),f<m&&p>c||p>c&&f<m)return!1}if("top"===s||"bottom"===s){const e=r._.duration/n;return i-t.startTime>=e}return!0}for(let r=0;r<h;r++){if(l(a[r],t,i,n,s,e)){d=r;break}}if(-1===d)return-1;const u=e.media?t.time:t._utc,c=u+e._.duration/n;a[d]={startTime:u,endTime:c,width:t.width,height:t.height};return"bottom"===s?o-(d+1)*r:d*r}var d="undefined"!=typeof window&&(window.requestAnimationFrame||window.mozRequestAnimationFrame||window.webkitRequestAnimationFrame)||function(t){return setTimeout(t,50/3)},l="undefined"!=typeof window&&(window.cancelAnimationFrame||window.mozCancelAnimationFrame||window.webkitCancelAnimationFrame)||clearTimeout;function u(t,e,i){for(var n=0,s=0,r=t.length;s<r-1;)i>=t[n=s+r>>1][e]?s=n:r=n;return t[s]&&i<t[s][e]?s:r}function c(t){return/^(ltr|top|bottom)$/i.test(t)?t.toLowerCase():"rtl"}function m(t){t.ltr=[],t.rtl=[],t.top=[],t.bottom=[]}function f(){if(!this._.visible||!this._.paused)return this;if(this._.paused=!1,this.media)for(var t=0;t<this._.runningList.length;t++){var e=this._.runningList[t];e._utc=Date.now()/1e3-(this.media.currentTime-e.time)}var i=this,n=function(t,e,i,n){return function(s){let r=s;void 0===r&&(r=Date.now()),t(this._.stage);const o=r/1e3,h=this.media?this.media.currentTime:o,d=this.media?this.media.playbackRate:1;let l=null,u=0,c=0;for(c=this._.runningList.length-1;c>=0;c--){l=this._.runningList[c],u=this.media?l.time:l._utc;const t=(o-l._utc)*d;let e=!1;"top"===l.mode||"bottom"===l.mode?t>this._.duration&&(e=!0):"ltr"===l.mode?l.x>this._.width&&(e=!0):"rtl"===l.mode&&l.x+l.width<0&&(e=!0),e&&(n(this._.stage,l),this._.runningList.splice(c,1))}const m=[];for(;this._.position<this.comments.length&&(l=this.comments[this._.position],u=this.media?l.time:l._utc,!(u>=h));)h-u>this._.duration||(this.media&&(l._utc=o-(this.media.currentTime-l.time)),m.push(l)),++this._.position;for(e(this._.stage,m),c=0;c<m.length;c++)l=m[c],l.y=a.call(this,l),this._.runningList.push(l);for(c=0;c<this._.runningList.length;c++){if(l=this._.runningList[c],-1===l.y)continue;const t=(o-l._utc)*d/this._.duration,e=this._.width*t;"ltr"===l.mode?l.x=-l.width+e:"rtl"===l.mode?l.x=this._.width-e:"top"!==l.mode&&"bottom"!==l.mode||(l.x=(this._.width-l.width)/2),l.element&&l.element.style&&(l.element.style.transform=`translate(${l.x}px, ${l.y}px)`),i(this._.stage,l)}}}(this._.engine.framing.bind(this),this._.engine.setup.bind(this),this._.engine.render.bind(this),this._.engine.remove.bind(this));return this._.requestID=d((function t(){n.call(i),i._.requestID=d(t)})),this}function p(){return!this._.visible||this._.paused||(this._.paused=!0,l(this._.requestID),this._.requestID=0),this}function _(){if(!this.media)return this;this.clear(),m(this._.space);var t=u(this.comments,"time",this.media.currentTime);return this._.position=Math.max(0,t-1),this}function g(t){t.play=f.bind(this),t.pause=p.bind(this),t.seeking=_.bind(this),this.media.addEventListener("play",t.play),this.media.addEventListener("pause",t.pause),this.media.addEventListener("playing",t.play),this.media.addEventListener("waiting",t.pause),this.media.addEventListener("seeking",t.seeking)}function v(t){this.media.removeEventListener("play",t.play),this.media.removeEventListener("pause",t.pause),this.media.removeEventListener("playing",t.play),this.media.removeEventListener("waiting",t.pause),this.media.removeEventListener("seeking",t.seeking),t.play=null,t.pause=null,t.seeking=null}function w(t){this._={},this.container=t.container||document.createElement("div"),this.media=t.media,this._.visible=!0,this.engine=(t.engine||"DOM").toLowerCase(),this._.engine="canvas"===this.engine?h:i,this._.requestID=0,this._.speed=Math.max(0,t.speed)||144,this._.duration=4,this.comments=t.comments||[],this.comments.sort((function(t,e){return t.time-e.time}));for(var e=0;e<this.comments.length;e++)this.comments[e].mode=c(this.comments[e].mode);return this._.runningList=[],this._.position=0,this._.paused=!0,this.media&&(this._.listener={},g.call(this,this._.listener)),this._.stage=this._.engine.init(this.container),this._.stage.style.cssText+="position:relative;pointer-events:none;",this.resize(),this.container.appendChild(this._.stage),this._.space={},m(this._.space),this.media&&this.media.paused||(_.call(this),f.call(this)),this}function y(){if(!this.container)return this;for(var t in p.call(this),this.clear(),this.container.removeChild(this._.stage),this.media&&v.call(this,this._.listener),this)Object.prototype.hasOwnProperty.call(this,t)&&(this[t]=null);return this}var x=["mode","time","text","render","style"];function b(t){if(!t||"[object Object]"!==Object.prototype.toString.call(t))return this;for(var e={},i=0;i<x.length;i++)void 0!==t[x[i]]&&(e[x[i]]=t[x[i]]);if(e.text=(e.text||"").toString(),e.mode=c(e.mode),e._utc=Date.now()/1e3,this.media){var n=0;void 0===e.time?(e.time=this.media.currentTime,n=this._.position):(n=u(this.comments,"time",e.time))<this._.position&&(this._.position+=1),this.comments.splice(n,0,e)}else this.comments.push(e);return this}function T(){return this._.visible?this:(this._.visible=!0,this.media&&this.media.paused||(_.call(this),f.call(this)),this)}function L(){return this._.visible?(p.call(this),this.clear(),this._.visible=!1,this):this}function E(){return this._.engine.clear(this._.stage,this._.runningList),this._.runningList=[],this}function k(){return this._.width=this.container.offsetWidth,this._.height=this.container.offsetHeight,this._.engine.resize(this._.stage,this._.width,this._.height),this._.duration=this._.width/this._.speed,this}var C={get:function(){return this._.speed},set:function(t){return"number"!=typeof t||isNaN(t)||!isFinite(t)||t<=0?this._.speed:(this._.speed=t,this._.width&&(this._.duration=this._.width/t),t)}};function D(t){t&&w.call(this,t)}return D.prototype.destroy=function(){return y.call(this)},D.prototype.emit=function(t){return b.call(this,t)},D.prototype.show=function(){return T.call(this)},D.prototype.hide=function(){return L.call(this)},D.prototype.clear=function(){return E.call(this)},D.prototype.resize=function(){return k.call(this)},Object.defineProperty(D.prototype,"speed",C),D}));
@@ -546,7 +552,9 @@
         console.log(`结束播放百分比: ${pct}%`);
         const bangumiPostPercent = lsGetItem(lsKeys.bangumiPostPercent.id);
         const bangumiToken = lsGetItem(lsKeys.bangumiToken.id);
-        if (lsGetItem(lsKeys.bangumiEnable.id) && bangumiToken && pct > bangumiPostPercent && !!window.ede.episode_info?.episodeId) {
+        if (lsGetItem(lsKeys.bangumiEnable.id) && bangumiToken
+            && pct > bangumiPostPercent && !!window.ede.episode_info?.episodeId
+        ) {
             console.log(`大于需提交的设定百分比: ${bangumiPostPercent}%`);
             putBangumiEpStatus(bangumiToken).then(res => {
                 embyToast({ text: `结束播放百分比: ${pct}%, 大于需提交的设定百分比: ${bangumiPostPercent}%, 提交成功` });
@@ -1507,7 +1515,7 @@
         );
     }
 
-    function buildDanmakuFilter(containerId) {
+    function buildProSetting(containerId) {
         const container = getById(containerId);
         let template = `
             <div>
