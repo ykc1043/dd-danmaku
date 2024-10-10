@@ -1,14 +1,14 @@
 // ==UserScript==
-// @name         Emby danmaku extension
-// @description  Emby弹幕插件
+// @name         Emby danmaku extension - Emby style
+// @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
 // @version      1.34
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
-// @updateURL    https://cdn.jsdelivr.net/gh/RyoLee/emby-danmaku@gh-pages/ede.user.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/RyoLee/emby-danmaku@gh-pages/ede.user.js
+// @updateURL    https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@new-ui/ede.js
+// @downloadURL  https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@new-ui/ede.js
 // @grant        none
 // @match        */web/index.html
 // @match        */web/

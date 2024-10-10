@@ -10,7 +10,7 @@
 ### 一.浏览器插件
 
 1. [Tampermonkey](https://www.tampermonkey.net/)
-2. [添加脚本](https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@new-ui/ede.js)
+2. [添加脚本](https://github.com/chen3861229/dd-danmaku/releases/latest/download/ede.js)
 
 ### 二.修改服务端
 
