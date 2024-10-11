@@ -373,6 +373,7 @@
             this.commentsParsed = []; // 包含 conment 和 extConment 解析后全量
             this.extConmentCache = {}; // 只包含 extConment 未解析
             this.destroyIntervalIds = [];
+            this.timeupdateIntervalId = null;
             this.searchDanmakuOpts = {}; // 手动搜索变量
             this.appLogAspect = null; // 应用日志切面
             this.bangumiInfo = {};
@@ -810,7 +811,7 @@
         });
         window.ede.ob.observe(_container);
         // 自定义的 initH5VideoAdapter 下,解决暂停时暂停的弹幕再次加载会自动恢复问题
-        if (!_media.src) {
+        if (_media.id) {
             require(['playbackManager'], (playbackManager) => {
                 if (playbackManager.getPlayerState().PlayState.IsPaused) {
                     _media.dispatchEvent(new Event('pause'));
@@ -1838,7 +1839,7 @@
         const debugWrapper = getById(eleIds.debugButton, container);
         debugWrapper.append(embyButton({ label: '打印视频加载方' }, () => {
             const _media = document.querySelector(mediaQueryStr);
-            if (_media.src) {
+            if (!_media.id) {
                 console.log('视频加载方为 Web 端 <video> 标签:', _media.parentNode.outerHTML);
             } else {
                 console.log('当前 <video> 标签为虚拟适配器:', _media.outerHTML);
@@ -2628,8 +2629,12 @@
 
     async function initH5VideoAdapter() {
         let _media = document.querySelector(mediaQueryStr);
-        if (_media) {
-            return;
+        if (_media) { 
+            // 若是手动创建的<video>(无id)，则需要平滑补充 timeupdate 中秒级间隔缺失的 100ms 间隙
+            if (_media.id) {
+                window.ede.timeupdateIntervalId = setInterval(() => { _media.currentTime += 100 / 1e3 }, 100);
+            }
+            return; 
         }
         console.log('页面上不存在 video 标签,适配器处理开始');
         _media = document.createElement('video');
@@ -2640,7 +2645,7 @@
 
         _media.play();
         // 平滑补充 timeupdate 中秒级间隔缺失的 100ms 间隙
-        window.ede.destroyIntervalIds.push(setInterval(() => { _media.currentTime += 100 / 1e3 }, 100));
+        window.ede.timeupdateIntervalId = setInterval(() => { _media.currentTime += 100 / 1e3 }, 100);
 
         const [playbackManager] = await require(['playbackManager']);
         playbackEventsOn({
@@ -2665,8 +2670,6 @@
             },
             'unpause': (e) => {
                 _media.dispatchEvent(new Event('play'));
-                // 只有老版本 Emby Theater 播放首次会进来,所以上面初始化重新添加一次定时器
-                // window.ede.destroyIntervalIds.push(setInterval(() => { _media.currentTime += 100 / 1e3 }, 100));
                 console.warn('unpause');
             },
         });
@@ -2679,6 +2682,9 @@
         // 销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
         getById(eleIds.danmakuCtr)?.remove();
         // getById(eleIds.h5VideoAdapter)?.remove();
+        // 销毁平滑补充 timeupdate 定时器
+        clearInterval(window.ede.timeupdateIntervalId);
+        window.ede.timeupdateIntervalId = null;
         // 销毁可能残留的定时器
         window.ede.destroyIntervalIds.map(id => clearInterval(id));
         window.ede.destroyIntervalIds = [];
