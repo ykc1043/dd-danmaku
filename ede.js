@@ -1511,67 +1511,69 @@
     function buildProSetting(containerId) {
         const container = getById(containerId);
         let template = `
-            <div>
-                <div id="${eleIds.danmakuTypeFilterDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">${lsKeys.typeFilter.name}: </label>
-                </div>
-                <div id="${eleIds.danmakuSourceFilterDiv}">
-                    <label class="${embyLabelClass}">${lsKeys.sourceFilter.name}: </label>
-                </div>
-                <div id="${eleIds.danmakuShowSourceDiv}">
-                    <label class="${embyLabelClass}">${lsKeys.showSource.name}: </label>
-                </div>
-                <div id="${eleIds.filterKeywordsDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">${lsKeys.filterKeywords.name}: </label>
-                </div>
-            </div>
-            <div>
-                <h4>额外设置</h4>
-                <div id="${eleIds.osdTitleEnableDiv}"></div>
-                <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">${lsKeys.chConvert.name}: </label>
-                </div>
-                <div id="${eleIds.danmakuEngineDiv}" style="margin-bottom: 0.2em;">
-                    <label class="${embyLabelClass}">${lsKeys.engine.name}: </label>
-                </div>
-            </div>
-            <div>
-                <h4>播放设置</h4>
+            <div style="height: 30em;">
                 <div>
-                    <label class="${embyLabelClass}">单次定时执行: </label>
-                    <div id="${eleIds.timeoutCallbackTypeDiv}"></div>
-                    <label class="${embyLabelClass}">定时单位: </label>
-                    <div id="${eleIds.timeoutCallbackUnitDiv}"></div>
-                    <div style="${embySliderStyle + 'margin-top: 0.3em;'}">
-                        <label class="${embyLabelClass}" style="width:4em;">${lsKeys.timeoutCallbackValue.name}: </label>
-                        <div id="${eleIds.timeoutCallbackDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.timeoutCallbackLabel}" style="width:4em;"></label>
+                    <div id="${eleIds.danmakuTypeFilterDiv}" style="margin-bottom: 0.2em;">
+                        <label class="${embyLabelClass}">${lsKeys.typeFilter.name}: </label>
+                    </div>
+                    <div id="${eleIds.danmakuSourceFilterDiv}">
+                        <label class="${embyLabelClass}">${lsKeys.sourceFilter.name}: </label>
+                    </div>
+                    <div id="${eleIds.danmakuShowSourceDiv}">
+                        <label class="${embyLabelClass}">${lsKeys.showSource.name}: </label>
+                    </div>
+                    <div id="${eleIds.filterKeywordsDiv}" style="margin-bottom: 0.2em;">
+                        <label class="${embyLabelClass}">${lsKeys.filterKeywords.name}: </label>
                     </div>
                 </div>
                 <div>
-                    <h4>Bangumi 设置</h4>
+                    <h4>额外设置</h4>
+                    <div id="${eleIds.osdTitleEnableDiv}"></div>
+                    <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
+                        <label class="${embyLabelClass}">${lsKeys.chConvert.name}: </label>
+                    </div>
+                    <div id="${eleIds.danmakuEngineDiv}" style="margin-bottom: 0.2em;">
+                        <label class="${embyLabelClass}">${lsKeys.engine.name}: </label>
+                    </div>
+                </div>
+                <div>
+                    <h4>播放设置</h4>
                     <div>
-                        <label id="${eleIds.bangumiEnableLabel}" class="${embyLabelClass}"></label>
-                        <di id="${eleIds.bangumiSettingsDiv}">
-                            <div id="${eleIds.bangumiTokenInputDiv}" style="display: flex;" ></div>
-                            <div id="${eleIds.bangumiTokenLabel}" class="${embyFieldDescClass}"></div>
-                            <div class="${embyFieldDescClass}">
-                                你可以在以下链接生成一个 Access Token
-                            </div>
-                            <div id="${eleIds.bangumiTokenLinkDiv}" style="padding-bottom: 0.5em;"></div>
-                            <label class="${embyLabelClass}">自动更新单章节收藏信息: </label>
-                            <div style="${embySliderStyle}">
-                                <label class="${embyLabelClass}" style="width:4em;">${lsKeys.bangumiPostPercent.name}: </label>
-                                <div id="${eleIds.bangumiPostPercentDiv}" style="width: 15.5em; text-align: center;"></div>
-                                <label>
-                                    <label id="${eleIds.bangumiPostPercentLabel}" style="width:4em;"></label>
-                                    <label>%</label>
-                                </label>
-                            </div>
-                            <div class="${embyFieldDescClass}">
-                                触发时机为正常停止播放,且播放进度超过设定百分比时;
-                                同步的媒体信息为自动匹配而来,可在"弹幕信息"中查看;
-                                自动匹配有误可"手动匹配",仍无法匹配可点击按钮X"取消匹配/清除弹幕",则此单章节不会同步;
+                        <label class="${embyLabelClass}">单次定时执行: </label>
+                        <div id="${eleIds.timeoutCallbackTypeDiv}"></div>
+                        <label class="${embyLabelClass}">定时单位: </label>
+                        <div id="${eleIds.timeoutCallbackUnitDiv}"></div>
+                        <div style="${embySliderStyle + 'margin-top: 0.3em;'}">
+                            <label class="${embyLabelClass}" style="width:4em;">${lsKeys.timeoutCallbackValue.name}: </label>
+                            <div id="${eleIds.timeoutCallbackDiv}" style="width: 15.5em; text-align: center;"></div>
+                            <label id="${eleIds.timeoutCallbackLabel}" style="width:4em;"></label>
+                        </div>
+                    </div>
+                    <div>
+                        <h4>Bangumi 设置</h4>
+                        <div>
+                            <label id="${eleIds.bangumiEnableLabel}" class="${embyLabelClass}"></label>
+                            <di id="${eleIds.bangumiSettingsDiv}">
+                                <div id="${eleIds.bangumiTokenInputDiv}" style="display: flex;" ></div>
+                                <div id="${eleIds.bangumiTokenLabel}" class="${embyFieldDescClass}"></div>
+                                <div class="${embyFieldDescClass}">
+                                    你可以在以下链接生成一个 Access Token
+                                </div>
+                                <div id="${eleIds.bangumiTokenLinkDiv}" style="padding-bottom: 0.5em;"></div>
+                                <label class="${embyLabelClass}">自动更新单章节收藏信息: </label>
+                                <div style="${embySliderStyle}">
+                                    <label class="${embyLabelClass}" style="width:4em;">${lsKeys.bangumiPostPercent.name}: </label>
+                                    <div id="${eleIds.bangumiPostPercentDiv}" style="width: 15.5em; text-align: center;"></div>
+                                    <label>
+                                        <label id="${eleIds.bangumiPostPercentLabel}" style="width:4em;"></label>
+                                        <label>%</label>
+                                    </label>
+                                </div>
+                                <div class="${embyFieldDescClass}">
+                                    触发时机为正常停止播放,且播放进度超过设定百分比时;
+                                    同步的媒体信息为自动匹配而来,可在"弹幕信息"中查看;
+                                    自动匹配有误可"手动匹配",仍无法匹配可点击按钮X"取消匹配/清除弹幕",则此单章节不会同步;
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1712,23 +1714,25 @@
         const container = getById(containerId);
         if (!container) { return; }
         const template = `
-            <div id="${eleIds.consoleLogCtrl}"></div>
-            <textarea id="${eleIds.consoleLogText}" readOnly style="resize: vertical;margin-top: 0.6em;" 
-                rows="14" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
-            <textarea id="${eleIds.consoleLogTextInput}" hidden style="resize: vertical;" 
-                rows="1" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
-            <div class="${embyFieldDescClass}">注意开启后原本控制台中调用方信息将被覆盖,不使用请保持关闭状态</div>
-            <div id="${eleIds.consoleLogCtrl}"></div>
-            <div>
-                <h4>开发者选项</h4>
-                <label class="${embyLabelClass}">调试开关: </label>
-                <div id="${eleIds.debugCheckbox}"></div>
-                <label class="${embyLabelClass}">调试按钮: </label>
-                <div id="${eleIds.debugButton}"></div>
-            </div>
-            <div>
-                <h4>开放源代码许可</h4>
-                <div style="display: flex; flex-direction: column;" id="${eleIds.openSouceLicenseDiv}"></div>
+            <div style="height: 30em;">
+                <div id="${eleIds.consoleLogCtrl}"></div>
+                <textarea id="${eleIds.consoleLogText}" readOnly style="resize: vertical;margin-top: 0.6em;" 
+                    rows="14" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
+                <textarea id="${eleIds.consoleLogTextInput}" hidden style="resize: vertical;" 
+                    rows="1" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
+                <div class="${embyFieldDescClass}">注意开启后原本控制台中调用方信息将被覆盖,不使用请保持关闭状态</div>
+                <div id="${eleIds.consoleLogCtrl}"></div>
+                <div>
+                    <h4>开发者选项</h4>
+                    <label class="${embyLabelClass}">调试开关: </label>
+                    <div id="${eleIds.debugCheckbox}"></div>
+                    <label class="${embyLabelClass}">调试按钮: </label>
+                    <div id="${eleIds.debugButton}"></div>
+                </div>
+                <div>
+                    <h4>开放源代码许可</h4>
+                    <div style="display: flex; flex-direction: column;" id="${eleIds.openSouceLicenseDiv}"></div>
+                </div>
             </div>
         `;
         container.innerHTML = template.trim();
