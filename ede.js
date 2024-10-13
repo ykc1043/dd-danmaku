@@ -427,7 +427,6 @@
             this.commentsParsed = []; // 包含 conment 和 extConment 解析后全量
             this.extConmentCache = {}; // 只包含 extConment 未解析
             this.destroyIntervalIds = [];
-            this.timeupdateIntervalId = null;
             this.searchDanmakuOpts = {}; // 手动搜索变量
             this.appLogAspect = null; // 应用日志切面
             this.bangumiInfo = {};
@@ -2751,7 +2750,7 @@
         if (_media) { 
             // 若是手动创建的<video>,则需要平滑补充 timeupdate 中秒级间隔缺失的 100ms 间隙
             if (_media.id) {
-                window.ede.timeupdateIntervalId = setInterval(() => { _media.currentTime += 100 / 1e3 }, 100);
+                videoTimeUpdateInterval(_media, true);
             }
             return;
         }
@@ -2763,8 +2762,7 @@
         document.body.prepend(_media);
 
         _media.play();
-        // 平滑补充 timeupdate 中秒级或几百毫秒间隔中缺失的 100ms 间隙
-        window.ede.timeupdateIntervalId = setInterval(() => { _media.currentTime += 100 / 1e3 }, 100);
+        videoTimeUpdateInterval(_media, true);
 
         const [playbackManager] = await require(['playbackManager']);
         playbackEventsOn({
@@ -2783,16 +2781,27 @@
             },
             'pause': (e) => {
                 _media.dispatchEvent(new Event('pause'));
-                window.ede.destroyIntervalIds.map(id => clearInterval(id));
-                window.ede.destroyIntervalIds = [];
+                videoTimeUpdateInterval(_media, false);
                 console.warn('pause');
             },
             'unpause': (e) => {
                 _media.dispatchEvent(new Event('play'));
+                videoTimeUpdateInterval(_media, true);
                 console.warn('unpause');
             },
         });
-        console.log('已创建虚拟 video 标签,适配器处理正确完成');
+        console.log('已创建虚拟 video 标签,适配器处理正确结束');
+    }
+
+    // 平滑补充<video> timeupdate 中秒级间隔缺失的 100ms 间隙
+    function videoTimeUpdateInterval(media, enable) {
+        const _media = media || document.querySelector(mediaQueryStr);
+        if (enable && !_media.timeupdateIntervalId) {
+            _media.timeupdateIntervalId = setInterval(() => { _media.currentTime += 100 / 1e3 }, 100);
+        } else if (!enable && _media.timeupdateIntervalId) {
+            clearInterval(_media.timeupdateIntervalId);
+            _media.timeupdateIntervalId = null;
+        }
     }
 
     function beforeDestroy() {
@@ -2802,8 +2811,7 @@
         getById(eleIds.danmakuCtr)?.remove();
         // getById(eleIds.h5VideoAdapter)?.remove();
         // 销毁平滑补充 timeupdate 定时器
-        clearInterval(window.ede.timeupdateIntervalId);
-        window.ede.timeupdateIntervalId = null;
+        videoTimeUpdateInterval(null, false);
         // 销毁可能残留的定时器
         window.ede.destroyIntervalIds.map(id => clearInterval(id));
         window.ede.destroyIntervalIds = [];
