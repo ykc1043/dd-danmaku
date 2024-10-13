@@ -1,30 +1,47 @@
 
 #### 2024-10-12
 fix: 更换上游依赖 CDN 地址修复移动宽带下的加载失败
+(https://github.com/chen3861229/dd-danmaku/issues/5)
+(https://github.com/9channel/dd-danmaku/pull/60#issuecomment-2354555162)
+
 fix: 修复初始化的重复触发
+(https://github.com/chen3861229/dd-danmaku/issues/8)
+
 feat: 添加自定义接口地址功能
+(https://github.com/chen3861229/dd-danmaku/issues/7)
+
 feat: 新增几个调试选项
+
 refator: 抽取 classes styles
 
 #### 2024-10-11
 fix: 修正客户端弹幕从右边平滑显示出来
+
 fix: 修正客户端更改播放进度反复触发事件问题
+
 refator: 调整高级设置、关于的高度
 
 #### 2024-10-10
 refator: 合并部分 tab 的设置项,并优化部分设置项样式
+
 feat: 持久化所有的调试开关
 
 #### 2024-09-30
 refator: 优化手动匹配
+
 fix: 修复 bangumi 推送异常
+
 fix: 桌面客户端更改播放进度弹幕消失问题
+
 feat: 播放控制界面添加弹幕信息
 
 #### 2024-09-26
 feat: 实验性新增 Bangumi 设置
+
 feat: 媒体信息标签新增 Bangumi 剧集角色信息
+
 feat: 新增几个调试选项
+
 fix: 优化部分功能体验
 
 #### 2024-05-24 以来
