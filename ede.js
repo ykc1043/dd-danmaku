@@ -2797,6 +2797,7 @@
     // 平滑补充<video> timeupdate 中秒级间隔缺失的 100ms 间隙
     function videoTimeUpdateInterval(media, enable) {
         const _media = media || document.querySelector(mediaQueryStr);
+        if (!_media) { return; }
         if (enable && !_media.timeupdateIntervalId) {
             _media.timeupdateIntervalId = setInterval(() => { _media.currentTime += 100 / 1e3 }, 100);
         } else if (!enable && _media.timeupdateIntervalId) {
