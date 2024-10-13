@@ -840,6 +840,7 @@
         wrapper.style.position = 'fixed';
         wrapper.style.width = '100%';
         wrapper.style.height = `calc(${lsGetItem(lsKeys.heightPercent.id)}% - ${wrapperTop}px)`;
+        wrapper.style.backgroundColor = lsGetItem(lsKeys.debugShowDanmakuWrapper.id) ? styles.colors.highlight : '';
         // wrapper.style.opacity = lsGetItem(lsKeys.fontOpacity.id); // 弹幕整体透明度
         wrapper.style.top = wrapperTop + 'px';
         wrapper.style.pointerEvents = 'none';
@@ -1243,7 +1244,7 @@
         getById(eleIds.heightPercentDiv, container).append(embySlider(
             { labelId: eleIds.heightPercentLabel, key: lsKeys.heightPercent.id }
             , { value: lsGetItem(lsKeys.heightPercent.id), min: 1, max: 100, step: 1 }
-            , (val, props) => { onSliderChange(val, props, false) }, onSliderChangeLabel
+            , onSliderChange, onSliderChangeLabel
         ));
         getById(eleIds.danmakuSizeDiv, container).append(embySlider(
             { labelId: eleIds.danmakuSizeLabel, key: lsKeys.fontSizeRate.id }
@@ -1911,12 +1912,12 @@
         //         clearInterval(intervalId);
         //     }
         // }));
+        const dialogContainer = document.querySelector('.' + classes.dialogContainer);
+        const centeredDialog = dialogContainer.firstChild;
+        let isExist1 = dialogContainer.classList.contains(classes.dialogBackdropOpened);
+        let isExist2 = centeredDialog.classList.contains(classes.dialogBlur);
         const debugDialogHyalinizeOnChange = (checked) => {
             lsSetItem(lsKeys.debugDialogHyalinize.id, checked);
-            const dialogContainer = document.querySelector('.' + classes.dialogContainer);
-            const centeredDialog = dialogContainer.firstChild;
-            let isExist1 = centeredDialog.classList.contains(classes.dialogBackdropOpened);
-            let isExist2 = centeredDialog.classList.contains(classes.dialogBlur);
             if (checked) {
                 centeredDialog.classList.remove(classes.dialog);
                 isExist1 && dialogContainer.classList.remove(classes.dialogBackdropOpened);
