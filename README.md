@@ -1,7 +1,7 @@
 # emby-danmaku
 
 ## Emby danmaku extension
-![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/new-ui/img/newui01.png)
+![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui01.png)
 
 ## 安装
 
@@ -10,14 +10,14 @@
 ### 一.浏览器插件
 
 1. [Tampermonkey](https://www.tampermonkey.net/)
-2. [添加脚本](https://github.com/chen3861229/dd-danmaku/releases/latest/download/ede.js)
+2. [添加脚本](https://greasyfork.org/zh-CN/scripts/512140-emby-danmaku-extension)
 
 ### 二.修改服务端
 
 修改文件 /system/dashboard-ui/index.html (Docker版,其他类似),在`</body>`前添加如下标签
 
 ```
-<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@new-ui/ede.js" defer></script>
+<script src="https://danmaku.7o7o.cc/danmaku.min.js" defer></script>
 ```
 该方式安装与浏览器插件安装**可同时使用不冲突**
 
@@ -51,11 +51,11 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
     * 关于: 控制台日志、开发者选项
         
         **密度等级越高强度越大，除0级外均带有每3秒6条的垂直方向弹幕密度限制,高于该限制密度的顶部/底部弹幕将会被转为普通弹幕*
-![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/new-ui/img/newui02.png)
-![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/new-ui/img/newui03.png)
-![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/new-ui/img/newui04.png)
-![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/new-ui/img/newui05.png)
-![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/new-ui/img/newui06.png)
+![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui02.png)
+![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui03.png)
+![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui04.png)
+![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui05.png)
+![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui06.png)
 ## 弹幕
 
 弹幕来源为 [弹弹 play](https://www.dandanplay.com/) ,已开启弹幕聚合(A/B/C/... 站等网站弹幕聚合)
