@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.34
+// @version      1.35
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -598,19 +598,22 @@
         const positionTicks = state.PlayState.PositionTicks;
         const runtimeTicks = state.NowPlayingItem.RunTimeTicks;
         if (!runtimeTicks) { return; }
-        const pct = positionTicks / runtimeTicks * 100;
+        const pct = parseInt(positionTicks / runtimeTicks * 100);
         console.log(`结束播放百分比: ${pct}%`);
         const bangumiPostPercent = lsGetItem(lsKeys.bangumiPostPercent.id);
         const bangumiToken = lsGetItem(lsKeys.bangumiToken.id);
         if (lsGetItem(lsKeys.bangumiEnable.id) && bangumiToken
-            && pct > bangumiPostPercent && !!window.ede.episode_info?.episodeId
+            && pct >= bangumiPostPercent && !!window.ede.episode_info?.episodeId
         ) {
             console.log(`大于需提交的设定百分比: ${bangumiPostPercent}%`);
+            const { animeTitle, episodeTitle } = window.ede.episode_info;
+            const targetName = `${animeTitle} - ${episodeTitle}`;
             putBangumiEpStatus(bangumiToken).then(res => {
-                embyToast({ text: `结束播放百分比: ${pct}%, 大于需提交的设定百分比: ${bangumiPostPercent}%, 提交成功` });
-                console.log('putBangumiEpStatus 成功');
+                embyToast({ text: `putBangumiEpStatus 成功, 目标: ${targetName}, 结束播放百分比: ${pct}%, 大于需提交的设定百分比: ${bangumiPostPercent}%`});
+                console.log(`putBangumiEpStatus 成功, 目标: ${targetName}`);
             }).catch(error => {
-                console.error('putBangumiEpStatus 失败', error);
+                embyToast({ text: `putBangumiEpStatus 失败, 目标: ${targetName}, ${error.message}` });
+                console.error(`putBangumiEpStatus 失败, 目标: ${targetName}`, error);
             });
         }
     }
@@ -642,7 +645,7 @@
     async function putBangumiEpStatus(token) {
         const bangumiInfo = await getEpisodeBangumiRel();
         const { subjectId, episodeIndex, } = bangumiInfo;
-        // 修改条目收藏状态, 如果不存在则创建, 如果存在则修改
+        console.log('准备修改 Bangumi 条目收藏状态为在看, 如果不存在则创建, 如果存在则修改');
         let body = { type: 3 }; // 在看状态
         await fetchJson(bangumiApi.postUserCollection(subjectId), { token, body });
         if (!bangumiInfo.bangumiEpsRes) {
@@ -659,10 +662,11 @@
             console.log('Bangumi 已是看过状态,跳过更新', bangumiEp);
             throw new Error('Bangumi 已是看过状态,跳过更新');
         }
+        console.log('准备更新 Bangumi 章节收藏状态, 详情: ', bangumiEp);
         body.type = 2; // 看过状态
         await fetchJson(bangumiApi.putUserEpisodeCollection(bangumiEp.id), { token, body, method: 'PUT' });
         bangumiEp.type = body.type;
-        console.log(`成功更新 Bangumi 收藏状态, 在看 => 看过`, bangumiEp);
+        console.log(`成功更新 Bangumi 章节收藏状态, 在看 => 看过, 详情: `, bangumiEp);
         window.ede.bangumiInfo = bangumiInfo;
         localStorage.setItem(bangumiInfo._bangumi_key, JSON.stringify(bangumiInfo));
         return bangumiInfo;
@@ -1949,6 +1953,8 @@
         }));
         debugWrapper.append(embyButton({ label: '打印视频加载方' }, () => {
             const _media = document.querySelector(mediaQueryStr);
+            if (!_media) { return console.error('严重错误,页面中依旧不存在 <video> 标签') }
+            if (_media.currentTime < 1) { console.error('严重错误,<video> 的 currentTime < 1') }
             if (!_media.id) {
                 console.log('视频加载方为 Web 端 <video> 标签:', _media.parentNode.outerHTML);
             } else {
@@ -2757,6 +2763,7 @@
         }
         console.log('播放页不存在 video 标签,适配器处理开始');
         _media = document.createElement('video');
+        _media.src = ''; // !!! IOS 上此属性必须存在,否则 currentTime = 0 无法更新
         _media.style.display = 'none';
         _media.id = eleIds.h5VideoAdapter;
         _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
