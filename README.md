@@ -14,11 +14,23 @@
 
 ### 二.修改服务端
 
-修改文件 /system/dashboard-ui/index.html (Docker版,其他类似),在`</body>`前添加如下标签
+修改文件 /system/dashboard-ui/index.html (Docker版,其他类似),在`</body>`前添加如下标签,多选一
 
+1. 直接下载`ede.js`到 index.html 同级目录下,优先使用本地文件较为稳定
+```js
+<script src="ede.js" defer></script>
 ```
-<script src="https://danmaku.7o7o.cc/danmaku.min.js" defer></script>
+
+2. 使用 jsdelivr CDN 网络地址,中国移动网络请使用 3 中的 cf 地址
+```js
+<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@main/ede.js" defer></script>
 ```
+
+3. 使用 Cloudflare Pages 网络地址
+```js
+<script src="https://dd-danmaku.7o7o.cc/ede.js" defer></script>
+```
+
 该方式安装与浏览器插件安装**可同时使用不冲突**
 
 ### 三.修改客户端
