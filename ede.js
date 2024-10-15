@@ -2569,7 +2569,11 @@
     }
 
     function isIOS() {
-        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        return /iPad|iPhone|iPod/.test(navigator.userAgent);
+    }
+
+    function isMacOS() {
+        return /Macintosh|MacIntel/.test(navigator.userAgent);
     }
 
     function embyImg(src, style, id, draggable = false) {
@@ -2763,7 +2767,8 @@
         }
         console.log('播放页不存在 video 标签,适配器处理开始');
         _media = document.createElement('video');
-        _media.src = ''; // !!! IOS 上此属性必须存在,否则 currentTime = 0 无法更新
+        // !!! apple 设备上此属性必须存在,否则 currentTime = 0 无法更新; 而其他设备反而不能有
+        if (isIOS() || isMacOS()) { _media.src = ''; }
         _media.style.display = 'none';
         _media.id = eleIds.h5VideoAdapter;
         _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
