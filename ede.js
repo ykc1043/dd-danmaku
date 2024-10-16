@@ -1244,7 +1244,7 @@
         ));
         getById(eleIds.heightPercentDiv, container).append(embySlider(
             { labelId: eleIds.heightPercentLabel, key: lsKeys.heightPercent.id }
-            , { value: lsGetItem(lsKeys.heightPercent.id), min: 1, max: 100, step: 1 }
+            , { value: lsGetItem(lsKeys.heightPercent.id), min: 3, max: 100, step: 1 }
             , onSliderChange, onSliderChangeLabel
         ));
         getById(eleIds.danmakuSizeDiv, container).append(embySlider(
@@ -1726,7 +1726,7 @@
         bangumiTokenInputDiv.append(embyButton({ label: '校验', iconKey: iconKeys.check}, onEnterBangumiToken));
         getById(eleIds.bangumiPostPercentDiv, container).append(embySlider(
             { labelId: eleIds.bangumiPostPercentLabel, key: lsKeys.bangumiPostPercent.id }
-            , { value: lsGetItem(lsKeys.bangumiPostPercent.id), min: 1, max: 100, step: 1 }
+            , { value: lsGetItem(lsKeys.bangumiPostPercent.id), min: 1, max: 99, step: 1 }
             , (val, props) => { onSliderChange(val, props, false) }, onSliderChangeLabel
         ));
         const bangumiTokenLinkDiv = getById(eleIds.bangumiTokenLinkDiv, container);
