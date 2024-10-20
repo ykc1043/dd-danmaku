@@ -389,6 +389,15 @@
             switchActiveColor: '#52b54b',
         },
     };
+    const os = {
+        isAndroid: () => /android/i.test(navigator.userAgent),
+        isIOS: () => /iPad|iPhone|iPod/.test(navigator.userAgent),
+        isMacOS: () => /Macintosh|MacIntel/.test(navigator.userAgent),
+        isApple: () => os.isMacOS() || os.isIOS(),
+        isMobile: () => os.isAndroid() || os.isIOS(),
+        isAndroidEmbyNoisyX: () => os.isAndroid() && ApiClient.appVersion().includes('-'),
+        isEmbyNoisyX: () => ApiClient.appVersion().includes('-'),
+    };
 
     // ------ 程序内部使用,请勿更改 end ------
 
@@ -512,10 +521,14 @@
         }
         if (_media.getAttribute('ede_listening')) { return; }
         console.log('正在初始化Listener');
-        _media.setAttribute('ede_listening', true);
-        playbackEventsOn({ 'playbackstart': (e, state) => { loadDanmaku(LOAD_TYPE.INIT); } });
+        playbackEventsOn({ 'playbackstart': (e, state) => { loadDanmaku(LOAD_TYPE.INIT); console.log(e.type); } });
         playbackEventsOn({ 'playbackstop': onPlaybackStopped });
+        _media.setAttribute('ede_listening', true);
         console.log('Listener初始化完成');
+        if (os.isAndroidEmbyNoisyX()) {
+            console.log('检测为安卓小秘版,首次播放未触发 playbackstart 事件,手动初始化弹幕环境');
+            loadDanmaku(LOAD_TYPE.INIT);
+        }
     }
 
     function initUI() {
@@ -596,6 +609,7 @@
     }
 
     function onPlaybackStopped(e, state) {
+        console.log(e.type);
         const positionTicks = state.PlayState.PositionTicks;
         const runtimeTicks = state.NowPlayingItem.RunTimeTicks;
         if (!runtimeTicks) { return; }
@@ -2060,7 +2074,9 @@
 
     function quickDebug() {
         const flag = toggleSettingBtn2Header();
-        embyToast({ text: `${lsKeys.quickDebugOn.name}: ${flag}!`, icon: iconKeys.sentiment_very_satisfied });
+        if (!os.isEmbyNoisyX()) {
+            embyToast({ text: `${lsKeys.quickDebugOn.name}: ${flag}!`, icon: iconKeys.sentiment_very_satisfied });
+        }
         if (!window.ede) { window.ede = new EDE(); }
         lsSetItem(lsKeys.quickDebugOn.id, flag);
         checkRuntimeVars();
@@ -2542,7 +2558,7 @@
         aEle.textContent = text ?? href;
         aEle.target = '_blank';
         aEle.className = 'button-link button-link-color-inherit button-link-fontweight-inherit emby-button';
-        if (isAndroid() || isIOS()) {
+        if (os.isMobile()) {
             aEle.addEventListener('click', (event) => {
                 event.preventDefault();
                 navigator.clipboard.writeText(href).then(() => {
@@ -2561,18 +2577,6 @@
             });
         }
         return aEle;
-    }
-
-    function isAndroid() {
-        return /android/i.test(navigator.userAgent);
-    }
-
-    function isIOS() {
-        return /iPad|iPhone|iPod/.test(navigator.userAgent);
-    }
-
-    function isMacOS() {
-        return /Macintosh|MacIntel/.test(navigator.userAgent);
     }
 
     function embyImg(src, style, id, draggable = false) {
@@ -2755,19 +2759,18 @@
         });
     }
 
-    async function initH5VideoAdapter() {
+    function initH5VideoAdapter() {
         let _media = document.querySelector(mediaQueryStr);
         if (_media) { 
-            // 若是手动创建的<video>,则需要平滑补充 timeupdate 中秒级间隔缺失的 100ms 间隙
-            if (_media.id) {
+            if (_media.id) { // 若是手动创建的<video>
                 videoTimeUpdateInterval(_media, true);
             }
             return;
         }
         console.log('播放页不存在 video 标签,适配器处理开始');
         _media = document.createElement('video');
-        // !!! apple 设备上此属性必须存在,否则 currentTime = 0 无法更新; 而其他设备反而不能有
-        if (isIOS() || isMacOS()) { _media.src = ''; }
+        // !!! Apple 设备上此属性必须存在,否则 currentTime = 0 无法更新; 而其他设备反而不能有
+        if (os.isApple()) { _media.src = ''; }
         _media.style.display = 'none';
         _media.id = eleIds.h5VideoAdapter;
         _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
@@ -2776,30 +2779,33 @@
         _media.play();
         videoTimeUpdateInterval(_media, true);
 
-        const [playbackManager] = await require(['playbackManager']);
+        require(['playbackManager'], (playbackManager) => {
+            playbackEventsOn({
+                'timeupdate': (e) => {
+                    // conver to seconds from Ticks
+                    const realCurrentTime = playbackManager.currentTime(playbackManager.getCurrentPlayer()) / 1e7;                
+                    const mediaTime = _media.currentTime;
+                    _media.currentTime = realCurrentTime;
+                    // playbackRate 同步依赖至少 100ms currentTime 变更
+                    _media.playbackRate = playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
+                    // 当前时间与上次记录时间差值大于2秒,则判定为用户操作进度,seeking 事件必须在 currentTime 更改后触发,否则回退后弹幕将消失
+                    if (Math.abs(mediaTime - realCurrentTime) > 2) {
+                        _media.dispatchEvent(new Event('seeking'));
+                        console.warn('seeking', realCurrentTime, mediaTime);
+                    }
+                },
+            });
+        });
         playbackEventsOn({
-            'timeupdate': (e) => {
-                // conver to seconds from Ticks
-                const realCurrentTime = playbackManager.currentTime(playbackManager.getCurrentPlayer()) / 1e7;                
-                const mediaTime = _media.currentTime;
-                _media.currentTime = realCurrentTime;
-                // playbackRate 同步依赖至少 100ms currentTime 变更
-                _media.playbackRate = playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
-                // 当前时间与上次记录时间差值大于2秒,则判定为用户操作进度,seeking 事件必须在 currentTime 更改后触发,否则回退后弹幕将消失
-                if (Math.abs(mediaTime - realCurrentTime) > 2) {
-                    _media.dispatchEvent(new Event('seeking'));
-                    console.warn('seeking', realCurrentTime, mediaTime);
-                }
-            },
             'pause': (e) => {
+                console.warn(e.type);
                 _media.dispatchEvent(new Event('pause'));
                 videoTimeUpdateInterval(_media, false);
-                console.warn('pause');
             },
             'unpause': (e) => {
+                console.warn(e.type);
                 _media.dispatchEvent(new Event('play'));
                 videoTimeUpdateInterval(_media, true);
-                console.warn('unpause');
             },
         });
         console.log('已创建虚拟 video 标签,适配器处理正确结束');
