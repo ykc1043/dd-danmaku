@@ -1,4 +1,13 @@
 
+#### 1.37
+
+#### 2024-10-20
+
+fix: 修复 web 端自动播放下一集时的错误
+(https://github.com/chen3861229/dd-danmaku/issues/14)
+
+fix: 修复特定客户端的首次播放弹幕不加载问题
+
 #### 1.36
 
 #### 2024-10-16
@@ -8,8 +17,6 @@ fix: 精确 match 范围
 (https://github.com/chen3861229/dd-danmaku/issues/12)
 
 fix: 缩小部分不合理的数值范围
-
-fix: 修复特定客户端的首次播放弹幕不加载问题
 
 #### 1.35
 
