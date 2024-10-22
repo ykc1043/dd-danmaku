@@ -2748,6 +2748,20 @@
         };
     }
 
+    function initCss() {
+        // 修复emby小秘版播放过程中toast消息提示框不显示问题
+        if (os.isEmbyNoisyX()) {
+            const style = document.createElement('style');
+            style.innerHTML = `
+                [class*="accent-"].noScrollY.transparentDocument .toast-group {
+                    position: fixed;
+                    top: auto;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
     // from emby videoosd.js bindToPlayer events, warning: not dom event
     async function playbackEventsOn(eventsMap) {
         const [playbackManager, events] = await require(['playbackManager', 'events']);
@@ -2854,6 +2868,7 @@
             initH5VideoAdapter();
             // loadDanmaku(LOAD_TYPE.INIT);
             initListener();
+            initCss();
         }
     });
     document.addEventListener('viewbeforehide', e => e.detail.type === 'video-osd' && beforeDestroy());
