@@ -2789,14 +2789,18 @@
     function initCss() {
         // 修复emby小秘版播放过程中toast消息提示框不显示问题
         if (os.isEmbyNoisyX()) {
-            const style = document.createElement('style');
-            style.innerHTML = `
-                [class*="accent-"].noScrollY.transparentDocument .toast-group {
-                    position: fixed;
-                    top: auto;
-                }
-            `;
-            document.head.appendChild(style);
+            const existingStyle = document.querySelector('style[css-emby-noisyx-fix]');
+            if (!existingStyle) {
+                const style = document.createElement('style');
+                style.setAttribute('css-emby-noisyx-fix', '');
+                style.innerHTML = `
+                    [class*="accent-"].noScrollY.transparentDocument .toast-group {
+                        position: fixed;
+                        top: auto;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
         }
     }
 
