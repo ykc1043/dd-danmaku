@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.37
+// @version      1.38
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -22,7 +22,7 @@
     // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.37', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.38', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
@@ -124,8 +124,8 @@
     };
     const showSource = {
         source: { id: 'source', name: '来源平台' },
-        originalUserId: { id: 'originalUserId', name: '来源用户id' },
-        cid: { id: 'cid', name: '来源cid' }, // 非弹幕 id,唯一性用 cuid
+        originalUserId: { id: 'originalUserId', name: '用户ID' },
+        cid: { id: 'cid', name: '弹幕CID' }, // 非弹幕 id,唯一性需自行用 uid + cid 拼接的 cuid
     };
     const danmakuEngineOpts = [
         { id: 'canvas', name: 'canvas' },
@@ -601,11 +601,13 @@
     }
 
     async function fetchExtcommentActual(extUrl) {
-        let extcomments = await fetchJson(dandanplayApi.getExtcomment(extUrl));
-        if (extcomments.length === 0) { // 只重试一遍进行弹弹 play 服务器缓存覆盖加载触发
-            extcomments = await fetchJson(dandanplayApi.getExtcomment(extUrl));
+        let extComments  = (await fetchJson(dandanplayApi.getExtcomment(extUrl))).comments;
+        if (extComments.length === 0) { // 只重试一遍进行弹弹 play 服务器缓存覆盖加载触发
+            extComments = (await fetchJson(dandanplayApi.getExtcomment(extUrl))).comments;
         }
-        return extcomments;
+        extComments.map(c => c.fromUrl = extUrl);
+        window.ede.extConmentCache[extUrl] = extComments;
+        return extComments;
     }
 
     function onPlaybackStopped(e, state) {
@@ -932,8 +934,16 @@
             .then(
                 (episodeId) => {
                     if (episodeId) {
-                        if (loadType === LOAD_TYPE.RELOAD && window.ede.danmuCache[episodeId]) {
-                            createDanmaku(window.ede.danmuCache[episodeId])
+                        const commentsCache = window.ede.danmuCache[episodeId];
+                        const extConmentCache = window.ede.extConmentCache;
+                        const extConmentsLength = Object.keys(extConmentCache).length;
+                        if (loadType === LOAD_TYPE.RELOAD && (commentsCache || extConmentsLength > 0)) {
+                            let allComments = commentsCache;
+                            if (extConmentsLength > 0) {
+                                allComments = commentsCache.concat(...Object.values(extConmentCache));
+                                console.log(`使用 ede 缓存,附加前总量: ${commentsCache.length}, 附加后总量: ${allComments.length}`);
+                            }
+                            createDanmaku(allComments)
                                 .then(() => {
                                     console.log('弹幕就位');
                                 })
@@ -943,14 +953,33 @@
                         } else {
                             fetchComment(episodeId).then((comments) => {
                                 window.ede.danmuCache[episodeId] = comments;
-                                createDanmaku(comments)
-                                    .then(() => {
-                                        console.log('弹幕就位');
-                                        // embyToast({ text: `弹幕就位,已获取 ${comments.length} 条弹幕` });
-                                    })
-                                    .catch((err) => {
-                                        console.log(err);
+                                let allComments = comments;
+                                if (extConmentsLength > 0) {
+                                    Promise.all(
+                                        Object.entries(extConmentCache).map(([key, val]) => fetchExtcommentActual(key))
+                                    ).then((results) => {
+                                        allComments = allComments.concat(...results);
+                                        console.log(`使用 fetch 重取,附加前总量: ${comments.length}, 附加后总量: ${allComments.length}`);
+                                        createDanmaku(allComments)
+                                            .then(() => {
+                                                console.log('弹幕就位');
+                                            })
+                                            .catch((err) => {
+                                                console.log(err);
+                                            });
+                                    }).catch((error) => {
+                                        console.error('Error fetching fetchExtcommentActual:', error);
                                     });
+                                } else {
+                                    createDanmaku(allComments)
+                                        .then(() => {
+                                            console.log('弹幕就位');
+                                            // embyToast({ text: `弹幕就位,已获取 ${comments.length} 条弹幕` });
+                                        })
+                                        .catch((err) => {
+                                            console.log(err);
+                                        });
+                                }
                             });
                         }
                     }
@@ -1398,38 +1427,43 @@
         );
         // buildExtConment
         const extConmentSearchDiv = getById(eleIds.extConmentSearchDiv, container);
+        buildExtUrlsDiv();
         extConmentSearchDiv.append(embyInput({ type: 'search', placeholder: 'http(s)://' }, onEnterExtConment));
         extConmentSearchDiv.append(embyButton({ label: '搜索', iconKey: iconKeys.search}, onEnterExtConment));
     }
 
+    function buildExtUrlsDiv() {
+        const comments = window.ede.danmuCache[window.ede.episode_info?.episodeId] ?? [];
+        const allComments = comments.concat(...Object.values(window.ede.extConmentCache));
+        const extUrlsDiv = getById(eleIds.extUrlsDiv);
+        extUrlsDiv.innerHTML = '';
+        Object.entries(window.ede.extConmentCache).forEach(([key, val]) => {
+            const extUrlDiv = document.createElement('div');
+            extUrlDiv.append(embyButton({ label: '清空此加载', iconKey: iconKeys.close }, (e) => {
+                delete window.ede.extConmentCache[key];
+                e.target.parentNode.remove();
+                createDanmaku(allComments.filter(c => c.fromUrl !== key));
+            }));
+            extUrlDiv.append(embyALink(key), document.createTextNode(` 总量: ${val.length}`));
+            extUrlsDiv.append(extUrlDiv);
+        });
+    }
+
     async function onEnterExtConment(e) {
-        const extUrl = e.target.value.trim();
-        if (!extUrl.startsWith('http')) { return embyToast({ text: '输入的url错误!' }); }
+        const extUrl = getTargetInput(e).value.trim();
+        if (!extUrl.startsWith('http')) { return embyToast({ text: '输入的 url 应以 http 开头!' }); }
         let extcomments = window.ede.extConmentCache[extUrl];
         if (!extcomments) {
             extcomments = await fetchExtcommentActual(extUrl);
-            extcomments.map(c => c.fromUrl = extUrl);
-            window.ede.extConmentCache[extUrl] = extcomments;
         }
         const comments = window.ede.danmuCache[window.ede.episode_info?.episodeId] ?? [];
-        let allComments = comments.concat(...Object.values(window.ede.extConmentCache));
+        const allComments = comments.concat(...Object.values(window.ede.extConmentCache));
         createDanmaku(allComments)
         .then(() => {
             const beforeLength = window.ede.commentsParsed.length - extcomments.length;
             embyToast({ text: `此次附加总量: ${extcomments.length}, 附加前总量: ${beforeLength}, 附加后总量: ${allComments.length}` });
             console.log(`附加弹幕就位, 附加前总量: ${beforeLength}`);
-            const extUrlsDiv = getById(eleIds.extUrlsDiv, container);
-            extUrlsDiv.innerHTML = '';
-            Object.entries(window.ede.extConmentCache).map(([key, val]) => {
-                const extUrlDiv = document.createElement('div');
-                extUrlDiv.append(embyButton({ label: '清空此加载', iconKey: iconKeys.close }, (e) => {
-                    delete window.ede.extConmentCache[key];
-                    e.target.parentNode.remove();
-                    createDanmaku(allComments.filter(c => c.fromUrl !== key));
-                }));
-                extUrlDiv.append(embyALink(key), document.createTextNode(` 总量: ${val.length}`));
-                extUrlsDiv.append(extUrlDiv);
-            });
+            buildExtUrlsDiv();
         })
         .catch(err => console.log(err));
     }
@@ -1468,6 +1502,7 @@
                 <div id="${eleIds.danmuListDiv}" style="margin: 1% 0;"></div>
                 <textarea id="${eleIds.danmuListText}" readOnly style="display: none;resize: vertical;width: 100%" rows="8" 
                     is="emby-textarea" class="txtOverview emby-textarea"></textarea>
+                <div class="${classes.embyFieldDesc}">列表展示格式为: [序号][分:秒] : 弹幕正文 [来源平台][用户ID][弹幕CID]</div>
             </div>
             <div id="${eleIds.extInfoCtrlDiv}" style="margin: 0.6em 0;"></div>
             <div id="${eleIds.extInfoDiv}" hidden>
@@ -1773,7 +1808,7 @@
         .map(obj => {
             const inputDiv = getById(obj.divId, container);
             const onEnter = (e) => {
-                const target = e.target.type === 'input' ? e.target : e.target.previousElementSibling;
+                const target = getTargetInput(e);
                 let value = target.value.trim();
                 if (!value) {
                     value = obj.lsKey.defaultValue;
@@ -2075,9 +2110,7 @@
 
     function quickDebug() {
         const flag = toggleSettingBtn2Header();
-        if (!os.isEmbyNoisyX()) {
-            embyToast({ text: `${lsKeys.quickDebugOn.name}: ${flag}!`, icon: iconKeys.sentiment_very_satisfied });
-        }
+        embyToast({ text: `${lsKeys.quickDebugOn.name}: ${flag}!` });
         if (!window.ede) { window.ede = new EDE(); }
         lsSetItem(lsKeys.quickDebugOn.id, flag);
         checkRuntimeVars();
@@ -2222,7 +2255,7 @@
         const f = new Intl.DateTimeFormat('default', { minute: '2-digit', second: '2-digit' });
         const hasShowSourceIds = lsGetItem(lsKeys.showSource.id).length > 0;
         danmuListEle.value = value.onChange(window.ede)
-            .map((c, i) => `[${i + 1}] [${f.format(new Date(c.time * 1000))}] : `
+            .map((c, i) => `[${i + 1}][${f.format(new Date(c.time * 1000))}] : `
                 + (hasShowSourceIds ? c.originalText : c.text)
                 + (c.source ? ` [${c.source}]` : '')
                 + (c.originalUserId ? `[${c.originalUserId}]` : '')
@@ -2326,6 +2359,11 @@
      */
     function getByClass(className, parentNode = document) {
         return parentNode.querySelector(`.${className}`);
+    }
+
+    /** 仅适用于 input 元素和下一个临近元素的事件 */
+    function getTargetInput(e) {
+        return e.target.tagName === 'INPUT' ? e.target : e.target.previousElementSibling;
     }
 
     /** props: {id: 'inputId', value: '', type: '', style: '',...} for setAttribute(key, value)
@@ -2614,7 +2652,7 @@
             .catch(error => { console.log('点击弹出框外部取消: ' + error) });
     }
 
-    // see: ../web/modules/toast/toast.js, 严禁滥用,因遮挡画面影响体验
+    // see: ../web/modules/toast/toast.js, 严禁滥用,因遮挡画面影响体验,不建议使用 icon,会导致小秘版弹窗居中且图标过大
     async function embyToast(opts = {}) {
         const defaultOpts = { text: '', secondaryText: '', icon: '', iconStrikeThrough: false};
         opts = { ...defaultOpts, ...opts };
