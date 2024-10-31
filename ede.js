@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.38
+// @version      1.39
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -22,7 +22,7 @@
     // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.38', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.39', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
@@ -203,6 +203,7 @@
         bangumiPostPercent: { id: 'danmakuBangumiPostPercent', defaultValue: 95, name: '时长比' },
         consoleLogEnable: { id: 'danmakuConsoleLogEnable', defaultValue: false, name: '控制台日志' },
         osdTitleEnable: { id: 'danmakuOsdTitleEnable', defaultValue: false, name: '播放界面右下角显示弹幕信息' },
+        osdLineChartEnable: { id: 'danmakuOsdLineChartEnable', defaultValue: false, name: '进度条上显示弹幕每秒内数量折线图' },
         debugShowDanmakuWrapper: { id: 'danmakuDebugShowDanmakuWrapper', defaultValue: false, name: '弹幕容器边界' },
         debugShowDanmakuCtrWrapper: { id: 'danmakuDebugShowDanmakuCtrWrapper', defaultValue: false, name: '按钮容器边界' },
         debugTypeFilterRtl: { id: 'danmakuDebugTypeFilterRtl', defaultValue: false, name: '屏蔽从右至左' },
@@ -310,8 +311,9 @@
         tabIframeSrcInputDiv: 'tabIframeSrcInputDiv',
         openSourceLicenseDiv: 'openSourceLicenseDiv',
         videoOsdDanmakuTitle: 'videoOsdDanmakuTitle',
-        osdTitleEnableDiv: 'osdTitleEnableDiv',
+        extCheckboxDiv: 'extCheckboxDiv',
         danmakuSettingBtnDebug: 'danmakuSettingBtnDebug',
+        progressBarLineChart: 'progressBarLineChart',
     };
     // 播放界面下方按钮
     const mediaBtnOpts = [
@@ -352,6 +354,7 @@
         formDialogFooterItem: 'formDialogFooterItem',
         videoOsdTitle: 'videoOsdTitle', // 播放页媒体次级标题
         videoOsdBottomButtonsRight: 'videoOsdBottom-buttons-right', // 老客户端上的右侧按钮
+        videoOsdPositionSliderContainer: 'videoOsdPositionSliderContainer',
         cardImageIcon: 'cardImageIcon',
         headerRight: 'headerRight',
         headerUserButton: 'headerUserButton',
@@ -524,6 +527,12 @@
         playbackEventsOn({ 'playbackstart': (e, state) => { loadDanmaku(LOAD_TYPE.INIT); console.log(e.type); } });
         playbackEventsOn({ 'playbackstop': onPlaybackStopped });
         _media.setAttribute('ede_listening', true);
+        document.addEventListener('video-osd-show', (e) => {
+            console.log(e.type, e);
+            if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
+                buildProgressBarChart(20);
+            }
+        });
         console.log('Listener初始化完成');
         if (os.isAndroidEmbyNoisyX()) {
             console.log('检测为安卓小秘版,首次播放未触发 playbackstart 事件,手动初始化弹幕环境');
@@ -848,7 +857,7 @@
         window.ede.commentsParsed = commentsParsed;
         let _comments = danmakuFilter(commentsParsed);
         console.log('弹幕加载成功: ' + _comments.length);
-
+        
         const _container = document.querySelector(mediaContainerQueryStr);
         const _media = document.querySelector(mediaQueryStr);
         if (!_media) { throw new Error('用户已退出视频播放'); }
@@ -897,6 +906,57 @@
         // 设置弹窗内的弹幕信息
         buildCurrentDanmakuInfo(currentDanmakuInfoContainerId);
         appendvideoOsdDanmakuInfo(_comments.length);
+        // 绘制弹幕进度条
+        if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
+            buildProgressBarChart(20);
+        }
+    }
+
+    function buildProgressBarChart(chartHeightNum) {
+        getById(eleIds.progressBarLineChart)?.remove();
+        const comments = window.ede?.danmaku.comments;
+        const container = getByClass(classes.videoOsdPositionSliderContainer);
+        if (!comments || !container || (comments && comments.length === 0)) {
+            return;
+        }
+        const progressBarWidth = container.offsetWidth;
+        console.log('progressBarWidth: ' + progressBarWidth);
+        
+        const bulletChartCanvas = document.createElement('canvas');
+        bulletChartCanvas.id = eleIds.progressBarLineChart;
+        bulletChartCanvas.width = progressBarWidth;
+        bulletChartCanvas.height = chartHeightNum;
+        bulletChartCanvas.style.position = 'relative';
+        bulletChartCanvas.style.top = '-14px';
+        container.prepend(bulletChartCanvas);
+        const ctx = bulletChartCanvas.getContext('2d');
+        // 计算每个时间点的弹幕数量
+        const maxTime = Math.max(...comments.map(c => c.time));
+        const timeStep = 1;
+        const timeCounts = Array.from({ length: Math.ceil(maxTime / timeStep) }, () => 0);
+        comments.forEach(c => {
+            const index = Math.floor(c.time / timeStep);
+            if (index < timeCounts.length) {
+                timeCounts[index]++;
+            }
+        });
+        function drawLineChart(data) {
+            ctx.clearRect(0, 0, progressBarWidth, chartHeightNum);
+            const maxY = Math.max(...data);
+            const scale = chartHeightNum / maxY; // 用于拉长 y 轴间距
+            ctx.beginPath();
+            ctx.moveTo(0, chartHeightNum - data[0] * scale);
+            for (let i = 1; i < data.length; i++) {
+                const x = (i / (data.length - 1)) * progressBarWidth;
+                const y = chartHeightNum - data[i] * scale;
+                ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; // 与进度条同色
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        drawLineChart(timeCounts);
+        console.log('已重绘进度条弹幕数量折线图');
     }
 
     function loadDanmaku(loadType = LOAD_TYPE.CHECK) {
@@ -1611,7 +1671,7 @@
                 </div>
                 <div is="emby-collapse" title="额外设置">
                     <div class="${classes.collapseContentNav}" style="padding-top: 0.5em !important;">
-                        <div id="${eleIds.osdTitleEnableDiv}"></div>
+                        <div id="${eleIds.extCheckboxDiv}"></div>
                         <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
                             <label class="${classes.embyLabel}">${lsKeys.chConvert.name}: </label>
                         </div>
@@ -1711,15 +1771,26 @@
     }
 
     function buildExtSetting(container) {
-        getById(eleIds.osdTitleEnableDiv, container).append(embyCheckbox(
+        getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
             { label: lsKeys.osdTitleEnable.name }, lsGetItem(lsKeys.osdTitleEnable.id), (checked) => {
                 lsSetItem(lsKeys.osdTitleEnable.id, checked);
                 const videoOsdContainer = document.querySelector(`${mediaContainerQueryStr} .videoOsdSecondaryText`);
-                let videoOsdDanmakuTitle = getById(eleIds.videoOsdDanmakuTitle, videoOsdContainer);
+                const videoOsdDanmakuTitle = getById(eleIds.videoOsdDanmakuTitle, videoOsdContainer);
                 if (videoOsdDanmakuTitle) {
                     videoOsdDanmakuTitle.style.display = checked ? 'block' : 'none';
                 } else if (checked) {
                     appendvideoOsdDanmakuInfo(getDanmakuComments(window.ede).length);
+                }
+            }
+        ));
+        getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
+            { label: lsKeys.osdLineChartEnable.name }, lsGetItem(lsKeys.osdLineChartEnable.id), (checked) => {
+                lsSetItem(lsKeys.osdLineChartEnable.id, checked);
+                const progressBarLineChart = getById(eleIds.progressBarLineChart);
+                if (progressBarLineChart) {
+                    progressBarLineChart.style.display = checked ? 'block' : 'none';
+                } else if (checked) {
+                    buildProgressBarChart(20);
                 }
             }
         ));
@@ -2897,7 +2968,7 @@
 
     // emby/jellyfin CustomEvent. see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
     document.addEventListener('viewshow', function (e) {
-        console.log('viewshow', e);
+        console.log(e.type, e);
         customeUrl.init();
         lsGetItem(lsKeys.quickDebugOn.id) && !getById(eleIds.danmakuSettingBtnDebug) && quickDebug();
         addEasterEggListener();
