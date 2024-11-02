@@ -892,6 +892,9 @@
             if (window.ede.danmaku) {
                 console.log('Resizing');
                 window.ede.danmaku.resize();
+                if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
+                    buildProgressBarChart(20);
+                }
             }
         });
         window.ede.ob.observe(_container);
@@ -914,20 +917,19 @@
 
     function buildProgressBarChart(chartHeightNum) {
         getById(eleIds.progressBarLineChart)?.remove();
-        const comments = window.ede?.danmaku.comments;
+        const comments = window.ede?.danmaku?.comments;
         const container = getByClass(classes.videoOsdPositionSliderContainer);
         if (!comments || !container || (comments && comments.length === 0)) {
             return;
         }
         const progressBarWidth = container.offsetWidth;
         console.log('progressBarWidth: ' + progressBarWidth);
-        
         const bulletChartCanvas = document.createElement('canvas');
         bulletChartCanvas.id = eleIds.progressBarLineChart;
         bulletChartCanvas.width = progressBarWidth;
         bulletChartCanvas.height = chartHeightNum;
-        bulletChartCanvas.style.position = 'relative';
-        bulletChartCanvas.style.top = '-14px';
+        bulletChartCanvas.style.position = 'absolute';
+        bulletChartCanvas.style.top = os.isEmbyNoisyX() ? '-24px' : '-21px';
         container.prepend(bulletChartCanvas);
         const ctx = bulletChartCanvas.getContext('2d');
         // 计算每个时间点的弹幕数量
@@ -951,7 +953,7 @@
                 const y = chartHeightNum - data[i] * scale;
                 ctx.lineTo(x, y);
             }
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; // 与进度条同色
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // 与次标题同色
             ctx.lineWidth = 2;
             ctx.stroke();
         }
