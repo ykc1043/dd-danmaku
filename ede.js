@@ -762,18 +762,15 @@
             episode = 'movie';
         }
         let _id_key = '_anime_id_rel_' + _id;
-        let _name_key = '_anime_name_rel_' + _id;
+        let _season_key = '_anime_season_rel_' + _id;
         let _episode_key = '_episode_id_rel_' + _id + '_' + episode;
         if (window.localStorage.getItem(_id_key)) {
             animeId = window.localStorage.getItem(_id_key);
         }
-        if (window.localStorage.getItem(_name_key)) {
-            animeName = window.localStorage.getItem(_name_key);
-        }
         return {
             _id: _id,
             _id_key: _id_key,
-            _name_key: _name_key,
+            _season_key: _season_key,
             _episode_key: _episode_key,
             animeId: animeId,
             episode: episode, // this is episode index, not a program index
@@ -782,13 +779,40 @@
         };
     }
 
+    // 通过缓存中的剧集名称与偏移量进行匹配
+    async function lsSeasonSearchEpisodes(_season_key, episode) {
+        const seasonInfoListStr = window.localStorage.getItem(_season_key);
+        if (!seasonInfoListStr) { 
+            return null; 
+        }
+        const seasonInfoList = JSON.parse(seasonInfoListStr);
+        let minPositiveDiff = Infinity;
+        let selectedSeasonInfo = null;
+        for (let i = 0; i < seasonInfoList.length; i++) {
+            const seasonInfo = seasonInfoList[i];
+            const adjustedEpisode = episode + seasonInfo.episodeOffset;
+            if (adjustedEpisode > 0 && adjustedEpisode < minPositiveDiff) {
+                minPositiveDiff = adjustedEpisode;
+                selectedSeasonInfo = seasonInfo;
+            }
+        }
+        if (selectedSeasonInfo) {
+            const newEpisode = episode + selectedSeasonInfo.episodeOffset;
+            console.log(`命中seasonInfo缓存: ${selectedSeasonInfo.name},偏移量: ${selectedSeasonInfo.episodeOffset},集: ${newEpisode}`);
+            return await fetchSearchEpisodes(selectedSeasonInfo.name, newEpisode);
+        }
+        return null;
+    }
+
     async function autoFailback(animeName, episodeIndex, seriesOrMovieId) {
-        console.log(`标题名: ${animeName}` + (episodeIndex ? `,章节过滤: ${episodeIndex}` : ''));
         console.log(`自动匹配未查询到结果,可能为非番剧,将移除章节过滤,重试一次`);
         let animaInfo = await fetchSearchEpisodes(animeName);
         if (animaInfo.animes.length > 0) {
             console.log(`移除章节过滤,自动匹配成功,转换为目标章节索引 0`);
             const episodeInfo = animaInfo.animes[0].episodes[episodeIndex - 1 ?? 0];
+            if (!episodeInfo) {
+                return null;
+            }
             animaInfo.animes[0].episodes = [episodeInfo];
             return { animeName, animaInfo, };
         }
@@ -803,29 +827,45 @@
         return { animeName, animeOriginalTitle, animaInfo, };
     }
 
+    async function searchEpisodes(itemInfoMap) {
+        const { _season_key, animeName, episode, seriesOrMovieId} = itemInfoMap;
+        console.log(`[自动匹配] 标题名: ${animeName}` + (episode ? `,章节过滤: ${episode}` : ''));
+        let animeOriginalTitle = '';
+        // 使用缓存中的剧集标题与集偏移量进行匹配
+        let animaInfo = await lsSeasonSearchEpisodes(_season_key, episode);
+        if (animaInfo && animaInfo.animes.length > 0) {
+            return { animeOriginalTitle, animaInfo, };
+        }
+        // 默认匹配方式
+        animaInfo = await fetchSearchEpisodes(animeName, episode);
+        if (animaInfo && animaInfo.animes.length > 0) {
+            return { animeOriginalTitle, animaInfo, };
+        }
+        // 去除集数匹配 与 尝试使用原标题名匹配
+        const res = await autoFailback(animeName, episode, seriesOrMovieId);
+        if (res) {
+            return res;
+        }
+    }
+
     async function getEpisodeInfo(is_auto = true) {
         const itemInfoMap = await getMapByEmbyItemInfo();
         if (!itemInfoMap) { return null; }
-        const { _episode_key, animeId } = itemInfoMap;
-        let { animeName, episode } = itemInfoMap;
+        const { _episode_key, animeId, episode } = itemInfoMap;
         if (is_auto && window.localStorage.getItem(_episode_key)) {
             return JSON.parse(window.localStorage.getItem(_episode_key));
         }
 
-        let animeOriginalTitle = '';
-        let animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
-        if (is_auto && animaInfo.animes.length === 0) {
-            const res = await autoFailback(animeName, is_auto ? episode : null, itemInfoMap.seriesOrMovieId);
-            if (res) {
-                ({ animaInfo, animeOriginalTitle } = res);
-            }
-        }
-        if (animaInfo.animes.length === 0) {
+        const res = await searchEpisodes(itemInfoMap);
+        if (!res || res.animaInfo.animes.length === 0) {
             console.log(`弹弹 Play 章节匹配失败`);
-            toastByDanmaku('弹弹 Play 章节匹配失败', 'error');
+            // 播放界面右下角添加弹幕信息
+            appendvideoOsdDanmakuInfo();
+            // toastByDanmaku('弹弹 Play 章节匹配失败', 'error');
             return null;
         }
-
+        
+        const { animeOriginalTitle, animaInfo } = res;
         let selectAnime_id = 1;
         if (animeId != -1) {
             for (let index = 0; index < animaInfo.animes.length; index++) {
@@ -908,6 +948,7 @@
         }
         // 设置弹窗内的弹幕信息
         buildCurrentDanmakuInfo(currentDanmakuInfoContainerId);
+        // 播放界面右下角添加弹幕信息
         appendvideoOsdDanmakuInfo(_comments.length);
         // 绘制弹幕进度条
         if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
@@ -1246,7 +1287,7 @@
         if (itemInfoMap) {
             window.ede.searchDanmakuOpts = {
                 _id_key: itemInfoMap._id_key,
-                _name_key: itemInfoMap._name_key,
+                _season_key: itemInfoMap._season_key,
                 _episode_key: itemInfoMap._episode_key,
                 animeId: itemInfoMap.animeId,
                 animeName: itemInfoMap.animeName,
@@ -2301,10 +2342,29 @@
             animeId: anime.animeId,
             animeTitle: anime.animeTitle,
         }
+        const seasonInfo = {
+            name: anime.animeTitle,
+            episodeOffset: episodeNumSelect.selectedIndex - window.ede.searchDanmakuOpts.episode,
+        }
+        writeLsSeasonInfo(window.ede.searchDanmakuOpts._season_key, seasonInfo);
         localStorage.setItem(window.ede.searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
         console.log(`手动匹配信息:`, episodeInfo);
         loadDanmaku(LOAD_TYPE.RELOAD);
         closeEmbyDialog();
+    }
+
+    function writeLsSeasonInfo(_season_key, newSeasonInfo) {
+        let seasonInfoListStr = localStorage.getItem(_season_key);
+        let seasonInfoList = seasonInfoListStr ? JSON.parse(seasonInfoListStr) : [];
+        // 检查是否已经存在相同的 seasonInfo，避免重复添加
+        const existingSeasonInfo = seasonInfoList.find(si => si.name === newSeasonInfo.name);
+        if (!existingSeasonInfo) {
+            seasonInfoList.push(newSeasonInfo);
+        } else {
+            // 如果存在，更新已有的 seasonInfo
+            Object.assign(existingSeasonInfo, newSeasonInfo);
+        }
+        localStorage.setItem(_season_key, JSON.stringify(seasonInfoList));
     }
 
     function doDanmakuEngineSelect(value) {
