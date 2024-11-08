@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.38
+// @version      1.39
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -22,7 +22,7 @@
     // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.38', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.39', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
@@ -203,6 +203,7 @@
         bangumiPostPercent: { id: 'danmakuBangumiPostPercent', defaultValue: 95, name: '时长比' },
         consoleLogEnable: { id: 'danmakuConsoleLogEnable', defaultValue: false, name: '控制台日志' },
         osdTitleEnable: { id: 'danmakuOsdTitleEnable', defaultValue: false, name: '播放界面右下角显示弹幕信息' },
+        osdLineChartEnable: { id: 'danmakuOsdLineChartEnable', defaultValue: false, name: '进度条上显示弹幕每秒内数量折线图' },
         debugShowDanmakuWrapper: { id: 'danmakuDebugShowDanmakuWrapper', defaultValue: false, name: '弹幕容器边界' },
         debugShowDanmakuCtrWrapper: { id: 'danmakuDebugShowDanmakuCtrWrapper', defaultValue: false, name: '按钮容器边界' },
         debugTypeFilterRtl: { id: 'danmakuDebugTypeFilterRtl', defaultValue: false, name: '屏蔽从右至左' },
@@ -310,8 +311,9 @@
         tabIframeSrcInputDiv: 'tabIframeSrcInputDiv',
         openSourceLicenseDiv: 'openSourceLicenseDiv',
         videoOsdDanmakuTitle: 'videoOsdDanmakuTitle',
-        osdTitleEnableDiv: 'osdTitleEnableDiv',
+        extCheckboxDiv: 'extCheckboxDiv',
         danmakuSettingBtnDebug: 'danmakuSettingBtnDebug',
+        progressBarLineChart: 'progressBarLineChart',
     };
     // 播放界面下方按钮
     const mediaBtnOpts = [
@@ -352,6 +354,7 @@
         formDialogFooterItem: 'formDialogFooterItem',
         videoOsdTitle: 'videoOsdTitle', // 播放页媒体次级标题
         videoOsdBottomButtonsRight: 'videoOsdBottom-buttons-right', // 老客户端上的右侧按钮
+        videoOsdPositionSliderContainer: 'videoOsdPositionSliderContainer',
         cardImageIcon: 'cardImageIcon',
         headerRight: 'headerRight',
         headerUserButton: 'headerUserButton',
@@ -524,6 +527,12 @@
         playbackEventsOn({ 'playbackstart': (e, state) => { loadDanmaku(LOAD_TYPE.INIT); console.log(e.type); } });
         playbackEventsOn({ 'playbackstop': onPlaybackStopped });
         _media.setAttribute('ede_listening', true);
+        document.addEventListener('video-osd-show', (e) => {
+            console.log(e.type, e);
+            if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
+                buildProgressBarChart(20);
+            }
+        });
         console.log('Listener初始化完成');
         if (os.isAndroidEmbyNoisyX()) {
             console.log('检测为安卓小秘版,首次播放未触发 playbackstart 事件,手动初始化弹幕环境');
@@ -753,18 +762,15 @@
             episode = 'movie';
         }
         let _id_key = '_anime_id_rel_' + _id;
-        let _name_key = '_anime_name_rel_' + _id;
+        let _season_key = '_anime_season_rel_' + _id;
         let _episode_key = '_episode_id_rel_' + _id + '_' + episode;
         if (window.localStorage.getItem(_id_key)) {
             animeId = window.localStorage.getItem(_id_key);
         }
-        if (window.localStorage.getItem(_name_key)) {
-            animeName = window.localStorage.getItem(_name_key);
-        }
         return {
             _id: _id,
             _id_key: _id_key,
-            _name_key: _name_key,
+            _season_key: _season_key,
             _episode_key: _episode_key,
             animeId: animeId,
             episode: episode, // this is episode index, not a program index
@@ -773,13 +779,40 @@
         };
     }
 
+    // 通过缓存中的剧集名称与偏移量进行匹配
+    async function lsSeasonSearchEpisodes(_season_key, episode) {
+        const seasonInfoListStr = window.localStorage.getItem(_season_key);
+        if (!seasonInfoListStr) { 
+            return null; 
+        }
+        const seasonInfoList = JSON.parse(seasonInfoListStr);
+        let minPositiveDiff = Infinity;
+        let selectedSeasonInfo = null;
+        for (let i = 0; i < seasonInfoList.length; i++) {
+            const seasonInfo = seasonInfoList[i];
+            const adjustedEpisode = episode + seasonInfo.episodeOffset;
+            if (adjustedEpisode > 0 && adjustedEpisode < minPositiveDiff) {
+                minPositiveDiff = adjustedEpisode;
+                selectedSeasonInfo = seasonInfo;
+            }
+        }
+        if (selectedSeasonInfo) {
+            const newEpisode = episode + selectedSeasonInfo.episodeOffset;
+            console.log(`命中seasonInfo缓存: ${selectedSeasonInfo.name},偏移量: ${selectedSeasonInfo.episodeOffset},集: ${newEpisode}`);
+            return await fetchSearchEpisodes(selectedSeasonInfo.name, newEpisode);
+        }
+        return null;
+    }
+
     async function autoFailback(animeName, episodeIndex, seriesOrMovieId) {
-        console.log(`标题名: ${animeName}` + (episodeIndex ? `,章节过滤: ${episodeIndex}` : ''));
         console.log(`自动匹配未查询到结果,可能为非番剧,将移除章节过滤,重试一次`);
         let animaInfo = await fetchSearchEpisodes(animeName);
         if (animaInfo.animes.length > 0) {
             console.log(`移除章节过滤,自动匹配成功,转换为目标章节索引 0`);
             const episodeInfo = animaInfo.animes[0].episodes[episodeIndex - 1 ?? 0];
+            if (!episodeInfo) {
+                return null;
+            }
             animaInfo.animes[0].episodes = [episodeInfo];
             return { animeName, animaInfo, };
         }
@@ -794,29 +827,45 @@
         return { animeName, animeOriginalTitle, animaInfo, };
     }
 
+    async function searchEpisodes(itemInfoMap) {
+        const { _season_key, animeName, episode, seriesOrMovieId} = itemInfoMap;
+        console.log(`[自动匹配] 标题名: ${animeName}` + (episode ? `,章节过滤: ${episode}` : ''));
+        let animeOriginalTitle = '';
+        // 使用缓存中的剧集标题与集偏移量进行匹配
+        let animaInfo = await lsSeasonSearchEpisodes(_season_key, episode);
+        if (animaInfo && animaInfo.animes.length > 0) {
+            return { animeOriginalTitle, animaInfo, };
+        }
+        // 默认匹配方式
+        animaInfo = await fetchSearchEpisodes(animeName, episode);
+        if (animaInfo && animaInfo.animes.length > 0) {
+            return { animeOriginalTitle, animaInfo, };
+        }
+        // 去除集数匹配 与 尝试使用原标题名匹配
+        const res = await autoFailback(animeName, episode, seriesOrMovieId);
+        if (res) {
+            return res;
+        }
+    }
+
     async function getEpisodeInfo(is_auto = true) {
         const itemInfoMap = await getMapByEmbyItemInfo();
         if (!itemInfoMap) { return null; }
-        const { _episode_key, animeId } = itemInfoMap;
-        let { animeName, episode } = itemInfoMap;
+        const { _episode_key, animeId, episode } = itemInfoMap;
         if (is_auto && window.localStorage.getItem(_episode_key)) {
             return JSON.parse(window.localStorage.getItem(_episode_key));
         }
 
-        let animeOriginalTitle = '';
-        let animaInfo = await fetchSearchEpisodes(animeName, is_auto ? episode : null);
-        if (is_auto && animaInfo.animes.length === 0) {
-            const res = await autoFailback(animeName, is_auto ? episode : null, itemInfoMap.seriesOrMovieId);
-            if (res) {
-                ({ animaInfo, animeOriginalTitle } = res);
-            }
-        }
-        if (animaInfo.animes.length === 0) {
+        const res = await searchEpisodes(itemInfoMap);
+        if (!res || res.animaInfo.animes.length === 0) {
             console.log(`弹弹 Play 章节匹配失败`);
-            toastByDanmaku('弹弹 Play 章节匹配失败', 'error');
+            // 播放界面右下角添加弹幕信息
+            appendvideoOsdDanmakuInfo();
+            // toastByDanmaku('弹弹 Play 章节匹配失败', 'error');
             return null;
         }
-
+        
+        const { animeOriginalTitle, animaInfo } = res;
         let selectAnime_id = 1;
         if (animeId != -1) {
             for (let index = 0; index < animaInfo.animes.length; index++) {
@@ -848,7 +897,7 @@
         window.ede.commentsParsed = commentsParsed;
         let _comments = danmakuFilter(commentsParsed);
         console.log('弹幕加载成功: ' + _comments.length);
-
+        
         const _container = document.querySelector(mediaContainerQueryStr);
         const _media = document.querySelector(mediaQueryStr);
         if (!_media) { throw new Error('用户已退出视频播放'); }
@@ -883,6 +932,9 @@
             if (window.ede.danmaku) {
                 console.log('Resizing');
                 window.ede.danmaku.resize();
+                if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
+                    buildProgressBarChart(20);
+                }
             }
         });
         window.ede.ob.observe(_container);
@@ -896,7 +948,58 @@
         }
         // 设置弹窗内的弹幕信息
         buildCurrentDanmakuInfo(currentDanmakuInfoContainerId);
+        // 播放界面右下角添加弹幕信息
         appendvideoOsdDanmakuInfo(_comments.length);
+        // 绘制弹幕进度条
+        if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
+            buildProgressBarChart(20);
+        }
+    }
+
+    function buildProgressBarChart(chartHeightNum) {
+        getById(eleIds.progressBarLineChart)?.remove();
+        const comments = window.ede?.danmaku?.comments;
+        const container = getByClass(classes.videoOsdPositionSliderContainer);
+        if (!comments || !container || (comments && comments.length === 0)) {
+            return;
+        }
+        const progressBarWidth = container.offsetWidth;
+        console.log('progressBarWidth: ' + progressBarWidth);
+        const bulletChartCanvas = document.createElement('canvas');
+        bulletChartCanvas.id = eleIds.progressBarLineChart;
+        bulletChartCanvas.width = progressBarWidth;
+        bulletChartCanvas.height = chartHeightNum;
+        bulletChartCanvas.style.position = 'absolute';
+        bulletChartCanvas.style.top = os.isEmbyNoisyX() ? '-24px' : '-21px';
+        container.prepend(bulletChartCanvas);
+        const ctx = bulletChartCanvas.getContext('2d');
+        // 计算每个时间点的弹幕数量
+        const maxTime = Math.max(...comments.map(c => c.time));
+        const timeStep = 1;
+        const timeCounts = Array.from({ length: Math.ceil(maxTime / timeStep) }, () => 0);
+        comments.forEach(c => {
+            const index = Math.floor(c.time / timeStep);
+            if (index < timeCounts.length) {
+                timeCounts[index]++;
+            }
+        });
+        function drawLineChart(data) {
+            ctx.clearRect(0, 0, progressBarWidth, chartHeightNum);
+            const maxY = Math.max(...data);
+            const scale = chartHeightNum / maxY; // 用于拉长 y 轴间距
+            ctx.beginPath();
+            ctx.moveTo(0, chartHeightNum - data[0] * scale);
+            for (let i = 1; i < data.length; i++) {
+                const x = (i / (data.length - 1)) * progressBarWidth;
+                const y = chartHeightNum - data[i] * scale;
+                ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // 与次标题同色
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        drawLineChart(timeCounts);
+        console.log('已重绘进度条弹幕数量折线图');
     }
 
     function loadDanmaku(loadType = LOAD_TYPE.CHECK) {
@@ -1184,7 +1287,7 @@
         if (itemInfoMap) {
             window.ede.searchDanmakuOpts = {
                 _id_key: itemInfoMap._id_key,
-                _name_key: itemInfoMap._name_key,
+                _season_key: itemInfoMap._season_key,
                 _episode_key: itemInfoMap._episode_key,
                 animeId: itemInfoMap.animeId,
                 animeName: itemInfoMap.animeName,
@@ -1611,7 +1714,7 @@
                 </div>
                 <div is="emby-collapse" title="额外设置">
                     <div class="${classes.collapseContentNav}" style="padding-top: 0.5em !important;">
-                        <div id="${eleIds.osdTitleEnableDiv}"></div>
+                        <div id="${eleIds.extCheckboxDiv}"></div>
                         <div id="${eleIds.danmakuChConverDiv}" style="margin-bottom: 0.2em;">
                             <label class="${classes.embyLabel}">${lsKeys.chConvert.name}: </label>
                         </div>
@@ -1711,15 +1814,26 @@
     }
 
     function buildExtSetting(container) {
-        getById(eleIds.osdTitleEnableDiv, container).append(embyCheckbox(
+        getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
             { label: lsKeys.osdTitleEnable.name }, lsGetItem(lsKeys.osdTitleEnable.id), (checked) => {
                 lsSetItem(lsKeys.osdTitleEnable.id, checked);
                 const videoOsdContainer = document.querySelector(`${mediaContainerQueryStr} .videoOsdSecondaryText`);
-                let videoOsdDanmakuTitle = getById(eleIds.videoOsdDanmakuTitle, videoOsdContainer);
+                const videoOsdDanmakuTitle = getById(eleIds.videoOsdDanmakuTitle, videoOsdContainer);
                 if (videoOsdDanmakuTitle) {
                     videoOsdDanmakuTitle.style.display = checked ? 'block' : 'none';
                 } else if (checked) {
                     appendvideoOsdDanmakuInfo(getDanmakuComments(window.ede).length);
+                }
+            }
+        ));
+        getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
+            { label: lsKeys.osdLineChartEnable.name }, lsGetItem(lsKeys.osdLineChartEnable.id), (checked) => {
+                lsSetItem(lsKeys.osdLineChartEnable.id, checked);
+                const progressBarLineChart = getById(eleIds.progressBarLineChart);
+                if (progressBarLineChart) {
+                    progressBarLineChart.style.display = checked ? 'block' : 'none';
+                } else if (checked) {
+                    buildProgressBarChart(20);
                 }
             }
         ));
@@ -2228,10 +2342,29 @@
             animeId: anime.animeId,
             animeTitle: anime.animeTitle,
         }
+        const seasonInfo = {
+            name: anime.animeTitle,
+            episodeOffset: episodeNumSelect.selectedIndex - window.ede.searchDanmakuOpts.episode,
+        }
+        writeLsSeasonInfo(window.ede.searchDanmakuOpts._season_key, seasonInfo);
         localStorage.setItem(window.ede.searchDanmakuOpts._episode_key, JSON.stringify(episodeInfo));
         console.log(`手动匹配信息:`, episodeInfo);
         loadDanmaku(LOAD_TYPE.RELOAD);
         closeEmbyDialog();
+    }
+
+    function writeLsSeasonInfo(_season_key, newSeasonInfo) {
+        let seasonInfoListStr = localStorage.getItem(_season_key);
+        let seasonInfoList = seasonInfoListStr ? JSON.parse(seasonInfoListStr) : [];
+        // 检查是否已经存在相同的 seasonInfo，避免重复添加
+        const existingSeasonInfo = seasonInfoList.find(si => si.name === newSeasonInfo.name);
+        if (!existingSeasonInfo) {
+            seasonInfoList.push(newSeasonInfo);
+        } else {
+            // 如果存在，更新已有的 seasonInfo
+            Object.assign(existingSeasonInfo, newSeasonInfo);
+        }
+        localStorage.setItem(_season_key, JSON.stringify(seasonInfoList));
     }
 
     function doDanmakuEngineSelect(value) {
@@ -2771,17 +2904,20 @@
         function cancelLongPress() {
             clearTimeout(longPressTimeout);
         }
-        if (target.getAttribute('focusFlag') !== '1') {
-            target.addEventListener('focus', startLongPress);
-            target.setAttribute('focusFlag', '1');
+        const isMobile = os.isMobile();
+        const startEvent = isMobile ? 'touchstart' : 'mousedown';
+        const endEvent = isMobile ? 'touchend' : 'mouseup';
+        if (target.getAttribute('startFlag') !== '1') {
+            target.addEventListener(startEvent, startLongPress);
+            target.setAttribute('startFlag', '1');
         }
-        if (target.getAttribute('blurFlag') !== '1') {
-            target.addEventListener('blur', cancelLongPress);
-            target.setAttribute('blurFlag', '1');
+        if (target.getAttribute('endFlag') !== '1') {
+            target.addEventListener(endEvent, cancelLongPress);
+            target.setAttribute('endFlag', '1');
         }
         return () => {
-            target.removeEventListener('focus', startLongPress);
-            target.removeEventListener('blur', cancelLongPress);
+            target.removeEventListener(startEvent, startLongPress);
+            target.removeEventListener(endEvent, cancelLongPress);
             clearTimeout(longPressTimeout);
         };
     }
@@ -2789,14 +2925,18 @@
     function initCss() {
         // 修复emby小秘版播放过程中toast消息提示框不显示问题
         if (os.isEmbyNoisyX()) {
-            const style = document.createElement('style');
-            style.innerHTML = `
-                [class*="accent-"].noScrollY.transparentDocument .toast-group {
-                    position: fixed;
-                    top: auto;
-                }
-            `;
-            document.head.appendChild(style);
+            const existingStyle = document.querySelector('style[css-emby-noisyx-fix]');
+            if (!existingStyle) {
+                const style = document.createElement('style');
+                style.setAttribute('css-emby-noisyx-fix', '');
+                style.innerHTML = `
+                    [class*="accent-"].noScrollY.transparentDocument .toast-group {
+                        position: fixed;
+                        top: auto;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
         }
     }
 
@@ -2893,7 +3033,7 @@
 
     // emby/jellyfin CustomEvent. see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
     document.addEventListener('viewshow', function (e) {
-        console.log('viewshow', e);
+        console.log(e.type, e);
         customeUrl.init();
         lsGetItem(lsKeys.quickDebugOn.id) && !getById(eleIds.danmakuSettingBtnDebug) && quickDebug();
         addEasterEggListener();
