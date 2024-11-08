@@ -72,7 +72,7 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
 
 ## 效果预览
 
-### Web 端
+### Windows 端
 
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui02.png)
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui03.png)
@@ -99,7 +99,7 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
 
 </details>
 
-### IOS 端,Mac,Windows,基本一样,这里就不截图了
+### IOS 端,Mac,Windows,Web,基本一样,这里就不截图了
 
 ## 弹幕
 
