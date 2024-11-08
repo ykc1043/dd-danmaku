@@ -2904,17 +2904,20 @@
         function cancelLongPress() {
             clearTimeout(longPressTimeout);
         }
-        if (target.getAttribute('focusFlag') !== '1') {
-            target.addEventListener('focus', startLongPress);
-            target.setAttribute('focusFlag', '1');
+        const isMobile = os.isMobile();
+        const startEvent = isMobile ? 'touchstart' : 'mousedown';
+        const endEvent = isMobile ? 'touchend' : 'mouseup';
+        if (target.getAttribute('startFlag') !== '1') {
+            target.addEventListener(startEvent, startLongPress);
+            target.setAttribute('startFlag', '1');
         }
-        if (target.getAttribute('blurFlag') !== '1') {
-            target.addEventListener('blur', cancelLongPress);
-            target.setAttribute('blurFlag', '1');
+        if (target.getAttribute('endFlag') !== '1') {
+            target.addEventListener(endEvent, cancelLongPress);
+            target.setAttribute('endFlag', '1');
         }
         return () => {
-            target.removeEventListener('focus', startLongPress);
-            target.removeEventListener('blur', cancelLongPress);
+            target.removeEventListener(startEvent, startLongPress);
+            target.removeEventListener(endEvent, cancelLongPress);
             clearTimeout(longPressTimeout);
         };
     }
