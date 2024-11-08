@@ -26,7 +26,7 @@
 <script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@main/ede.js" defer></script>
 ```
 
-3. 使用 Cloudflare Pages 网络地址
+3. 使用 Cloudflare Pages 网络地址,等同 main 分支
 ```js
 <script src="https://dd-danmaku.7o7o.cc/ede.js" defer></script>
 ```
@@ -35,13 +35,19 @@
 
 ### 三.修改客户端
 
-1. 类似服务端方式,安卓解包后修改 /assets/www/index.html 再重新打包即可,
+为什么需要修改客户端?
+
+因为 Emby 除了 Web 端是从服务端加载的前端界面,其余所有端都是使用的客户端本地代码文件,因此需要修改客户端才能使用本插件
+
+1. 类似服务端方式,安卓解包后修改`/assets/www/index.html`再重新打包即可,
 具体细节请 Google 解决,对客户端不是太熟,这里仅提供一个简单参考,
 windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包,
 建议打包名加上 **-unsigned** 后缀标明为未签名版本,传到手机中使用 **MT管理器**
 进行一键默认自签名,然后安装即可,若出现安装包解析失败或 PackageInfo is null 的自行 Google 解决
 
-2. iOS 需要通过类似 AltStore 方式自签,请自行 Google 解决
+2. IOS 需要通过类似 AltStore 方式自签,请自行 Google 解决,这里也提供一个简单参考,访问[decrypt.day](https://decrypt.day/)这样的第三方 IPA 下载网站,下载离线安装包得到`com.emby.mobile_xxx.ipa`,直接使用`7zip`等解压软件解压,修改`/Payload/Emby.app/www/index.html`文件,**重点注意删除原安装包的签名文件**,`PlugIns`,`SC_Info`,否则使用`爱思助手自签`将报错`AppexBundleIdNotPrefixed`无法安装,然后将`Payload`压缩为`zip`文件,手动改后缀为`ipa`,使用`爱思助手自签`并手动安装即可,**注意自签包只能在绑定的设备上安装**
+
+[FAQ](docs/FAQ.md)
 
 ### 四.使用第三方用户脚本加载器(推荐)
 
@@ -63,11 +69,38 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
     * 关于: 控制台日志、开发者选项
         
         **密度等级越高强度越大，除0级外均带有每3秒6条的垂直方向弹幕密度限制,高于该限制密度的顶部/底部弹幕将会被转为普通弹幕*
+
+## 效果预览
+
+### Web 端
+
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui02.png)
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui03.png)
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui04.png)
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui05.png)
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui06.png)
+
+### Android 端
+
+<details>
+<summary>截图</summary>
+
+`3.4.20` 与老版本一些 NewUI 的小差异截图,因为弹窗`dialog`用的`Emby`的样式,所以形式具体取决于客户端版本了
+
+![](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/android-01.jpg)
+
+![](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/android-02.jpg)
+
+![](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/android-03.jpg)
+
+![](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/android-04.jpg)
+
+![](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/android-05.jpg)
+
+</details>
+
+### IOS 端,Mac,Windows,基本一样,这里就不截图了
+
 ## 弹幕
 
 弹幕来源为 [弹弹 play](https://www.dandanplay.com/) ,已开启弹幕聚合(A/B/C/... 站等网站弹幕聚合)
