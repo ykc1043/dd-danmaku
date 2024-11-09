@@ -29,12 +29,12 @@
 ```js
 ...
     <script src="apploader.js" defer></script>
-    <script src="https://dd-danmaku.7o7o.cc/ede.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.js" defer></script>
 </body>
 ```
 ```js
 ...
-    <script src="https://dd-danmaku.7o7o.cc/ede.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.js" defer></script>
     <script src="apploader.js" defer></script>
 </body>
 ```
@@ -47,7 +47,7 @@
 
 #### 安卓
 
-1.官方原版,`3.4.20`
+1.官方原版最新版,
 https://github.com/MediaBrowser/Emby.Releases/raw/master/android/emby-android-google-arm64-v8a-release.apk
 
 2.[OneDrive](https://1drv.ms/f/s!Av7h6c_xLEsg0ogfmU2UsZUZa59uvQ?e=l9UP7R),
@@ -61,7 +61,7 @@ https://github.com/MediaBrowser/Emby.Releases/raw/master/android/emby-android-go
 ```js
 ...
     <script src="apploader.js" defer></script>
-    <script src="https://dd-danmaku.7o7o.cc/ede.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.js" defer></script>
 </body>
 ```
 解包修改自签名: `emby-android-google-arm64-v8a-release-3.4.20-emby-danmaku-MTself-sign.apk`,
@@ -91,7 +91,7 @@ java -jar -Duser.language=zh_cn -Dfile.encoding=UTF-8 apktool_2.9.3.jar b c:\Use
 ```js
 ...
     <script src="apploader.js" defer></script>
-    <script src="https://dd-danmaku.7o7o.cc/ede.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.js" defer></script>
 </body>
 ```
 解包修改并移除原签名: `com.emby.mobile_2.2.31-emby-danmaku_unsigned.ipa`
