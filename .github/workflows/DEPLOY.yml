@@ -32,7 +32,6 @@ jobs:
     - name: Pack
       run: |
         cp ede.js public/ede.user.js
-        cp ede.min.js public/ede.min.js
     - name: Deploy github pages
       uses: peaceiris/actions-gh-pages@v3
       with:
