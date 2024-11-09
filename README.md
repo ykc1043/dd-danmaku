@@ -21,15 +21,13 @@
 <script src="ede.js" defer></script>
 ```
 
-2. 使用 jsdelivr CDN 网络地址,中国移动网络请使用 3 中的 cf 地址
+2. 使用 jsdelivr CDN 网络地址
 ```js
-<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@main/ede.js" defer></script>
+<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.js" defer></script>
 ```
 
-3. 使用 Cloudflare Pages 网络地址,等同 main 分支
-```js
-<script src="https://dd-danmaku.7o7o.cc/ede.js" defer></script>
-```
+3. 不建议再使用`Cloudflare Pages`托管的`js`文件,被强制隐去了`Content-Length`响应头会导致客户端开屏闪退
+~~3. 使用 Cloudflare Pages 网络地址,等同 main 分支,中国移动网络此 cf 地址~~
 
 该方式安装与浏览器插件安装**可同时使用不冲突**
 
