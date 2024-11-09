@@ -28,7 +28,7 @@ jobs:
       run: npm install terser -g
     - name: Compress JavaScript
       run: |
-        npx terser ede.js -o public/ede.min.js
+        npx terser ede.js -o public/ede.min.js --no-comments --compress --mangle
     - name: Pack
       run: |
         cp ede.js public/ede.user.js
