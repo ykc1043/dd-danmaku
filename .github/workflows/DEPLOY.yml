@@ -17,14 +17,20 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
       with:
         fetch-depth: 0
+    - name: Install Terser
+      run: npm install terser -g
+    - name: Compress JavaScript
+      run: |
+        npx terser ede.js -o public/ede.min.js
     - name: Pack
       run: |
         rm -rf public
         mkdir -p public
         cp ede.js public/ede.user.js
+        cp public/ede.min.js public/ede.min.js
     - name: Deploy github pages
       uses: peaceiris/actions-gh-pages@v3
       with:
@@ -34,4 +40,5 @@ jobs:
     - name: Purge CDN cache
       run: |
         curl https://purge.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.js
+        curl https://purge.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.min.js
         curl https://purge.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.user.js
