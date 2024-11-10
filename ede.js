@@ -392,14 +392,17 @@
             switchActiveColor: '#52b54b',
         },
     };
-    const os = {
+    const OS = {
         isAndroid: () => /android/i.test(navigator.userAgent),
-        isIOS: () => /iPad|iPhone|iPod/.test(navigator.userAgent),
-        isMacOS: () => /Macintosh|MacIntel/.test(navigator.userAgent),
-        isApple: () => os.isMacOS() || os.isIOS(),
-        isMobile: () => os.isAndroid() || os.isIOS(),
-        isAndroidEmbyNoisyX: () => os.isAndroid() && ApiClient.appVersion().includes('-'),
+        isIOS: () => /iPad|iPhone|iPod/i.test(navigator.userAgent),
+        isMacOS: () => /Macintosh|MacIntel/i.test(navigator.userAgent),
+        isApple: () => OS.isMacOS() || OS.isIOS(),
+        isWindows: () => /compatible|Windows/i.test(navigator.userAgent),
+        isMobile: () => OS.isAndroid() || OS.isIOS(),
+        isUbuntu: () => /Ubuntu/i.test(navigator.userAgent),
+        isAndroidEmbyNoisyX: () => OS.isAndroid() && ApiClient.appVersion().includes('-'),
         isEmbyNoisyX: () => ApiClient.appVersion().includes('-'),
+        isOthers: () => Object.entries(OS).filter(([key, val]) => key !== 'isOthers').every(([key, val]) => !val()),
     };
 
     // ------ 程序内部使用,请勿更改 end ------
@@ -534,7 +537,7 @@
             }
         });
         console.log('Listener初始化完成');
-        if (os.isAndroidEmbyNoisyX()) {
+        if (OS.isAndroidEmbyNoisyX()) {
             console.log('检测为安卓小秘版,首次播放未触发 playbackstart 事件,手动初始化弹幕环境');
             loadDanmaku(LOAD_TYPE.INIT);
         }
@@ -970,7 +973,7 @@
         bulletChartCanvas.width = progressBarWidth;
         bulletChartCanvas.height = chartHeightNum;
         bulletChartCanvas.style.position = 'absolute';
-        bulletChartCanvas.style.top = os.isEmbyNoisyX() ? '-24px' : '-21px';
+        bulletChartCanvas.style.top = OS.isEmbyNoisyX() ? '-24px' : '-21px';
         container.prepend(bulletChartCanvas);
         const ctx = bulletChartCanvas.getContext('2d');
         // 计算每个时间点的弹幕数量
@@ -2730,7 +2733,7 @@
         aEle.textContent = text ?? href;
         aEle.target = '_blank';
         aEle.className = 'button-link button-link-color-inherit button-link-fontweight-inherit emby-button';
-        if (os.isMobile()) {
+        if (OS.isMobile()) {
             aEle.addEventListener('click', (event) => {
                 event.preventDefault();
                 navigator.clipboard.writeText(href).then(() => {
@@ -2904,7 +2907,7 @@
         function cancelLongPress() {
             clearTimeout(longPressTimeout);
         }
-        const isMobile = os.isMobile();
+        const isMobile = OS.isMobile();
         const startEvent = isMobile ? 'touchstart' : 'mousedown';
         const endEvent = isMobile ? 'touchend' : 'mouseup';
         if (target.getAttribute('startFlag') !== '1') {
@@ -2924,7 +2927,7 @@
 
     function initCss() {
         // 修复emby小秘版播放过程中toast消息提示框不显示问题
-        if (os.isEmbyNoisyX()) {
+        if (OS.isEmbyNoisyX()) {
             const existingStyle = document.querySelector('style[css-emby-noisyx-fix]');
             if (!existingStyle) {
                 const style = document.createElement('style');
@@ -2963,7 +2966,7 @@
         console.log('播放页不存在 video 标签,适配器处理开始');
         _media = document.createElement('video');
         // !!! Apple 设备上此属性必须存在,否则 currentTime = 0 无法更新; 而其他设备反而不能有
-        if (os.isApple()) { _media.src = ''; }
+        if (OS.isApple()) { _media.src = ''; }
         _media.style.display = 'none';
         _media.id = eleIds.h5VideoAdapter;
         _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
