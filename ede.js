@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.39
+// @version      1.40
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -188,6 +188,8 @@
         fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1, name: '弹幕大小' },
         fontOpacity: { id: 'danmakuFontOpacity', defaultValue: 1, name: '透明度' },
         speed: { id: 'danmakuBaseSpeed', defaultValue: 1, name: '速度' },
+        fontWeight: { id: 'danmakuFontWeight', defaultValue: 400, name: '弹幕粗细' },
+        fontStyle: { id: 'danmakuFontStyle', defaultValue: 0, name: '弹幕斜体' },
         timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0, name: '轴偏秒' },
         danmuList: { id: 'danmakuDanmuList', defaultValue: 0, name: '弹幕列表' },
         typeFilter: { id: 'danmakuTypeFilter', defaultValue: [], name: '屏蔽类型' },
@@ -271,6 +273,10 @@
         danmakuOpacityLabel: 'danmakuOpacityLabel',
         danmakuSpeedDiv: 'danmakuSpeedDiv',
         danmakuSpeedLabel: 'danmakuSpeedLabel',
+        danmakuFontWeightDiv: 'danmakuFontWeightDiv',
+        danmakuFontWeightLabel: 'danmakuFontWeightLabel',
+        danmakuFontStyleDiv: 'danmakuFontStyleDiv',
+        danmakuFontStyleLabel: 'danmakuFontStyleLabel',
         timelineOffsetDiv: 'timelineOffsetDiv',
         timelineOffsetLabel: 'timelineOffsetLabel',
         settingsCtrl: 'settingsCtrl',
@@ -391,6 +397,11 @@
             highlight: 'rgba(115, 160, 255, 0.3)', // 尽量接近浏览器控制台选定元素的淡蓝色背景色
             switchActiveColor: '#52b54b',
         },
+        fontStyles: [
+            { id: 'normal', name: '正常' },
+            { id: 'italic', name: '原生斜体' },
+            { id: 'oblique', name: '形变斜体' },
+        ],
     };
     const OS = {
         isAndroid: () => /android/i.test(navigator.userAgent),
@@ -1203,6 +1214,8 @@
                     : window.screen.height / 1080) * 18 * fontSizeRate
             );
         }
+        const fontWeight = lsGetItem(lsKeys.fontWeight.id);
+        const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
         // 弹幕透明度
         const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16);
         // 时间轴偏移秒数
@@ -1224,13 +1237,13 @@
                     mode,
                     time: values[0] * 1 + timelineOffset,
                     style: {
-                        fontSize: `${fontSize}px`,
-                        color: `#${color}`,
+                        // fontSize: `${fontSize}px`,
+                        color: `#${color}`, // dom
                         textShadow:
                             color === '00000' ? '-1px -1px #fff, -1px 1px #fff, 1px -1px #fff, 1px 1px #fff' : '-1px -1px #000, -1px 1px #000, 1px -1px #000, 1px 1px #000',
 
-                        font: `${fontSize}px sans-serif`,
-                        fillStyle: `#${color}`,
+                        font: `${fontStyle} ${fontWeight} ${fontSize}px sans-serif`,
+                        fillStyle: `#${color}`, // canvas
                         strokeStyle: color === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`,
                         lineWidth: 2.0,
                     }, // 以下为自定义属性
@@ -1354,7 +1367,10 @@
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontSizeRate.name}: </label>
                         <div id="${eleIds.danmakuSizeDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.danmakuSizeLabel}" style="width: 4em;"></label>
+                        <label>
+                            <label id="${eleIds.danmakuSizeLabel}" style="width: 4em;"></label>
+                            <label>倍</label>
+                        </label>
                     </div>
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontOpacity.name}: </label>
@@ -1364,7 +1380,20 @@
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.speed.name}: </label>
                         <div id="${eleIds.danmakuSpeedDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.danmakuSpeedLabel}" style="width: 4em;"></label>
+                        <label>
+                            <label id="${eleIds.danmakuSpeedLabel}" style="width: 4em;"></label>
+                            <label>倍</label>
+                        </label>
+                    </div>
+                    <div style="${styles.embySlider}">
+                        <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontWeight.name}: </label>
+                        <div id="${eleIds.danmakuFontWeightDiv}" style="width: 15.5em; text-align: center;"></div>
+                        <label id="${eleIds.danmakuFontWeightLabel}" style="width: 4em;"></label>
+                    </div>
+                    <div style="${styles.embySlider}">
+                        <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontStyle.name}: </label>
+                        <div id="${eleIds.danmakuFontStyleDiv}" style="width: 15.5em; text-align: center;"></div>
+                        <label id="${eleIds.danmakuFontStyleLabel}" style="width: 4em;">正常</label>
                     </div>
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.timelineOffset.name}: </label>
@@ -1408,6 +1437,17 @@
         getById(eleIds.danmakuSpeedDiv, container).append(embySlider(
             { labelId: eleIds.danmakuSpeedLabel, key: lsKeys.speed.id }
             , { value: lsGetItem(lsKeys.speed.id) }, onSliderChange, onSliderChangeLabel
+        ));
+        getById(eleIds.danmakuFontWeightDiv, container).append(embySlider(
+            { labelId: eleIds.danmakuFontWeightLabel, key: lsKeys.fontWeight.id }
+            , { value: lsGetItem(lsKeys.fontWeight.id), min: 100, max: 1000, step: 100 }
+            , onSliderChange, onSliderChangeLabel
+        ));
+        getById(eleIds.danmakuFontStyleDiv, container).append(embySlider(
+            { labelId: eleIds.danmakuFontStyleLabel, key: lsKeys.fontStyle.id }
+            , { value: lsGetItem(lsKeys.fontStyle.id), min: 0, max: 2, step: 1 }
+            , (val, props) => onSliderChange(val, props, null, styles.fontStyles[val].name)
+            , (val, props) => onSliderChangeLabel(styles.fontStyles[val].name, props)
         ));
         // 弹幕时间轴偏移秒数
         const btnContainer = getById(eleIds.timelineOffsetDiv, container);
@@ -2425,8 +2465,8 @@
         console.log(`当前弹幕显示来源为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}`);
     }
 
-    function onSliderChange(val, props, needReload = true) {
-        onSliderChangeLabel(val, props);
+    function onSliderChange(val, props, needReload = true, labelVal) {
+        onSliderChangeLabel(labelVal ? labelVal : val, props);
         if (props?.key && lsCheckSet(props.key, val)) {
             console.log(`${props.key} changed to ${val}`);
             if (needReload) { loadDanmaku(LOAD_TYPE.RELOAD); }
