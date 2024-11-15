@@ -22,7 +22,7 @@
     // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.39', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.40', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
@@ -104,11 +104,12 @@
     ];
     // 弹幕类型过滤
     const danmakuTypeFilterOpts = {
-        bottom: { id: 'bottom', name: '底部弹幕' },
-        top: { id: 'top', name: '顶部弹幕' },
-        ltr: { id: 'ltr', name: '从左至右' },
-        rtl: { id: 'rtl', name: '从右至左', hidden: true },
-        onlyWhite: { id: 'onlyWhite', name: '彩色弹幕' },
+        bottom: { id: 'bottom', name: '底部弹幕', },
+        top: { id: 'top', name: '顶部弹幕', },
+        ltr: { id: 'ltr', name: '从左至右', },
+        rtl: { id: 'rtl', name: '从右至左', },
+        rolling: { id: 'rolling', name: '滚动弹幕', },
+        onlyWhite: { id: 'onlyWhite', name: '彩色弹幕', },
     };
     const danmakuSource = {
         AcFun: { id: 'AcFun', name: 'A站(AcFun)' },
@@ -208,7 +209,6 @@
         osdLineChartEnable: { id: 'danmakuOsdLineChartEnable', defaultValue: false, name: '进度条上显示弹幕每秒内数量折线图' },
         debugShowDanmakuWrapper: { id: 'danmakuDebugShowDanmakuWrapper', defaultValue: false, name: '弹幕容器边界' },
         debugShowDanmakuCtrWrapper: { id: 'danmakuDebugShowDanmakuCtrWrapper', defaultValue: false, name: '按钮容器边界' },
-        debugTypeFilterRtl: { id: 'danmakuDebugTypeFilterRtl', defaultValue: false, name: '屏蔽从右至左' },
         debugReverseDanmu: { id: 'danmakuDebugReverseDanmu', defaultValue: false, name: '反转弹幕方向' },
         debugRandomDanmuColor: { id: 'danmakuDebugRandomDanmuColor', defaultValue: false, name: '随机弹幕颜色' },
         debugForceDanmuWhite: { id: 'danmakuDebugForceDanmuWhite', defaultValue: false, name: '强制弹幕白色' },
@@ -1136,6 +1136,12 @@
             comments = comments.filter(c => '#ffffff' === c.style.color.toLowerCase().slice(0, 7));
             idArray.splice(idArray.indexOf(danmakuTypeFilterOpts.onlyWhite.id), 1);
         }
+        // 过滤滚动弹幕
+        if (idArray.includes(danmakuTypeFilterOpts.rolling.id)) {
+            comments = comments.filter(c => danmakuTypeFilterOpts.ltr.id !== c.mode
+                && danmakuTypeFilterOpts.rtl.id !== c.mode);
+            idArray.splice(idArray.indexOf(danmakuTypeFilterOpts.rolling.id), 1);
+        }
         // 过滤特定模式的弹幕
         if (idArray.length > 0) {
             comments = comments.filter(c => !idArray.includes(c.mode));
@@ -1648,7 +1654,7 @@
                 <div id="${eleIds.danmuListDiv}" style="margin: 1% 0;"></div>
                 <textarea id="${eleIds.danmuListText}" readOnly style="display: none;resize: vertical;width: 100%" rows="8" 
                     is="emby-textarea" class="txtOverview emby-textarea"></textarea>
-                <div class="${classes.embyFieldDesc}">列表展示格式为: [序号][分:秒] : 弹幕正文 [来源平台][用户ID][弹幕CID]</div>
+                <div class="${classes.embyFieldDesc}">列表展示格式为: [序号][分:秒] : 弹幕正文 [来源平台][用户ID][弹幕CID][模式]</div>
             </div>
             <div id="${eleIds.extInfoCtrlDiv}" style="margin: 0.6em 0;"></div>
             <div id="${eleIds.extInfoDiv}" hidden>
@@ -2060,17 +2066,6 @@
             if (!checked) { return; }
             console.log(`按钮容器(#${eleIds.danmakuCtr})宽高像素:`, wrapper.offsetWidth, wrapper.offsetHeight);
         }));
-        debugWrapper.append(embyCheckbox({ label: lsKeys.debugTypeFilterRtl.name }, lsGetItem(lsKeys.debugTypeFilterRtl.id), (checked) => {
-            lsSetItem(lsKeys.debugTypeFilterRtl.id, checked);
-            let comments = [...window.ede.danmuCache[window.ede.episode_info.episodeId]];
-            if (checked) {
-                comments = comments.filter(c => c.p.split(',')[1] !== '6');
-                console.log('已' + lsKeys.debugTypeFilterRtl.name);
-            } else {
-                console.log('已取消' + lsKeys.debugTypeFilterRtl.name);
-            }
-            createDanmaku(comments);
-        }));
         debugWrapper.append(embyCheckbox({ label: lsKeys.debugReverseDanmu.name }, lsGetItem(lsKeys.debugReverseDanmu.id), (checked) => {
             lsSetItem(lsKeys.debugReverseDanmu.id, checked);
             const comments = window.ede.danmuCache[window.ede.episode_info.episodeId];
@@ -2190,7 +2185,7 @@
     function buildOpenSourceLicense(container) {
         const openSourceWrapper = getById(eleIds.openSourceLicenseDiv, container);
         Object.entries(openSourceLicense).map(([key, val]) => {
-            openSourceWrapper.append(embyALink(val.url, [key, val.name, val.version, val.license].join(':')));
+            openSourceWrapper.append(embyALink(val.url, [key, val.name, val.version, val.license].join(' : ')));
         });
     }
 
@@ -2436,6 +2431,7 @@
                 + (c.source ? ` [${c.source}]` : '')
                 + (c.originalUserId ? `[${c.originalUserId}]` : '')
                 + (c.cid ? `[${c.cid}]` : '')
+                + `[${c.mode}]`
             ).join('\n');
     }
 
