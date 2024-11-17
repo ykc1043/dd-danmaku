@@ -33,7 +33,7 @@
 
 ### 三.修改客户端
 
-为什么需要修改客户端?
+#### 为什么需要修改客户端?
 
 因为 Emby 除了 Web 端是从服务端加载的前端界面,其余所有端都是使用的客户端本地代码文件,因此需要修改客户端才能使用本插件
 
@@ -46,6 +46,12 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
 2. IOS 需要通过类似 AltStore 方式自签,请自行 Google 解决,这里也提供一个简单参考,访问[decrypt.day](https://decrypt.day/)这样的第三方 IPA 下载网站,下载离线安装包得到`com.emby.mobile_xxx.ipa`,直接使用`7zip`等解压软件解压,修改`/Payload/Emby.app/www/index.html`文件,**重点注意删除原安装包的签名文件**,`PlugIns`,`SC_Info`,否则使用`爱思助手自签`将报错`AppexBundleIdNotPrefixed`无法安装,然后将`Payload`压缩为`zip`文件,手动改后缀为`ipa`,使用`爱思助手自签`并手动安装即可,**注意自签包只能在绑定的设备上安装**
 
 [FAQ](docs/FAQ.md)
+
+#### 哪些客户端可以修改?
+
+1. 只有 Emby for Android, Emby for iOS, Emby Theater(Windows and MacOS) 这几个官方客户端存在 Electron/Web 环境才可以修改
+
+2. 老 TV 客户端 Emby for Android TV_XXXg 以版本号以 g 结尾的无法修改,是原生 Kotlin 代码,不存在 web 环境,包括其他第三方播放器客户端更加没办法修改了
 
 ### 四.使用第三方用户脚本加载器(推荐)
 
@@ -60,7 +66,7 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
 - 弹幕开关: 切换弹幕显示/隐藏状态
 
 - 弹幕设置: 打开弹幕设置弹窗
-    * 弹幕设置: 弹幕开关、简繁转换、弹幕引擎、弹幕样式（大小|透明度|速度|轴偏秒）、配置项
+    * 弹幕设置: 弹幕开关、简繁转换、弹幕引擎、弹幕样式（大小|透明度|速度|粗细|斜体|轴偏秒）、配置项
     * 手动匹配: 输入影视名称匹配弹幕，默认影视名称，可选择切换原标题
     * 弹幕信息: 当前匹配弹幕信息与弹幕列表
     * 弹幕屏蔽: 屏蔽类型、屏蔽来源平台、显示每条来源、密度等级、高度比例、屏蔽关键词
