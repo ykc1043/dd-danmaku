@@ -23,7 +23,11 @@
 
 2. 使用 jsdelivr CDN 网络地址
 ```js
-<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@main/ede.js" defer></script>
+<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.user.js" defer></script>
+```
+或
+```js
+<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.min.js" defer></script>
 ```
 
 3. 不建议再使用`Cloudflare Pages`托管的`js`文件,被强制隐去了`Content-Length`响应头会导致客户端开屏闪退
