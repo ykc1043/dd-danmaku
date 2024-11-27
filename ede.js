@@ -697,9 +697,9 @@
             bangumiInfo.bangumiEpsRes = bangumiEpsRes;
             const bangumiEpColl = bangumiEpsRes.data[episodeIndex];
             if (!bangumiEpColl) { throw new Error('未匹配到 bangumiEpColl'); }
-            bangumiInfo.episodeIndex = episodeIndex;
+            // bangumiInfo.episodeIndex = episodeIndex;
         }
-        const bangumiEpColl = bangumiInfo.bangumiEpsRes.data[bangumiInfo.episodeIndex];
+        const bangumiEpColl = bangumiInfo.bangumiEpsRes.data[episodeIndex];
         const bangumiEp = bangumiEpColl.episode;
         if (bangumiEpColl.type === 2) {
             console.log('Bangumi 已是看过状态,跳过更新', bangumiEp);
