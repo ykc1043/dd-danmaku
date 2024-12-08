@@ -43,3 +43,4 @@ jobs:
         curl https://purge.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.js
         curl https://purge.jsdelivr.net/gh/chen3861229/dd-danmaku/ede.min.js
         curl https://purge.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.user.js
+        curl https://purge.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.min.js
