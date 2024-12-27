@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.40
+// @version      1.41
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -22,9 +22,9 @@
     // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.40', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.41', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
-        jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
+        jellyfinFork: { version: '1.51', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
         danmakuFork: { version: 'v1.2.1', name: 'Danmaku(Based on 2.0.6)', license: 'MIT License', url: 'https://github.com/lanytcc/Danmaku' },
         dandanplayApi: { version: 'v2', name: '弹弹 play API', license: 'MIT License', url: 'https://github.com/kaedei/dandanplay-libraryindex' },
@@ -1233,7 +1233,8 @@
         const fontWeight = lsGetItem(lsKeys.fontWeight.id);
         const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
         // 弹幕透明度
-        const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16);
+        // const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16);
+        const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
         // 时间轴偏移秒数
         const timelineOffset = lsGetItem(lsKeys.timelineOffset.id);
         const sourceUidReg = /\[(.*)\](.*)/;
@@ -1247,7 +1248,10 @@
                 const mode = { 6: 'ltr', 1: 'rtl', 5: 'top', 4: 'bottom' }[values[1]];
                 if (!mode) return null;
                 // 弹幕颜色+透明度
-                const color = `000000${Number(values[2]).toString(16)}${fontOpacity}`.slice(-8);
+                // const color = `000000${Number(values[2]).toString(16)}${fontOpacity}`.slice(-8);
+                const baseColor = Number(values[2]).toString(16).padStart(6, '0');
+                const color = `${baseColor}${fontOpacity}`; // 生成8位十六进制颜色
+                const shadowColor = baseColor === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`;
                 const cmt = {
                     text: $comment.m,
                     mode,
@@ -1255,12 +1259,12 @@
                     style: {
                         // fontSize: `${fontSize}px`,
                         color: `#${color}`, // dom
-                        textShadow:
-                            color === '00000' ? '-1px -1px #fff, -1px 1px #fff, 1px -1px #fff, 1px 1px #fff' : '-1px -1px #000, -1px 1px #000, 1px -1px #000, 1px 1px #000',
+                        textShadow: `-1px -1px ${shadowColor}, -1px 1px ${shadowColor}, 1px -1px ${shadowColor}, 1px 1px ${shadowColor}`,
 
                         font: `${fontStyle} ${fontWeight} ${fontSize}px sans-serif`,
                         fillStyle: `#${color}`, // canvas
-                        strokeStyle: color === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`,
+                        // strokeStyle: baseColor === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`,
+                        strokeStyle: shadowColor,
                         lineWidth: 2.0,
                     }, // 以下为自定义属性
                     [showSource.cid.id]: $comment.cid,

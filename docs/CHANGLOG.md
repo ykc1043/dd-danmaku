@@ -1,6 +1,7 @@
 
 #### 1.41 待发布
 fix: 修复推送bangumi部分失败问题
+fix: 同步 dom textShadow 适配透明度
 
 #### 1.40
 
