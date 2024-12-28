@@ -18,16 +18,19 @@
 
 1. 直接下载`ede.js`到 index.html 同级目录下,优先使用本地文件较为稳定
 ```js
-<script src="ede.js" defer></script>
+// <script src="ede.js" defer></script>
+<script src="ede.js"></script>
 ```
 
 2. 使用 jsdelivr CDN 网络地址
 ```js
-<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.user.js" defer></script>
+// <script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.user.js" defer></script>
+<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.user.js"></script>
 ```
 或
 ```js
-<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.min.js" defer></script>
+// <script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/gh/chen3861229/dd-danmaku@gh-pages/ede.min.js"></script>
 ```
 
 3. 不建议再使用`Cloudflare Pages`托管的`js`文件,被强制隐去了`Content-Length`响应头会导致客户端开屏闪退
