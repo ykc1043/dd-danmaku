@@ -155,7 +155,7 @@
     const hasToastPrefixes = (comment, prefixes) => Object.values(prefixes).some(prefix => comment.text.startsWith(prefix));
     const getDanmakuComments = (ede) => ede.danmaku?.comments.filter(c => !hasToastPrefixes(c, toastPrefixes)) ?? [];
     const danmuListOpts = [
-        { id: '0', name: '不启用' , onChange: () => [] },
+        { id: '0', name: '不展示' , onChange: () => [] },
         { id: '1', name: '屏中', onChange: (ede) => ede.danmaku._.runningList },
         { id: '2', name: '所有', onChange: (ede) => ede.commentsParsed },
         { id: '3', name: '已加载', onChange: getDanmakuComments },
@@ -623,14 +623,24 @@
             });
     }
 
-    async function fetchExtcommentActual(extUrl) {
+    async function fetchExtcommentActual(extUrl, comments) {
+        if (!extUrl) {
+            return null;
+        }
         let extComments  = (await fetchJson(dandanplayApi.getExtcomment(extUrl))).comments;
         if (extComments.length === 0) { // 只重试一遍进行弹弹 play 服务器缓存覆盖加载触发
             extComments = (await fetchJson(dandanplayApi.getExtcomment(extUrl))).comments;
         }
         extComments.map(c => c.fromUrl = extUrl);
-        const episodeId = window.ede.episode_info.episodeId;
-        window.ede.extCommentCache[episodeId] = { [extUrl]: extComments };
+        const episodeId = window.ede.episode_info.episodeId; 
+        if (!window.ede.extCommentCache[episodeId]) {
+            window.ede.extCommentCache = { [episodeId]: {} };
+        }
+        if (comments) {
+            console.log(`取差集并覆盖: ${extUrl}`);
+            extComments = extComments.filter(extC => !comments.some(c => c.cid === extC.cid));
+        }
+        window.ede.extCommentCache[episodeId][extUrl] = extComments;
         return extComments;
     }
 
@@ -1084,7 +1094,7 @@
                                 let allComments = comments;
                                 if (extCommentsLength > 0) {
                                     Promise.all(
-                                        Object.entries(extCommentCache).map(([key, val]) => fetchExtcommentActual(key))
+                                        Object.entries(extCommentCache).map(([key, val]) => fetchExtcommentActual(key, allComments))
                                     ).then((results) => {
                                         allComments = allComments.concat(...results);
                                         console.log(`使用 fetch 重取,附加前总量: ${comments.length}, 附加后总量: ${allComments.length}`);
@@ -1618,29 +1628,12 @@
         const extUrl = getTargetInput(e).value.trim();
         if (!extUrl.startsWith('http')) { return embyToast({ text: '输入的 url 应以 http 开头!' }); }
         const episodeId = window.ede.episode_info.episodeId;
-        let curExtCommentCache = window.ede.extCommentCache[episodeId];
-        let extcomments = [];
-        if (!curExtCommentCache || !curExtCommentCache[extUrl]) {
-            extcomments = await fetchExtcommentActual(extUrl);
-            curExtCommentCache = window.ede.extCommentCache[episodeId];
-        }
-        const comments = window.ede.danmuCache[window.ede.episode_info?.episodeId] ?? [];
-        // 取差集并覆盖
-        for (const eUrl in curExtCommentCache) {
-            const extCmts = curExtCommentCache[eUrl];
-            const extCmtsDiff = extCmts.filter(extC => !comments.some(c => c.cid === extC.cid));
-            if (extCmtsDiff.length === 0) {
-                return embyToast({ text: '去重后为空,跳过附加!' });
-            } else {
-                console.log(`取差集并覆盖: ${eUrl}`);
-                window.ede.curExtCommentCache[eUrl] = extCmtsDiff;
-            }
-        }
-        const allExtComments = [].concat(...Object.values(curExtCommentCache));
-        if (allExtComments.length === 0) {
+        const comments = window.ede.danmuCache[episodeId] ?? [];
+        const extcomments = await fetchExtcommentActual(extUrl, comments);
+        if (extcomments.length === 0) {
             return embyToast({ text: '附加弹幕不能为空!' });
         }
-        const allComments = comments.concat(allExtComments);
+        const allComments = comments.concat(extcomments);
         createDanmaku(allComments)
         .then(() => {
             const beforeLength = window.ede.commentsParsed.length - extcomments.length;
@@ -1654,7 +1647,7 @@
     function buildCurrentDanmakuInfo(containerId) {
         const container = getById(containerId);
         if (!container || !window.ede.episode_info) { return; }
-        const { episodeId, episodeTitle, animeId, animeTitle } = window.ede.episode_info;
+        const { episodeTitle, animeId, animeTitle } = window.ede.episode_info;
         const loadSum = getDanmakuComments(window.ede).length;
         const downloadSum = window.ede.commentsParsed.length;
         let template = `
@@ -1705,14 +1698,25 @@
                 embyImgButton(embyImg(dandanplayApi.posterImg(animeId)), 'width: calc((var(--videoosd-tabs-height) - 3em) * (2 / 3)); margin-right: 1em;')
             );
         }
+        buildDanmuListDiv(container);
+        // 额外信息
+        buildExtInfo(container);
+    }
+
+    function buildDanmuListDiv(container) {
+        const { episodeId, } = window.ede.episode_info;
         const danmuListExts = Object.values(window.ede.extCommentCache[episodeId] ?? {}).map((value, index) => {
             return { id: `ext${index + 1}`, name: `附加${index + 1}`, onChange: () => danmakuParser(value) };
         });
+        let danmuListTabOpts = danmuListOpts;
+        if (danmuListExts.length > 0) {
+            const dandanplayListOpt = { id: 'dandanplay', name: '弹弹 play'
+                , onChange: () => danmakuParser(window.ede.danmuCache[episodeId] ?? {}) };
+            danmuListTabOpts = danmuListTabOpts.concat(dandanplayListOpt).concat(danmuListExts);
+        }        
         getById(eleIds.danmuListDiv, container).append(
-            embyTabs(danmuListOpts.concat(danmuListExts), lsKeys.danmuList.defaultValue, 'id', 'name', doDanmuListOptsChange)
+            embyTabs(danmuListTabOpts, lsKeys.danmuList.defaultValue, 'id', 'name', doDanmuListOptsChange)
         );
-        // 额外信息
-        buildExtInfo(container);
     }
 
     function buildExtInfo(container) {

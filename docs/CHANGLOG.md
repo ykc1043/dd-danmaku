@@ -4,6 +4,7 @@ fix: 修复推送bangumi部分失败问题
 fix: 同步 dom textShadow 适配透明度
 fix: 修复弹幕斜体修改不生效
 fix: 正确按章节隔离附加弹幕
+fix: 按cid简易去重附加弹幕
 
 #### 1.40
 
