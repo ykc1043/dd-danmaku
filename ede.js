@@ -89,6 +89,7 @@
         person: 'person',
         sentiment_very_satisfied: 'sentiment_very_satisfied',
         check: 'check',
+        edit: 'edit',
     };
     // 此 id 等同于 danmakuTabOpts 内的弹幕信息的 id
     const currentDanmakuInfoContainerId = 'danmakuTab2';
@@ -192,6 +193,7 @@
         fontWeight: { id: 'danmakuFontWeight', defaultValue: 400, name: '弹幕粗细' },
         fontStyle: { id: 'danmakuFontStyle', defaultValue: 0, name: '弹幕斜体' },
         timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0, name: '轴偏秒' },
+        fontFamily: { id: 'danmakuFontFamily', defaultValue: 'sans-serif', name: '字体' },
         danmuList: { id: 'danmakuDanmuList', defaultValue: 0, name: '弹幕列表' },
         typeFilter: { id: 'danmakuTypeFilter', defaultValue: [], name: '屏蔽类型' },
         sourceFilter: { id: 'danmakuSourceFilter', defaultValue: [], name: '屏蔽来源平台' },
@@ -279,6 +281,12 @@
         danmakuFontStyleLabel: 'danmakuFontStyleLabel',
         timelineOffsetDiv: 'timelineOffsetDiv',
         timelineOffsetLabel: 'timelineOffsetLabel',
+        fontFamilyCtrl: 'fontFamilyCtrl',
+        fontFamilyDiv: 'fontFamilyDiv',
+        fontFamilyLabel: 'fontFamilyLabel',
+        fontFamilySelect: 'fontFamilySelect',
+        fontFamilyInput: 'fontFamilyInput',
+        fontStylePreview: 'fontStylePreview',
         settingsCtrl: 'settingsCtrl',
         settingsText: 'settingsText',
         settingsImportBtn: 'settingsImportBtn',
@@ -1231,9 +1239,10 @@
         // 弹幕大小
         const fontSizeRate = lsGetItem(lsKeys.fontSizeRate.id);
         let fontSize = 25;
-        const h3Ele = getByClass(classes.videoOsdTitle);
-        if (h3Ele) {
-            fontSize = parseFloat(getComputedStyle(h3Ele).fontSize.replace('px', '')) * fontSizeRate;
+        // 播放页媒体次级标题 h3 元素
+        const fontSizeReferent = getByClass(classes.videoOsdTitle);
+        if (fontSizeReferent) {
+            fontSize = parseFloat(getComputedStyle(fontSizeReferent).fontSize.replace('px', '')) * fontSizeRate;
         } else {
             fontSize = Math.round(
                 (window.screen.height > window.screen.width 
@@ -1243,6 +1252,7 @@
         }
         const fontWeight = lsGetItem(lsKeys.fontWeight.id);
         const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
+        const fontFamily = lsGetItem(lsKeys.fontFamily.id);
         // 弹幕透明度
         const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
         // 时间轴偏移秒数
@@ -1265,15 +1275,17 @@
                     text: $comment.m,
                     mode,
                     time: values[0] * 1 + timelineOffset,
-                    style: {
-                        color: `#${color}`, // dom
-                        textShadow: `-1px -1px ${shadowColor}, -1px 1px ${shadowColor}, 1px -1px ${shadowColor}, 1px 1px ${shadowColor}`,
+                    style: getCommentStyle(color, shadowColor, fontStyle, fontWeight, fontSize, fontFamily),
+                    // style: {
+                    //     color: `#${color}`, // dom
+                    //     textShadow: `-1px -1px ${shadowColor}, -1px 1px ${shadowColor}, 1px -1px ${shadowColor}, 1px 1px ${shadowColor}`,
 
-                        font: `${fontStyle} ${fontWeight} ${fontSize}px sans-serif`,
-                        fillStyle: `#${color}`, // canvas
-                        strokeStyle: shadowColor,
-                        lineWidth: 2.0,
-                    }, // 以下为自定义属性
+                    //     font: `${fontStyle} ${fontWeight} ${fontSize}px sans-serif`,
+                    //     fillStyle: `#${color}`, // canvas
+                    //     strokeStyle: shadowColor,
+                    //     lineWidth: 2.0,
+                    // }, 
+                    // 以下为自定义属性
                     [showSource.cid.id]: $comment.cid,
                     [showSource.source.id]: values[3].match(sourceUidReg)?.[1] || danmakuSource.DanDanPlay.id,
                     [showSource.originalUserId.id]: values[3].match(sourceUidReg)?.[2] || values[3],
@@ -1287,6 +1299,18 @@
             })
             .filter((x) => x)
             .sort((a, b) => a.time - b.time);
+    }
+
+    function getCommentStyle(color, shadowColor, fontStyle, fontWeight, fontSize, fontFamily) {
+        return {
+            color: `#${color}`, // dom
+            textShadow: `-1px -1px ${shadowColor}, -1px 1px ${shadowColor}, 1px -1px ${shadowColor}, 1px 1px ${shadowColor}`,
+
+            font: `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`,
+            fillStyle: `#${color}`, // canvas
+            strokeStyle: shadowColor,
+            lineWidth: 2.0,
+        };
     }
 
     function toastByDanmaku(text, type) {
@@ -1430,6 +1454,33 @@
                         <div id="${eleIds.timelineOffsetDiv}" style="width: 15.5em; text-align: center;"></div>
                         <label id="${eleIds.timelineOffsetLabel}" style="width: 4em;"></label>
                     </div>
+                    <div is="emby-collapse" title="弹幕字体样式" data-expanded="false">
+                        <div class="${classes.collapseContentNav}">
+                            <div id="${eleIds.fontFamilyCtrl}" style="margin: 0.6em 0;"></div>
+                            <div style="${styles.embySlider}">
+                                <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontFamily.name}: </label>
+                                <div id="${eleIds.fontFamilyDiv}" class="${classes.embySelectWrapper}"></div>
+                                <label id="${eleIds.fontFamilyLabel}" style="width: 10em;"></label>
+                            </div>
+                            <div style="max-width: 31.5em;">
+                                <label class="${classes.embyLabel}" style="width: 5em;">弹幕外观: </label>
+                                <div id="${eleIds.fontStylePreview}"
+                                    class="flex justify-content-center"
+                                    style="border: .08em solid gray;color: black;border-radius: .24em;padding: .5em;;background-color: #6a96bd;">
+                                    简中/繁體/English/こんにちはウォルド/</br>
+                                    ABC/abc/012/~!@<?>[]/《？》【】</br>
+                                    ☆*: .｡. o(≧▽≦)o .｡.:*☆</br>
+                                    😆👏🎈🍋🌞⁉️🎉</br>
+                                </div>
+                                <div class="${classes.embyFieldDesc}">
+                                    这些设置会影响此设备上的弹幕外观,此处固定为 dom 引擎,
+                                    canvas 引擎效果一样,此处不做切换展示,
+                                    因为弹幕大小是根据播放页次标题动态计算的,此处不做参考,
+                                    选择或输入的字体是否有效取决于设备本身的字体库,没有网络加载
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div id="${eleIds.settingsCtrl}" style="margin: 0.6em 0;"></div>
                     <textarea id="${eleIds.settingsText}" style="display: none;resize: vertical;width: 100%" rows="20" 
                         is="emby-textarea" class="txtOverview emby-textarea"></textarea>
@@ -1494,6 +1545,7 @@
                 }
             }));
         });
+        buildFontFamilySetting(container);
         // 配置 JSON 导入,导出
         buildSettingsBackup(container);
     }
@@ -1527,6 +1579,134 @@
                 closeEmbyDialog();
             })
         );
+    }
+
+    function buildFontFamilySetting() {
+        const fontFamilyVal = lsGetItem(lsKeys.fontFamily.id);
+        let availableFonts = [
+            { family: lsKeys.fontFamily.defaultValue, fullName: lsKeys.fontFamily.defaultValue },
+            { family: 'Consolas', fullName: 'Consolas' },
+            { family: 'SimHei', fullName: '黑体' },
+            { family: 'SimSun', fullName: '宋体' },
+            { family: 'KaiTi', fullName: '楷体' },
+            { family: 'Microsoft YaHei', fullName: '微软雅黑' },
+        ];
+        if ('queryLocalFonts' in window) {
+            queryLocalFonts().then(fonts => {
+                availableFonts = [...availableFonts, ...fonts].reduce((acc, font) => {
+                    if (!acc.some(f => f.family === font.family)) acc.push(font);
+                    return acc;
+                }, []);
+                const selectedIndex = availableFonts.findIndex(f => f.family === fontFamilyVal);
+                resetFontFamilyDiv(selectedIndex, availableFonts);
+            }).catch(err => {
+                console.error(err);
+            });
+        } else {
+            console.info('queryLocalFonts 高级查询 API 不可用,使用预定字体列表');
+        }
+        const selectedIndex = availableFonts.findIndex(f => f.family === fontFamilyVal);
+        resetFontFamilyDiv(selectedIndex, availableFonts);
+        buildFontFamilyCtrl();
+    }
+
+    function buildFontFamilyCtrl() {
+        const fontFamilyCtrl = getById(eleIds.fontFamilyCtrl);
+        fontFamilyCtrl.append(
+            embyButton({ label: '切换手填', iconKey: iconKeys.edit, }, (e) => {
+                const xChecked = !e.target.xChecked;
+                e.target.xChecked = xChecked;
+                e.target.title = xChecked ? '手填' : '选择';
+                getById(eleIds.fontFamilySelect).style.display = xChecked ? 'none' : '';
+                getById(eleIds.fontFamilyInput).style.display = xChecked ? '' : 'none';
+                if (xChecked) {
+                    getById(eleIds.fontFamilyLabel).innerHTML = '';
+                }
+            })
+        );
+        fontFamilyCtrl.append(
+            embyButton({ label: '重置为默认', iconKey: iconKeys.refresh, }
+                , () => {
+                    if (lsCheckSet(lsKeys.fontFamily.id, lsKeys.fontFamily.defaultValue)) {
+                        changeFontStylePreview();
+                        onSliderChangeLabel(lsKeys.fontFamily.defaultValue, { labelId: eleIds.fontFamilyLabel });
+                        getById(eleIds.fontFamilyInput).value = lsGetItem(lsKeys.fontFamily.id);
+                        loadDanmaku(LOAD_TYPE.RELOAD);
+                    }
+                })
+        );
+    }
+
+    function resetFontFamilyDiv(selectedIndexOrValue, opts) {
+        const fontFamilyDiv = getById(eleIds.fontFamilyDiv);
+        fontFamilyDiv.innerHTML = '';
+        fontFamilyDiv.append(
+            embySelect({ id: eleIds.fontFamilySelect, label: `${lsKeys.fontFamily.name}: `, }
+                , selectedIndexOrValue, opts, 'family', 'family'
+                , (value, index, option) => {
+                    console.log('fontFamilyDivChange: ', value, index, option);
+                    // loadLocalFont(option.family);
+                    if (lsCheckSet(lsKeys.fontFamily.id, value)) {
+                        changeFontStylePreview();
+                        const labelVal = option.family !== option.fullName ? option.fullName : '';
+                        onSliderChangeLabel(labelVal, { labelId: eleIds.fontFamilyLabel });
+                        loadDanmaku(LOAD_TYPE.RELOAD);
+                    }
+                })
+        );
+        fontFamilyDiv.append(
+            embyInput({ id: eleIds.fontFamilyInput, value: lsGetItem(lsKeys.fontFamily.id)
+                , type: 'search', style: 'display: none;' }
+                , (e) => {
+                    const inputVal = getTargetInput(e).value.trim();
+                    if (!inputVal) { return; }
+                    if (lsCheckSet(lsKeys.fontFamily.id, inputVal)) {
+                        changeFontStylePreview();
+                        loadDanmaku(LOAD_TYPE.RELOAD);
+                    }
+                })
+        );
+        changeFontStylePreview();
+        const fontFamilyOpt = opts.find(opt => opt.family === lsGetItem(lsKeys.fontFamily.id));
+        const labelVal = fontFamilyOpt?.fullName || '';
+        onSliderChangeLabel(labelVal, { labelId: eleIds.fontFamilyLabel });
+    }
+
+    // function fontCheck(family, callback) {
+    //     document.fonts.ready.then(() => {
+    //         if (document.fonts.check(`25px "${family}"`)) {
+    //             console.log(`The font family "${family}" is now available`);
+    //             callback(true);
+    //         } else {
+    //             console.log(`The font family "${family}" is not available`);
+    //             callback(false);
+    //         }
+    //     });
+    // }
+
+    function loadLocalFont(family) {
+        const font = new FontFace(family, `local("${family}")`);
+        font.load().then(loadedFont => {
+            document.fonts.add(loadedFont);
+            console.log(`The local font "${family}" has been added under the name "${family}"`);
+        }).catch(err => {
+            console.error(`Failed to load or add the local font "${family}"`, err);
+        });
+    }
+
+    function changeFontStylePreview() {
+        const fontStylePreview = getById(eleIds.fontStylePreview);
+        const fontWeight = lsGetItem(lsKeys.fontWeight.id);
+        const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
+        const fontFamily = lsGetItem(lsKeys.fontFamily.id);
+        const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
+        const baseColor = Number(styles.colors.info).toString(16).padStart(6, '0');
+        const color = `${baseColor}${fontOpacity}`;
+        const shadowColor = baseColor === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`;
+        const fontSizeReferent = fontStylePreview.previousElementSibling;
+        const fontSize  = parseFloat(getComputedStyle(fontSizeReferent).fontSize.replace('px', ''));
+        const cmtStyle = getCommentStyle(color, shadowColor, fontStyle, fontWeight, fontSize, fontFamily);
+        Object.assign(fontStylePreview.style, cmtStyle);
     }
 
     function buildSearchEpisode(containerId) {
@@ -2503,7 +2683,10 @@
         onSliderChangeLabel(labelVal ? labelVal : val, props);
         if (props?.key && lsCheckSet(props.key, val)) {
             console.log(`${props.key} changed to ${val}, needReload: ${needReload}`);
-            if (needReload) { loadDanmaku(LOAD_TYPE.RELOAD); }
+            if (needReload) {
+                changeFontStylePreview();
+                loadDanmaku(LOAD_TYPE.RELOAD); 
+            }
         }
     }
 
