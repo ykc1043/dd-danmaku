@@ -1,10 +1,11 @@
 
 #### 1.41 待发布
-fix: 修复推送bangumi部分失败问题
+fix: 修复推送 bangumi 部分失败问题
 fix: 同步 dom textShadow 适配透明度
 fix: 修复弹幕斜体修改不生效
 fix: 正确按章节隔离附加弹幕
-fix: 按cid简易去重附加弹幕
+fix: 按 cid 简易去重附加弹幕
+fix: 尽量适配 TV 布局的控件焦点高亮
 
 #### 1.40
 

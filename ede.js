@@ -1319,7 +1319,10 @@
     }
 
     function createDialog() {
-        require(['emby-select', 'emby-checkbox', 'emby-slider', 'emby-textarea', 'emby-collapse', ]);
+        require([
+            'emby-select', 'emby-checkbox', 'emby-slider', 'emby-textarea', 'emby-collapse'
+            , 'emby-button', 
+        ]);
         const html = `<div id="${eleIds.dialogContainer}"></div>`;
         embyDialog({ html, buttons: [{ name: '关闭' }] });
         waitForElement('#' + eleIds.dialogContainer, afterEmbyDialogCreated);
@@ -1606,7 +1609,7 @@
     }
 
     function buildExtUrlsDiv() {
-        const episodeId = window.ede.episode_info.episodeId;
+        const episodeId = window.ede.episode_info?.episodeId;
         const comments = window.ede.danmuCache[episodeId] ?? [];
         const curExtCommentCache = window.ede.extCommentCache[episodeId];
         const allComments = comments.concat(...Object.values(curExtCommentCache ?? {}));
@@ -2042,7 +2045,7 @@
                         <div id="${eleIds.debugButton}"></div>
                     </div>
                 </div>
-                <div is="emby-collapse" title="开放源代码许可" data-expanded="true">
+                <div is="emby-collapse" title="开放源代码许可" data-expanded="true" style="margin-top: 0.6em;">
                     <div id="${eleIds.openSourceLicenseDiv}" class="${classes.collapseContentNav}" style="display: flex; flex-direction: column;"></div>
                 </div>
             </div>
@@ -2614,7 +2617,9 @@
      * 'iconKey' will innerHTML <i>iconKey</i>|function will not setAttribute
      */
     function embyButton(props, onClick) {
-        const button = document.createElement('button', { is: 'emby-button' });
+        const button = document.createElement('button');
+        // !!! important: this is must setAttribute('is', 'emby-xxx'), unknown reason
+        button.setAttribute('is', 'emby-button');
         button.setAttribute('type', 'button');
         Object.entries(props).forEach(([key, value]) => {
             if (key !== 'iconKey' &&  typeof value !== 'function') { button.setAttribute(key, value); }
@@ -2632,7 +2637,37 @@
         return button;
     }
 
+    function embyALink(href, text) {
+        const aEle = document.createElement('a');
+        // !!! important: this is must setAttribute('is', 'emby-xxx'), unknown reason
+        aEle.setAttribute('is', 'emby-linkbutton');
+        aEle.href = href;
+        aEle.textContent = text ?? href;
+        aEle.target = '_blank';
+        aEle.className = 'button-link button-link-color-inherit button-link-fontweight-inherit emby-button';
+        if (OS.isMobile()) {
+            aEle.addEventListener('click', (event) => {
+                event.preventDefault();
+                navigator.clipboard.writeText(href).then(() => {
+                    console.log('Link copied to clipboard:', href);
+                    const label = document.createElement('label');
+                    label.textContent = '已复制';
+                    label.style.color = 'green';
+                    label.style.paddingLeft = '0.5em';
+                    aEle.append(label);
+                    setTimeout(() => {
+                        aEle.removeChild(label);
+                    }, 3000);
+                }, (err) => {
+                    console.error('Failed to copy link:', err);
+                });
+            });
+        }
+        return aEle;
+    }
+
     function embyTabs(options, selectedValue, optionValueKey, optionTitleKey, onChange) {
+        // !!! important: this is must { is: 'emby-xxx' }, unknown reason
         const tabs = document.createElement('div', { is: 'emby-tabs' });
         tabs.setAttribute('data-index', '0');
         tabs.className = classes.embyTabsDiv1;
@@ -2664,7 +2699,11 @@
         if (!Number.isInteger(selectedIndexOrValue)) {
             selectedIndexOrValue = options.indexOf(selectedIndexOrValue);
         }
+        // !!! important: this is must { is: 'emby-select' }, but no highlight
+        // setAttribute('is', 'emby-select'), have highlight, but not fullscreen
+        // unknown reason
         const selectElement = document.createElement('select', { is: 'emby-select'});
+        // selectElement.setAttribute('is', 'emby-select');
         Object.entries(props).forEach(([key, value]) => {
             if (typeof value !== 'function') { selectElement.setAttribute(key, value); }
         });
@@ -2684,9 +2723,14 @@
                 onChange(e.target.value, e.target.selectedIndex, options[e.target.selectedIndex]);
             });
         }
-        return selectElement;
+        // return selectElement;
+        // !!! important, only emby-select must have selectLabel class wrapper
+        const selectLabel = document.createElement('label');
+        selectLabel.classList.add('selectLabel');
+        selectLabel.appendChild(selectElement);
+        return selectLabel;
     }
-    
+
     function embyCheckboxList(id, checkBoxName, selectedStrArray, options, onChange, isVertical = false) {
         const checkboxContainer = document.createElement('div');
         checkboxContainer.setAttribute('class', classes.embyCheckboxList);
@@ -2703,8 +2747,8 @@
         const checkboxLabel = document.createElement('label');
         checkboxLabel.classList.add('emby-checkbox-label');
         checkboxLabel.setAttribute('style', 'width: auto;');
+        // !!! important: this is must { is: 'emby-xxx' }, unknown reason
         const checkbox = document.createElement('input', { is: 'emby-checkbox' });
-        checkbox.setAttribute('is', 'emby-checkbox');
         checkbox.setAttribute('type', 'checkbox');
         checkbox.setAttribute('id', id);
         checkbox.setAttribute('name', name);
@@ -2756,6 +2800,7 @@
             'data-bubble': false, 'data-hoverthumb': true , style: '',
         };
         options = { ...defaultOpts, ...options };
+        // !!! important: this is must { is: 'emby-xxx' }, unknown reason
         const slider = document.createElement('input', { is: 'emby-slider' });
         slider.setAttribute('type', 'range');
         if (props.id) { slider.setAttribute('id', props.id); }
@@ -2796,33 +2841,6 @@
 
     function closeEmbyDialog() {
         getByClass(classes.formDialogFooterItem).dispatchEvent(new Event('click'));
-    }
-
-    function embyALink(href, text) {
-        const aEle = document.createElement('a');
-        aEle.href = href;
-        aEle.textContent = text ?? href;
-        aEle.target = '_blank';
-        aEle.className = 'button-link button-link-color-inherit button-link-fontweight-inherit emby-button';
-        if (OS.isMobile()) {
-            aEle.addEventListener('click', (event) => {
-                event.preventDefault();
-                navigator.clipboard.writeText(href).then(() => {
-                    console.log('Link copied to clipboard:', href);
-                    const label = document.createElement('label');
-                    label.textContent = '已复制';
-                    label.style.color = 'green';
-                    label.style.paddingLeft = '0.5em';
-                    aEle.append(label);
-                    setTimeout(() => {
-                        aEle.removeChild(label);
-                    }, 3000);
-                }, (err) => {
-                    console.error('Failed to copy link:', err);
-                });
-            });
-        }
-        return aEle;
     }
 
     function embyImg(src, style, id, draggable = false) {
