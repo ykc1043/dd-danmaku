@@ -20,6 +20,7 @@
     // let corsProxy = 'https://api.9-ch.com/cors/';
     let corsProxy = 'https://ddplay-api.7o7o.cc/cors/';
     // ------ 用户配置 end ------
+    // note01: 部分 AndroidTV 仅支持最高 ES9 (支持 webview 内核版本 60 以上)
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
         self: { version: '1.41', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
@@ -154,7 +155,12 @@
         system: '[系统通知] : ',
     };
     const hasToastPrefixes = (comment, prefixes) => Object.values(prefixes).some(prefix => comment.text.startsWith(prefix));
-    const getDanmakuComments = (ede) => ede.danmaku?.comments.filter(c => !hasToastPrefixes(c, toastPrefixes)) ?? [];
+    const getDanmakuComments = (ede) => {
+        if (ede.danmaku.comments) {
+          return ede.danmaku.comments.filter(c => !hasToastPrefixes(c, toastPrefixes));
+        }
+        return [];
+      };
     const danmuListOpts = [
         { id: '0', name: '不展示' , onChange: () => [] },
         { id: '1', name: '屏中', onChange: (ede) => ede.danmaku._.runningList },
@@ -599,7 +605,7 @@
     }
 
     async function getEmbyItemInfo() {
-        return window.require(['playbackManager']).then((items) => items?.[0].currentItem());
+        return require(['playbackManager']).then((items) => items[0].currentItem());
     }
 
     async function fatchEmbyItemInfo(id) {
@@ -663,7 +669,7 @@
         const bangumiPostPercent = lsGetItem(lsKeys.bangumiPostPercent.id);
         const bangumiToken = lsGetItem(lsKeys.bangumiToken.id);
         if (lsGetItem(lsKeys.bangumiEnable.id) && bangumiToken
-            && pct >= bangumiPostPercent && !!window.ede.episode_info?.episodeId
+            && pct >= bangumiPostPercent && window.ede.episode_info.episodeId
         ) {
             console.log(`大于需提交的设定百分比: ${bangumiPostPercent}%`);
             const { animeTitle, episodeTitle } = window.ede.episode_info;
@@ -685,9 +691,9 @@
         if (bangumiInfoLs) {
             bangumiInfoLs = JSON.parse(bangumiInfoLs);
         }
-        let bangumiEpsRes = bangumiInfoLs?.bangumiEpsRes;
-        let subjectId = bangumiInfoLs?.subjectId;
-        let bangumiUrl = bangumiInfoLs?.bangumiUrl;
+        let bangumiEpsRes = bangumiInfoLs ? bangumiInfoLs.bangumiEpsRes : null;
+        let subjectId = bangumiInfoLs ? bangumiInfoLs.subjectId : null;
+        let bangumiUrl = bangumiInfoLs ? bangumiInfoLs.bangumiUrl : null;
         const animeId = episode_info.animeId;
         if (!subjectId) {
             if (!animeId) { throw new Error('未获取到 animeId'); }
@@ -695,8 +701,8 @@
             if (!bangumiUrl) { throw new Error('未请求到 bangumiUrl'); }
             subjectId = parseInt(bangumiUrl.match(/\/(\d+)$/)[1]);
         }
-        const episodeIndex = episode_info?.episodeIndex;
-        const bgmEpisodeIndex = episode_info?.bgmEpisodeIndex;
+        const episodeIndex = episode_info ? episode_info.episodeIndex : null;
+        const bgmEpisodeIndex = episode_info ? episode_info.bgmEpisodeIndex : null;
         const bangumiInfo = { animeId, bangumiUrl, subjectId, episodeIndex, bgmEpisodeIndex, bangumiEpsRes, _bangumi_key };
         window.ede.bangumiInfo = bangumiInfo;
         localStorage.setItem(bangumiInfo._bangumi_key, JSON.stringify(bangumiInfo));
@@ -706,7 +712,7 @@
     async function putBangumiEpStatus(token) {
         const bangumiInfo = await getEpisodeBangumiRel();
         const { subjectId, bgmEpisodeIndex, } = bangumiInfo;
-        const episodeIndex = bgmEpisodeIndex ?? bangumiInfo.episodeIndex;
+        const episodeIndex = bgmEpisodeIndex ? bgmEpisodeIndex : bangumiInfo.episodeIndex;
         console.log('准备修改 Bangumi 条目收藏状态为在看, 如果不存在则创建, 如果存在则修改');
         let body = { type: 3 }; // 在看状态
         await fetchJson(bangumiApi.postUserCollection(subjectId), { token, body });
@@ -845,7 +851,9 @@
         let animaInfo = await fetchSearchEpisodes(animeName);
         if (animaInfo.animes.length > 0) {
             console.log(`移除章节过滤,自动匹配成功,转换为目标章节索引 0`);
-            const episodeInfo = animaInfo.animes[0].episodes[episodeIndex - 1 ?? 0];
+            if (isNaN(episodeIndex)) { episodeIndex = 0; }
+            // const episodeInfo = animaInfo.animes[0].episodes[episodeIndex - 1 ?? 0];
+            const episodeInfo = animaInfo.animes[0].episodes[episodeIndex];
             if (!episodeInfo) {
                 return null;
             }
@@ -921,7 +929,7 @@
             episodeId: animaInfo.animes[selectAnime_id].episodes[0].episodeId,
             episodeTitle: animaInfo.animes[selectAnime_id].episodes[0].episodeTitle,
             episodeIndex,
-            bgmEpisodeIndex: res.bgmEpisodeIndex ?? episodeIndex,
+            bgmEpisodeIndex: res.bgmEpisodeIndex ? res.bgmEpisodeIndex : episodeIndex,
             animeId: animaInfo.animes[selectAnime_id].animeId,
             animeTitle: animaInfo.animes[selectAnime_id].animeTitle,
             animeOriginalTitle,
@@ -1000,8 +1008,11 @@
     }
 
     function buildProgressBarChart(chartHeightNum) {
-        getById(eleIds.progressBarLineChart)?.remove();
-        const comments = window.ede?.danmaku?.comments;
+        const chartEle = getById(eleIds.progressBarLineChart);
+        if (chartEle) {
+            chartEle.remove();
+        }
+        const comments = window.ede.danmaku ? window.ede.danmaku.comments : [];
         const container = getByClass(classes.videoOsdPositionSliderContainer);
         if (!comments || !container || (comments && comments.length === 0)) {
             return;
@@ -1081,7 +1092,7 @@
                 (episodeId) => {
                     if (episodeId) {
                         const commentsCache = window.ede.danmuCache[episodeId];
-                        const extCommentCache = window.ede.extCommentCache[episodeId] ?? {};
+                        const extCommentCache = window.ede.extCommentCache[episodeId] || {};
                         const extCommentsLength = Object.keys(extCommentCache).length;
                         if (loadType === LOAD_TYPE.RELOAD && (commentsCache || extCommentsLength > 0)) {
                             let allComments = commentsCache;
@@ -1220,7 +1231,7 @@
     function danmakuKeywordsFilter(comments) {
         if (!lsGetItem(lsKeys.filterKeywordsEnable.id)) { return comments; }
         const keywords = lsGetItem(lsKeys.filterKeywords.id)
-            ?.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0 && !k.startsWith('// '));
+            .split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0 && !k.startsWith('// '));
         if (keywords.length === 0) { return comments; }
         const cKeys = [ 'text', ...Object.keys(showSource) ];
         return comments.filter(comment =>
@@ -1271,24 +1282,18 @@
                 const baseColor = Number(values[2]).toString(16).padStart(6, '0');
                 const color = `${baseColor}${fontOpacity}`; // 生成8位十六进制颜色
                 const shadowColor = baseColor === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`;
+                const sourceUidMatches = values[3].match(sourceUidReg);
+                const sourceId = sourceUidMatches && sourceUidMatches[1] ? sourceUidMatches[1] : danmakuSource.DanDanPlay.id;
+                const originalUserId = sourceUidMatches && sourceUidMatches[2] ? sourceUidMatches[2] : values[3];
                 const cmt = {
                     text: $comment.m,
                     mode,
                     time: values[0] * 1 + timelineOffset,
                     style: getCommentStyle(color, shadowColor, fontStyle, fontWeight, fontSize, fontFamily),
-                    // style: {
-                    //     color: `#${color}`, // dom
-                    //     textShadow: `-1px -1px ${shadowColor}, -1px 1px ${shadowColor}, 1px -1px ${shadowColor}, 1px 1px ${shadowColor}`,
-
-                    //     font: `${fontStyle} ${fontWeight} ${fontSize}px sans-serif`,
-                    //     fillStyle: `#${color}`, // canvas
-                    //     strokeStyle: shadowColor,
-                    //     lineWidth: 2.0,
-                    // }, 
                     // 以下为自定义属性
                     [showSource.cid.id]: $comment.cid,
-                    [showSource.source.id]: values[3].match(sourceUidReg)?.[1] || danmakuSource.DanDanPlay.id,
-                    [showSource.originalUserId.id]: values[3].match(sourceUidReg)?.[2] || values[3],
+                    [showSource.source.id]: sourceId,
+                    [showSource.originalUserId.id]: originalUserId,
                 };
                 if (showSourceIds.length > 0) {
                     cmt.originalText = cmt.text;
@@ -1668,7 +1673,7 @@
         );
         changeFontStylePreview();
         const fontFamilyOpt = opts.find(opt => opt.family === lsGetItem(lsKeys.fontFamily.id));
-        const labelVal = fontFamilyOpt?.fullName || '';
+        const labelVal = fontFamilyOpt ? fontFamilyOpt.fullName : '';
         onSliderChangeLabel(labelVal, { labelId: eleIds.fontFamilyLabel });
     }
 
@@ -1711,7 +1716,8 @@
 
     function buildSearchEpisode(containerId) {
         const container = getById(containerId);
-        const comments = window.ede.danmuCache[window.ede.episode_info?.episodeId] ?? [];
+        const episodeId = window.ede.episode_info ? window.ede.episode_info.episodeId : null;
+        const comments = window.ede.danmuCache[episodeId] || [];
         let template = `
             <div>
                 <div>
@@ -1772,7 +1778,7 @@
         const currentMatchedDiv = getById(eleIds.currentMatchedDiv, container);
         currentMatchedDiv.append(
             embyButton({ label: '取消匹配/清空弹幕', iconKey: iconKeys.close }, (e) => {
-                if (window.ede.episode_info?.episodeId) {
+                if (window.ede.episode_info && window.ede.episode_info.episodeId) {
                     window.ede.episode_info.episodeId = null;
                 }
                 if (window.ede.danmaku) {
@@ -1789,10 +1795,10 @@
     }
 
     function buildExtUrlsDiv() {
-        const episodeId = window.ede.episode_info?.episodeId;
-        const comments = window.ede.danmuCache[episodeId] ?? [];
+        const episodeId = window.ede.episode_info ? window.ede.episode_info.episodeId : null;
+        const comments = window.ede.danmuCache[episodeId] || [];
         const curExtCommentCache = window.ede.extCommentCache[episodeId];
-        const allComments = comments.concat(...Object.values(curExtCommentCache ?? {}));
+        const allComments = comments.concat(...Object.values(curExtCommentCache || {}));
         const extUrlsDiv = getById(eleIds.extUrlsDiv);
         extUrlsDiv.innerHTML = '';
         curExtCommentCache && Object.entries(curExtCommentCache).forEach(([key, val]) => {
@@ -1811,7 +1817,7 @@
         const extUrl = getTargetInput(e).value.trim();
         if (!extUrl.startsWith('http')) { return embyToast({ text: '输入的 url 应以 http 开头!' }); }
         const episodeId = window.ede.episode_info.episodeId;
-        const comments = window.ede.danmuCache[episodeId] ?? [];
+        const comments = window.ede.danmuCache[episodeId] || [];
         const extcomments = await fetchExtcommentActual(extUrl, comments);
         if (extcomments.length === 0) {
             return embyToast({ text: '附加弹幕不能为空!' });
@@ -1888,13 +1894,13 @@
 
     function buildDanmuListDiv(container) {
         const { episodeId, } = window.ede.episode_info;
-        const danmuListExts = Object.values(window.ede.extCommentCache[episodeId] ?? {}).map((value, index) => {
+        const danmuListExts = Object.values(window.ede.extCommentCache[episodeId] || {}).map((value, index) => {
             return { id: `ext${index + 1}`, name: `附加${index + 1}`, onChange: () => danmakuParser(value) };
         });
         let danmuListTabOpts = danmuListOpts;
         if (danmuListExts.length > 0) {
             const dandanplayListOpt = { id: 'dandanplay', name: '弹弹 play'
-                , onChange: () => danmakuParser(window.ede.danmuCache[episodeId] ?? {}) };
+                , onChange: () => danmakuParser(window.ede.danmuCache[episodeId] || {}) };
             danmuListTabOpts = danmuListTabOpts.concat(dandanplayListOpt).concat(danmuListExts);
         }        
         getById(eleIds.danmuListDiv, container).append(
@@ -1923,13 +1929,16 @@
                 extInfoDiv.hidden = !xChecked;
                 const charactersDiv = getById(eleIds.charactersDiv);
                 if (charactersDiv.firstChild) { return; }
-                if (window.ede.bangumiInfo?.characters && window.ede.bangumiInfo.animeId === window.ede.episode_info.animeId) {
-                    return renderBangumiCharacters(charactersDiv, window.ede.bangumiInfo.characters);
+                const bangumiInfo = window.ede.bangumiInfo;
+                if (bangumiInfo && bangumiInfo.characters
+                    && bangumiInfo.animeId === window.ede.episode_info.animeId
+                ) {
+                    return renderBangumiCharacters(charactersDiv, bangumiInfo.characters);
                 }
                 getEpisodeBangumiRel().then(bangumiInfo => {
                     return fetchJson(bangumiApi.getCharacters(bangumiInfo.subjectId));
                 }).then(characters => {
-                    window.ede.bangumiInfo.characters = characters;
+                    bangumiInfo.characters = characters;
                     renderBangumiCharacters(charactersDiv, characters);
                 });
                 function renderBangumiCharacters(container, characters) {
@@ -2436,7 +2445,7 @@
             }
         ));
         getById(eleIds.tabIframeSrcInputDiv, container).append(embyInput(
-            { type: 'search', value: window.ede.bangumiInfo?.bangumiUrl ?? '' }
+            { type: 'search', value: window.ede.bangumiInfo ? window.ede.bangumiInfo.bangumiUrl : '' }
             , (e) => { getById(eleIds.tabIframe).src = e.target.value.trim(); }
         ));
     }
@@ -2445,7 +2454,8 @@
         if (!lsGetItem(lsKeys.osdTitleEnable.id)) {
             return;
         }
-        const { episodeId, animeTitle, episodeTitle } = window.ede?.episode_info || {};
+        const episode_info = window.ede.episode_info || {};
+        const { episodeId, animeTitle, episodeTitle } = episode_info;
         const videoOsdContainer = document.querySelector(`${mediaContainerQueryStr} .videoOsdSecondaryText`);
         let videoOsdDanmakuTitle = getById(eleIds.videoOsdDanmakuTitle, videoOsdContainer);
         if (!videoOsdDanmakuTitle) {
@@ -2497,7 +2507,9 @@
     function doDanmakuSwitch() {
         console.log('切换' + lsKeys.switch.name);
         const flag = !lsGetItem(lsKeys.switch.id);
-        flag ? window.ede.danmaku?.show() : window.ede.danmaku?.hide();
+        if (window.ede.danmaku) {
+            flag ? window.ede.danmaku.show() : window.ede.danmaku.hide();
+        }
         const osdDanmakuSwitchBtn = getById(eleIds.danmakuSwitchBtn);
         if (osdDanmakuSwitchBtn) {
             osdDanmakuSwitchBtn.firstChild.innerHTML = flag ? iconKeys.comment : iconKeys.comments_disabled;
@@ -2681,7 +2693,7 @@
 
     function onSliderChange(val, props, needReload = true, labelVal) {
         onSliderChangeLabel(labelVal ? labelVal : val, props);
-        if (props?.key && lsCheckSet(props.key, val)) {
+        if (props.key && lsCheckSet(props.key, val)) {
             console.log(`${props.key} changed to ${val}, needReload: ${needReload}`);
             if (needReload) {
                 changeFontStylePreview();
@@ -2691,7 +2703,7 @@
     }
 
     function onSliderChangeLabel(val, props) {
-        if (props?.labelId) { getById(props.labelId).innerText = val; }
+        if (props.labelId) { getById(props.labelId).innerText = val; }
     }
     
     function doDanmakuFilterKeywordsBtnClick(event) {
@@ -2825,7 +2837,7 @@
         // !!! important: this is must setAttribute('is', 'emby-xxx'), unknown reason
         aEle.setAttribute('is', 'emby-linkbutton');
         aEle.href = href;
-        aEle.textContent = text ?? href;
+        aEle.textContent = text || href;
         aEle.target = '_blank';
         aEle.className = 'button-link button-link-color-inherit button-link-fontweight-inherit emby-button';
         if (OS.isMobile()) {
@@ -2921,7 +2933,7 @@
         checkboxContainer.setAttribute('id', id);
         options.forEach(option => {
             checkboxContainer.append(embyCheckbox({ name: checkBoxName, label: option.name, value: option.id }
-                , selectedStrArray?.indexOf(option.id) > -1 , onChange));
+                , (selectedStrArray ? selectedStrArray.indexOf(option.id) > -1 : false) , onChange));
         });
         return checkboxContainer;
     }
@@ -3018,7 +3030,7 @@
     async function embyDialog(opts = {}) {
         const defaultOpts = { text: '', title: '', timeout: 0, html: '', buttons: [] };
         opts = { ...defaultOpts, ...opts };
-        return require(['dialog']).then(items => items[0]?.(opts))
+        return require(['dialog']).then(items => items[0](opts))
             .catch(error => { console.log('点击弹出框外部取消: ' + error) });
     }
 
@@ -3056,7 +3068,7 @@
     async function embyAlert(opts = {}) {
         const defaultOpts = { text: '', title: '', timeout: 0, html: ''};
         opts = { ...defaultOpts, ...opts };
-        return require(['alert']).then(items => items[0]?.(opts))
+        return require(['alert']).then(items => items[0](opts))
             .catch(error => { console.log('点击弹出框外部取消: ' + error) });
     }
 
@@ -3255,7 +3267,8 @@
                     const mediaTime = _media.currentTime;
                     _media.currentTime = realCurrentTime;
                     // playbackRate 同步依赖至少 100ms currentTime 变更
-                    _media.playbackRate = playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
+                    const embyPlaybackRate = playbackManager.getPlayerState().PlayState.PlaybackRate;
+                    _media.playbackRate = embyPlaybackRate ? embyPlaybackRate : 1;
                     // 当前时间与上次记录时间差值大于2秒,则判定为用户操作进度,seeking 事件必须在 currentTime 更改后触发,否则回退后弹幕将消失
                     if (Math.abs(mediaTime - realCurrentTime) > 2) {
                         _media.dispatchEvent(new Event('seeking'));
@@ -3293,10 +3306,15 @@
 
     function beforeDestroy() {
         // 此段销毁不重要,可有可无,仅是规范使用,清除弹幕,但未销毁 danmaku 实例
-        window.ede.danmaku?.clear();
+        if (window.ede.danmaku) {
+            window.ede.danmaku.clear();
+        }
         // 销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
-        getById(eleIds.danmakuCtr)?.remove();
-        // getById(eleIds.h5VideoAdapter)?.remove();
+        const danmakuCtr = getById(eleIds.danmakuCtr);
+        if (danmakuCtr) {
+            danmakuCtr.remove();
+        }
+        // getById(eleIds.h5VideoAdapter).remove();
         // 销毁平滑补充 timeupdate 定时器
         videoTimeUpdateInterval(null, false);
         // 销毁可能残留的定时器
