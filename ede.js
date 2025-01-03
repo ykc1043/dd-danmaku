@@ -373,6 +373,8 @@
         formDialogFooter: 'formDialogFooter',
         formDialogFooterItem: 'formDialogFooterItem',
         videoOsdTitle: 'videoOsdTitle', // 播放页媒体次级标题
+        videoOsdBottomButtons: 'videoOsdBottom-buttons', // 新老客户端播放页通用的底部按钮,但在 TV 下是 hide
+        videoOsdBottomButtonsTopRight: 'videoOsdBottom-buttons-topright', // 新客户端播放页右上方的按钮
         videoOsdBottomButtonsRight: 'videoOsdBottom-buttons-right', // 老客户端上的右侧按钮
         videoOsdPositionSliderContainer: 'videoOsdPositionSliderContainer',
         cardImageIcon: 'cardImageIcon',
@@ -583,19 +585,27 @@
         }
     
         // 弹幕按钮父容器 div,延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
-        const mediaQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`;
-        waitForElement(mediaQueryStr, (parent) => {
+        const ctrlWrapperQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols`;
+        waitForElement(ctrlWrapperQueryStr, (wrapper) => {
+            const commonWrapper = getByClass(classes.videoOsdBottomButtons += notHide, wrapper);
+            if (commonWrapper) {
+                wrapper = commonWrapper;
+            } else {
+                // Emby 客户端启动时会检测鼠标设备,无鼠标时, commonWrapper 将会 hide
+                // 手动模拟无鼠标步骤为浏览器页签打开后不要动鼠标,仅使用键盘操作
+                wrapper = getByClass(classes.videoOsdBottomButtonsTopRight, wrapper);
+            }
             // 在老客户端上存在右侧按钮,在右侧按钮前添加
-            const rightButtons = getByClass(classes.videoOsdBottomButtonsRight, parent);
+            const rightButtons = getByClass(classes.videoOsdBottomButtonsRight, wrapper);
             const menubar = document.createElement('div');
             menubar.id = eleIds.danmakuCtr;
             if (!window.ede.episode_info) {
                 menubar.style.opacity = 0.5;
             }
             if (rightButtons) {
-                parent.insertBefore(menubar, rightButtons);
+                wrapper.insertBefore(menubar, rightButtons);
             } else {
-                parent.append(menubar);
+                wrapper.append(menubar);
             }
             mediaBtnOpts.forEach(opt => {
                 menubar.appendChild(embyButton(opt, opt.onClick));
@@ -2220,7 +2230,7 @@
                 <div id="${eleIds.consoleLogCtrl}"></div>
                 <div id="${eleIds.consoleLogInfo}">
                     <textarea id="${eleIds.consoleLogText}" readOnly style="resize: vertical;margin-top: 0.6em;"
-                        rows="14" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
+                        rows="12" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                     <textarea id="${eleIds.consoleLogTextInput}" hidden style="resize: vertical;"
                         rows="1" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                 </div>
@@ -2374,6 +2384,11 @@
 
     function buildDebugButton(container) {
         const debugWrapper = getById(eleIds.debugButton, container);
+        debugWrapper.append(embyButton({ label: '打印环境信息' }, () => {
+            require(['browser'], (browser) => {
+                console.log('Emby 内部自身判断: ', browser);
+            });
+        }));
         debugWrapper.append(embyButton({ label: '打印弹幕引擎信息' }, () => {
             const msg = `弹幕引擎是否存在: ${!!window.Danmaku}, 弹幕引擎是否实例化成功: ${!!window.ede.danmaku}`;
             console.log(msg);

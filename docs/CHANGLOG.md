@@ -8,6 +8,7 @@ fix: 按 cid 简易去重附加弹幕
 fix: 尽量适配 TV 布局的控件焦点高亮
 feat: 提供弹幕字体设置
 fix: 降低为 ES9 等级以适配部分 AndroidTV
+fix: 修复 AndroidTV 上弹幕按钮位置错误
 
 #### 1.40
 
