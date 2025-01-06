@@ -384,7 +384,8 @@
         collapseContentNav: 'collapseContent navDrawerCollapseContent',
         embyLabel: 'inputLabel',
         embyInput: 'emby-input emby-input-smaller',
-        embySelectWrapper: 'emby-select-wrapper emby-select-wrapper-smaller',
+        embySelectWrapper: 'emby-select-wrapper',
+        embySelectTv: 'emby-select-tv', // highlight on tv layout
         embyCheckboxList: 'featureList', // 'checkboxList'
         embyFieldDesc: 'fieldDescription',
         embyTabsMenu: 'headerMiddle headerSection sectionTabs headerMiddle-withSectionTabs',
@@ -2909,11 +2910,13 @@
         if (!Number.isInteger(selectedIndexOrValue)) {
             selectedIndexOrValue = options.indexOf(selectedIndexOrValue);
         }
-        // !!! important: this is must { is: 'emby-select' }, but no highlight
-        // setAttribute('is', 'emby-select'), have highlight, but not fullscreen
-        // unknown reason
+        // !!! important: this is must { is: 'emby-select' }
         const selectElement = document.createElement('select', { is: 'emby-select'});
-        // selectElement.setAttribute('is', 'emby-select');
+        require(['browser'], (browser) => {
+            if (browser.tv) {
+                selectElement.classList.add(classes.embySelectTv);
+            }
+        });
         Object.entries(props).forEach(([key, value]) => {
             if (typeof value !== 'function') { selectElement.setAttribute(key, value); }
         });
@@ -3026,12 +3029,16 @@
             slider.setValue(options.value);
             slider.dispatchEvent(new Event('input'));
         }
-        // 以下兼容旧版本emby,控制器操作锁定滑块焦点
-        slider.addEventListener('keydown', e => {
-            const orient = slider.getAttribute('orient') || 'horizontal';
-            if ((orient === 'horizontal' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
-                (orient === 'vertical' && (e.key === 'ArrowUp' || e.key === 'ArrowDown'))) {
-                e.stopPropagation();
+        require(['browser'], (browser) => {
+            if (browser.electron && browser.windows) { // Emby Theater
+                // 以下兼容旧版本emby,控制器操作锁定滑块焦点
+                slider.addEventListener('keydown', e => {
+                    const orient = slider.getAttribute('orient') || 'horizontal';
+                    if ((orient === 'horizontal' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
+                        (orient === 'vertical' && (e.key === 'ArrowUp' || e.key === 'ArrowDown'))) {
+                        e.stopPropagation();
+                    }
+                });
             }
         });
         return slider;
