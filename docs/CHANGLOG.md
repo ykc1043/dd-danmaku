@@ -1,5 +1,7 @@
+#### 1.43 待发布
 
-#### 1.42 待发布
+#### 1.42
+fix: 对接弹弹 paly OpenAPI 认证
 feat: 新增过滤 emoji 设置项
 feat: 新增窗口化弹窗和弹窗靠右布局设置项
 fix: 优化 AndroidTV 下的一些样式

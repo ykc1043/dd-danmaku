@@ -1,3 +1,7 @@
+// from workers settings
+const appId = APP_ID;
+const appSecret = APP_SECRET;
+
 const hostlist = { 'api.dandanplay.net': null };
 
 async function handleRequest(request) {
@@ -19,18 +23,50 @@ async function handleRequest(request) {
     } else if (0 !== url.indexOf('http://') && 0 === url.indexOf('http:')) {
         url = url.replace('http:/', 'http://');
     }
-    let tUrlObj = new URL(url);
+    const tUrlObj = new URL(url);
     if (!(tUrlObj.hostname in hostlist)) {
         return Forbidden(tUrlObj);
     }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const apiPath = tUrlObj.pathname;
+    const signature = await generateSignature(appId, timestamp, apiPath, appSecret);
+    console.log('X-AppId: ' + appId);
+    console.log('X-Signature: ' + signature);
+    console.log('X-Timestamp: ' + timestamp);
+    console.log('ApiPath: ' + apiPath);
+    
     let response = await fetch(url, {
-        headers: request.headers,
+        headers: {
+            ...request.headers,
+            "X-AppId": appId,
+            "X-Signature": signature,
+            "X-Timestamp": timestamp,
+            "X-Auth": "1",
+        },
         body: request.body,
         method: request.method,
     });
     response = new Response(await response.body, response);
     response.headers.set('Access-Control-Allow-Origin', '*');
     return response;
+}
+
+/**
+ * 
+ * @param {String} appId 
+ * @param {Number} timestamp 使用当前的 UTC 时间生成 Unix 时间戳，单位为秒
+ * @param {String} path 此处的 API 路径是指 API 地址后的路径部分，以/开头，不包括前面的协议、域名和?后面的查询参数
+ * @param {String} appSecret 
+ * @returns signature String
+ */
+async function generateSignature(appId, timestamp, path, appSecret) {
+    const data = appId + timestamp + path + appSecret;
+    const dataUint8 = new TextEncoder().encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashBase64 = btoa(hashArray.map(byte => String.fromCharCode(byte)).join(''));
+    return hashBase64;
 }
 
 function Forbidden(url) {
