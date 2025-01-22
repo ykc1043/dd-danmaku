@@ -23,7 +23,7 @@
     // note01: 部分 AndroidTV 仅支持最高 ES9 (支持 webview 内核版本 60 以上)
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.41', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.42', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.51', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
