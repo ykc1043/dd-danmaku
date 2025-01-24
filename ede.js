@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.42
+// @version      1.43
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -17,15 +17,14 @@
     // ------ 用户配置 start ------
     let requireDanmakuPath = 'https://danmaku.7o7o.cc/danmaku.min.js';
     // 跨域代理 cf_worker
-    // let corsProxy = 'https://api.9-ch.com/cors/';
     let corsProxy = 'https://ddplay-api.7o7o.cc/cors/';
     // ------ 用户配置 end ------
     // note01: 部分 AndroidTV 仅支持最高 ES9 (支持 webview 内核版本 60 以上)
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.42', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.43', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
-        jellyfinFork: { version: '1.51', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
+        jellyfinFork: { version: '1.52', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
         danmakuFork: { version: 'v1.2.1', name: 'Danmaku(Based on 2.0.6)', license: 'MIT License', url: 'https://github.com/lanytcc/Danmaku' },
         dandanplayApi: { version: 'v2', name: '弹弹 play API', license: 'MIT License', url: 'https://github.com/kaedei/dandanplay-libraryindex' },
@@ -217,6 +216,7 @@
         osdTitleEnable: { id: 'danmakuOsdTitleEnable', defaultValue: false, name: '播放界面右下角显示弹幕信息' },
         osdLineChartEnable: { id: 'danmakuOsdLineChartEnable', defaultValue: false, name: '进度条上显示弹幕每秒内数量折线图' },
         // removeEmojiEnable: { id: 'danmakuRemoveEmojiEnable', defaultValue: false, name: '移除弹幕中的emoji' },
+        useFetchPluginXml: { id: 'danmakuUseFetchPluginXml', defaultValue: false, name: '加载媒体服务端xml弹幕' },
         debugShowDanmakuWrapper: { id: 'danmakuDebugShowDanmakuWrapper', defaultValue: false, name: '弹幕容器边界' },
         debugShowDanmakuCtrWrapper: { id: 'danmakuDebugShowDanmakuCtrWrapper', defaultValue: false, name: '按钮容器边界' },
         debugReverseDanmu: { id: 'danmakuDebugReverseDanmu', defaultValue: false, name: '反转弹幕方向' },
@@ -971,6 +971,47 @@
         return episodeInfo;
     }
 
+    // copy from https://github.com/Izumiko/jellyfin-danmaku/blob/74598c7bcb388f1288d6f7c7b03103e31af248ef/ede.js#L1069
+    // thanks for Izumiko
+    async function getCommentsByPluginApi(mediaServerItemId) {
+        // const path = window.location.pathname.replace(/\/web\/(index\.html)?/, '/api/danmu/');
+        // const url = window.location.origin + path + jellyfinItemId + '/raw';
+        const url = `/api/danmu/${mediaServerItemId}/raw?X-Emby-Token=${ApiClient.accessToken()}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            return null;
+        }
+        const xmlText = await response.text();
+        if (!xmlText || xmlText.length === 0) {
+            return null;
+        }
+
+        // parse the xml data
+        // xml data: <d p="392.00000,1,25,16777215,0,0,[BiliBili]e6860b30,1723088443,1">弹幕内容</d>
+        //           <d p="stime, type, fontSize, color, date, pool, sender, dbid, unknown">content</d>
+        // comment data: {cid: "1723088443", p: "392.00,1,16777215,[BiliBili]e6860b30", m: "弹幕内容"}
+        //               {cid: "dbid", p: "stime, type, color, sender", m: "content"}
+        try {
+            const parser = new DOMParser();
+            const data = parser.parseFromString(xmlText, 'text/xml');
+            const comments = [];
+
+            for (const comment of data.getElementsByTagName('d')) {
+                const p = comment.getAttribute('p').split(',').map(Number);
+                const commentData = {
+                    cid: p[7],
+                    p: p[0] + ',' + p[1] + ',' + p[3] + ',' + p[6],
+                    m: comment.textContent
+                };
+                comments.push(commentData);
+            }
+
+            return comments;
+        } catch (error) {
+            return null;
+        }
+    }
+
     async function createDanmaku(comments) {
         if (!comments) { return; }
         if (window.ede.danmaku != null) {
@@ -1103,6 +1144,34 @@
             return;
         }
         window.ede.loading = true;
+        if (lsGetItem(lsKeys.useFetchPluginXml.id)) {
+            getMapByEmbyItemInfo().then((itemInfoMap) => {
+                getCommentsByPluginApi(window.ede.itemId)
+                .then((comments) => {
+                    if (comments && comments.length > 0) {
+                        return createDanmaku(comments).then(() => {
+                            console.log(lsKeys.useFetchPluginXml.name + '就位');
+                        }).then(() => {
+                            window.ede.loading = false;
+                            const danmakuCtrEle = getById(eleIds.danmakuCtr);
+                            if (danmakuCtrEle && danmakuCtrEle.style.opacity !== '1') {
+                                danmakuCtrEle.style.opacity = '1';
+                            }
+                        });
+                    }
+                    throw new Error(lsKeys.useFetchPluginXml.name + '失败,尝试在线加载');
+                })
+                .catch((error) => {
+                    console.error(error);
+                    return loadOnlineDanmaku(loadType);
+                });
+            });
+        } else {
+            loadOnlineDanmaku(loadType);
+        }
+    }
+
+    function loadOnlineDanmaku(loadType) {
         getEpisodeInfo(loadType !== LOAD_TYPE.SEARCH)
             .then((info) => {
                 return new Promise((resolve, reject) => {
@@ -2162,6 +2231,11 @@
         //         lsSetItem(lsKeys.removeEmojiEnable.id, checked);
         //     }
         // ));
+        getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
+            { label: lsKeys.useFetchPluginXml.name }, lsGetItem(lsKeys.useFetchPluginXml.id), (checked) => {
+                lsSetItem(lsKeys.useFetchPluginXml.id, checked);
+            }
+        ));
         getById(eleIds.danmakuChConverDiv, container).append(
             embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange)
         );
