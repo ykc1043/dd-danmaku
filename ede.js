@@ -157,20 +157,20 @@
     };
     const hasToastPrefixes = (comment, prefixes) => Object.values(prefixes).some(prefix => comment.text.startsWith(prefix));
     const getDanmakuComments = (ede) => {
-        if (ede.danmaku.comments) {
+        if (ede.danmaku && ede.danmaku.comments) {
           return ede.danmaku.comments.filter(c => !hasToastPrefixes(c, toastPrefixes));
         }
         return [];
       };
     const danmuListOpts = [
         { id: '0', name: '不展示' , onChange: () => [] },
-        { id: '1', name: '屏中', onChange: (ede) => ede.danmaku._.runningList },
+        { id: '1', name: '屏中', onChange: (ede) => ede.danmaku ? ede.danmaku._.runningList : [] },
         { id: '2', name: '所有', onChange: (ede) => ede.commentsParsed },
         { id: '3', name: '已加载', onChange: getDanmakuComments },
         { id: '4', name: '被过滤', onChange: (ede) => { // 取差集慢,减轻负担,默认不启用
             return ede.commentsParsed.filter(s => !getDanmakuComments(ede).some(t => s.cuid === t.cuid))
         } },
-        { id: '5', name: '通知', onChange: (ede) => ede.danmaku.comments.filter(c => hasToastPrefixes(c, toastPrefixes)) },
+        { id: '5', name: '通知', onChange: (ede) => ede.danmaku ? ede.danmaku.comments.filter(c => hasToastPrefixes(c, toastPrefixes)) : [] },
     ];
     const timeoutCallbackUnitOpts = [
         { id: '0', name: '秒', msRate: 1000 },
@@ -408,7 +408,7 @@
     };
     const styles = {
         embyCheckboxList: 'display: flex;flex-wrap: wrap;',
-        // 容器内元素垂直排列,水平居中 
+        // 容器内元素垂直排列,水平居中
         embySliderList: 'display: flex;flex-direction: column;justify-content: center;align-items: center;',
         // 容器内元素横向并排,垂直居中
         embySlider: 'display: flex; align-items: center; margin-bottom: 0.3em;',
@@ -489,7 +489,7 @@
             this.searchDanmakuOpts = {}; // 手动搜索变量
             this.appLogAspect = null; // 应用日志切面
             this.bangumiInfo = {};
-            this.debugUsedItemId = '';
+            this.itemId = '';
         }
     }
 
@@ -552,7 +552,7 @@
                 .join(' ') + '\n';
         }
         on(valueChangedCallback) {
-            if (valueChangedCallback.toString().includes('console.log') 
+            if (valueChangedCallback.toString().includes('console.log')
                 || valueChangedCallback.toString().includes('console.error')) {
                 throw new Error('The callback function must not contain console.log or console.error to avoid infinite loops.');
             }
@@ -600,7 +600,7 @@
         if (!mediaContainerQueryStr.includes(notHide)) {
             mediaContainerQueryStr += notHide;
         }
-    
+
         // 弹幕按钮父容器 div,延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
         const ctrlWrapperQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols`;
         waitForElement(ctrlWrapperQueryStr, (wrapper) => {
@@ -674,15 +674,15 @@
             extComments = (await fetchJson(dandanplayApi.getExtcomment(extUrl))).comments;
         }
         extComments.map(c => c.fromUrl = extUrl);
-        const episodeId = window.ede.episode_info.episodeId; 
-        if (!window.ede.extCommentCache[episodeId]) {
-            window.ede.extCommentCache = { [episodeId]: {} };
+        const itemId = window.ede.itemId;
+        if (!window.ede.extCommentCache[itemId]) {
+            window.ede.extCommentCache = { [itemId]: {} };
         }
         if (comments) {
             console.log(`取差集并覆盖: ${extUrl}`);
             extComments = extComments.filter(extC => !comments.some(c => c.cid === extC.cid));
         }
-        window.ede.extCommentCache[episodeId][extUrl] = extComments;
+        window.ede.extCommentCache[itemId][extUrl] = extComments;
         return extComments;
     }
 
@@ -814,9 +814,10 @@
         let item = await getEmbyItemInfo();
         if (!item) {
             // this only working on quickDebug
-            item = await fatchEmbyItemInfo(window.ede.debugUsedItemId);
+            item = await fatchEmbyItemInfo(window.ede.itemId);
         }
         if (!item) { return null; } // getEmbyItemInfo from playbackManager null, will next called
+        window.ede.itemId = item.Id;
         let _id;
         let animeName;
         let animeId = -1;
@@ -855,8 +856,8 @@
     // 通过缓存中的剧集名称与偏移量进行匹配
     async function lsSeasonSearchEpisodes(_season_key, episode) {
         const seasonInfoListStr = window.localStorage.getItem(_season_key);
-        if (!seasonInfoListStr) { 
-            return null; 
+        if (!seasonInfoListStr) {
+            return null;
         }
         const seasonInfoList = JSON.parse(seasonInfoListStr);
         let minPositiveDiff = Infinity;
@@ -945,7 +946,7 @@
             // toastByDanmaku('弹弹 Play 章节匹配失败', 'error');
             return null;
         }
-        
+
         const { animeOriginalTitle, animaInfo } = res;
         let selectAnime_id = 1;
         if (animeId != -1) {
@@ -980,7 +981,7 @@
         window.ede.commentsParsed = commentsParsed;
         let _comments = danmakuFilter(commentsParsed);
         console.log('弹幕加载成功: ' + _comments.length);
-        
+
         const _container = document.querySelector(mediaContainerQueryStr);
         const _media = document.querySelector(mediaQueryStr);
         if (!_media) {
@@ -1131,16 +1132,8 @@
             .then(
                 (episodeId) => {
                     if (episodeId) {
-                        const commentsCache = window.ede.danmuCache[episodeId];
-                        const extCommentCache = window.ede.extCommentCache[episodeId] || {};
-                        const extCommentsLength = Object.keys(extCommentCache).length;
-                        if (loadType === LOAD_TYPE.RELOAD && (commentsCache || extCommentsLength > 0)) {
-                            let allComments = commentsCache;
-                            if (extCommentsLength > 0) {
-                                allComments = commentsCache.concat(...Object.values(extCommentCache));
-                                console.log(`使用 ede 缓存,附加前总量: ${commentsCache.length}, 附加后总量: ${allComments.length}`);
-                            }
-                            createDanmaku(allComments)
+                        if (loadType === LOAD_TYPE.RELOAD && window.ede.danmuCache[episodeId]) {
+                            createDanmaku(window.ede.danmuCache[episodeId])
                                 .then(() => {
                                     console.log('弹幕就位');
                                 })
@@ -1150,33 +1143,14 @@
                         } else {
                             fetchComment(episodeId).then((comments) => {
                                 window.ede.danmuCache[episodeId] = comments;
-                                let allComments = comments;
-                                if (extCommentsLength > 0) {
-                                    Promise.all(
-                                        objectEntries(extCommentCache).map(([key, val]) => fetchExtcommentActual(key, allComments))
-                                    ).then((results) => {
-                                        allComments = allComments.concat(...results);
-                                        console.log(`使用 fetch 重取,附加前总量: ${comments.length}, 附加后总量: ${allComments.length}`);
-                                        createDanmaku(allComments)
-                                            .then(() => {
-                                                console.log('弹幕就位');
-                                            })
-                                            .catch((err) => {
-                                                console.log(err);
-                                            });
-                                    }).catch((error) => {
-                                        console.error('Error fetching fetchExtcommentActual:', error);
+                                createDanmaku(comments)
+                                    .then(() => {
+                                        console.log('弹幕就位');
+                                        // embyToast({ text: `弹幕就位,已获取 ${comments.length} 条弹幕` });
+                                    })
+                                    .catch((err) => {
+                                        console.log(err);
                                     });
-                                } else {
-                                    createDanmaku(allComments)
-                                        .then(() => {
-                                            console.log('弹幕就位');
-                                            // embyToast({ text: `弹幕就位,已获取 ${comments.length} 条弹幕` });
-                                        })
-                                        .catch((err) => {
-                                            console.log(err);
-                                        });
-                                }
                             });
                         }
                     }
@@ -1188,6 +1162,10 @@
                 },
             )
             .then(() => {
+                const extCommentCache = window.ede.extCommentCache[window.ede.itemId] || {};
+                objectEntries(extCommentCache).forEach(([key, val]) => {
+                    addExtComments(key, val);
+                })
                 window.ede.loading = false;
                 const danmakuCtrEle = getById(eleIds.danmakuCtr);
                 if (danmakuCtrEle && danmakuCtrEle.style.opacity !== '1') {
@@ -1301,8 +1279,8 @@
             fontSize = parseFloat(getComputedStyle(fontSizeReferent).fontSize.replace('px', '')) * fontSizeRate;
         } else {
             fontSize = Math.round(
-                (window.screen.height > window.screen.width 
-                    ? window.screen.width 
+                (window.screen.height > window.screen.width
+                    ? window.screen.width
                     : window.screen.height / 1080) * 18 * fontSizeRate
             );
         }
@@ -1399,7 +1377,7 @@
     function createDialog() {
         require([
             'emby-select', 'emby-checkbox', 'emby-slider', 'emby-textarea', 'emby-collapse'
-            , 'emby-button', 
+            , 'emby-button',
         ]);
         const html = `<div id="${eleIds.dialogContainer}"></div>`;
         embyDialog({ html, buttons: [{ name: '关闭' }] });
@@ -1536,7 +1514,7 @@
                         </div>
                     </div>
                     <div id="${eleIds.settingsCtrl}" style="margin: 0.6em 0;"></div>
-                    <textarea id="${eleIds.settingsText}" style="display: none;resize: vertical;width: 100%" rows="20" 
+                    <textarea id="${eleIds.settingsText}" style="display: none;resize: vertical;width: 100%" rows="20"
                         is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                 </div>
             </div>
@@ -1850,7 +1828,7 @@
     function buildExtUrlsDiv() {
         const episodeId = window.ede.episode_info ? window.ede.episode_info.episodeId : null;
         const comments = window.ede.danmuCache[episodeId] || [];
-        const curExtCommentCache = window.ede.extCommentCache[episodeId];
+        const curExtCommentCache = window.ede.extCommentCache[window.ede.itemId];
         const allComments = comments.concat(...Object.values(curExtCommentCache || {}));
         const extUrlsDiv = getById(eleIds.extUrlsDiv);
         extUrlsDiv.innerHTML = '';
@@ -1869,17 +1847,24 @@
     async function onEnterExtComment(e) {
         const extUrl = getTargetInput(e).value.trim();
         if (!extUrl.startsWith('http')) { return embyToast({ text: '输入的 url 应以 http 开头!' }); }
-        const episodeId = window.ede.episode_info.episodeId;
+        addExtComments(extUrl);
+    }
+
+    async function addExtComments(extUrl, extComments) {
+        const episode_info = window.ede.episode_info;
+        const episodeId = episode_info ? episode_info.episodeId : null;
         const comments = window.ede.danmuCache[episodeId] || [];
-        const extcomments = await fetchExtcommentActual(extUrl, comments);
-        if (extcomments.length === 0) {
+        if (!extComments) {
+            extComments = await fetchExtcommentActual(extUrl, comments);
+        }
+        if (extComments.length === 0) {
             return embyToast({ text: '附加弹幕不能为空!' });
         }
-        const allComments = comments.concat(extcomments);
+        const allComments = comments.concat(extComments);
         createDanmaku(allComments)
         .then(() => {
-            const beforeLength = window.ede.commentsParsed.length - extcomments.length;
-            embyToast({ text: `此次附加总量: ${extcomments.length}, 附加前总量: ${beforeLength}, 附加后总量: ${allComments.length}` });
+            const beforeLength = window.ede.commentsParsed.length - extComments.length;
+            embyToast({ text: `此次附加总量: ${extComments.length}, 附加前总量: ${beforeLength}, 附加后总量: ${allComments.length}` });
             console.log(`附加弹幕就位, 附加前总量: ${beforeLength}`);
             buildExtUrlsDiv();
         })
@@ -1888,8 +1873,8 @@
 
     function buildCurrentDanmakuInfo(containerId) {
         const container = getById(containerId);
-        if (!container || !window.ede.episode_info) { return; }
-        const { episodeTitle, animeId, animeTitle } = window.ede.episode_info;
+        if (!container) { return; }
+        const { episodeTitle, animeId, animeTitle } = window.ede.episode_info || {};
         const loadSum = getDanmakuComments(window.ede).length;
         const downloadSum = window.ede.commentsParsed.length;
         let template = `
@@ -1902,14 +1887,14 @@
                     </div>
                     ${!episodeTitle ? '' :
                     `<div>
-                        <label class="${classes.embyLabel}">分集名: </label>
+                        <label class="${classes.embyLabel}">章节名: </label>
                         <div class="${classes.embyFieldDesc}">${episodeTitle}</div>
                     </div>`}
                     <div>
                         <label class="${classes.embyLabel}">其它信息: </label>
                         <div class="${classes.embyFieldDesc}">
-                            获取总数: ${downloadSum}, 
-                            加载总数: ${loadSum}, 
+                            获取总数: ${downloadSum},
+                            加载总数: ${loadSum},
                             被过滤数: ${downloadSum - loadSum}
                         </div>
                     </div>
@@ -1918,7 +1903,7 @@
             <div style="margin-top: 2%;">
                 <label class="${classes.embyLabel}">${lsKeys.danmuList.name}: </label>
                 <div id="${eleIds.danmuListDiv}" style="margin: 1% 0;"></div>
-                <textarea id="${eleIds.danmuListText}" readOnly style="display: none;resize: vertical;width: 100%" rows="8" 
+                <textarea id="${eleIds.danmuListText}" readOnly style="display: none;resize: vertical;width: 100%" rows="8"
                     is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                 <div class="${classes.embyFieldDesc}">列表展示格式为: [序号][分:秒] : 弹幕正文 [来源平台][用户ID][弹幕CID][模式]</div>
             </div>
@@ -1928,8 +1913,10 @@
                 <div style="${styles.embySlider + 'margin: 0.8em 0;'}">
                     <label class="${classes.embyLabel}" style="width:7em;">角色图片高度: </label>
                     <div id="${eleIds.characterImgHeihtDiv}" style="width: 36.5em; text-align: center;"></div>
-                    <label><label id="${eleIds.characterImgHeihtLabel}" style="${styles.embySliderLabel}"></label>
-                    <label>em</label></label>
+                    <label>
+                        <label id="${eleIds.characterImgHeihtLabel}" style="${styles.embySliderLabel}">auto</label>
+                        <label>em</label>
+                    </label>
                 </div>
                 <div id="${eleIds.charactersDiv}" style="display: flex; flex-wrap: wrap;"></div>
             </div>
@@ -1946,16 +1933,19 @@
     }
 
     function buildDanmuListDiv(container) {
-        const { episodeId, } = window.ede.episode_info;
-        const danmuListExts = Object.values(window.ede.extCommentCache[episodeId] || {}).map((value, index) => {
+        const { episodeId, } = window.ede.episode_info || {};
+        const extCommentCache = window.ede.extCommentCache[window.ede.itemId] || {};
+        const danmuListExts = Object.values(extCommentCache).map((value, index) => {
             return { id: `ext${index + 1}`, name: `附加${index + 1}`, onChange: () => danmakuParser(value) };
         });
         let danmuListTabOpts = danmuListOpts;
         if (danmuListExts.length > 0) {
-            const dandanplayListOpt = { id: 'dandanplay', name: '弹弹 play'
-                , onChange: () => danmakuParser(window.ede.danmuCache[episodeId] || {}) };
+            const dandanplayListOpt = { id: 'dandanplay', name: '弹弹 play', onChange: () => {
+                const comments = window.ede.danmuCache[episodeId];
+                return comments ? danmakuParser(comments) : [];
+            } };
             danmuListTabOpts = danmuListTabOpts.concat(dandanplayListOpt).concat(danmuListExts);
-        }        
+        }
         getById(eleIds.danmuListDiv, container).append(
             embyTabs(danmuListTabOpts, lsKeys.danmuList.defaultValue, 'id', 'name', doDanmuListOptsChange)
         );
@@ -2525,8 +2515,10 @@
                 <div style="${styles.embySlider + 'margin: 0.8em 0;'}">
                     <label class="${classes.embyLabel}" style="width: 5em;">网页高度: </label>
                     <div id="${eleIds.tabIframeHeightDiv}" style="width: 40.5em; text-align: center;"></div>
-                    <label><label id="${eleIds.tabIframeHeightLabel}" style="${styles.embySliderLabel}"></label>
-                    <label>em</label></label>
+                    <label>
+                        <label id="${eleIds.tabIframeHeightLabel}" style="${styles.embySliderLabel}">auto</label>
+                        <label>em</label>
+                    </label>
                 </div>
                 <div id="${eleIds.tabIframeCtrlDiv}"></div>
                 <div id="${eleIds.tabIframeSrcInputDiv}" style="display: flex; margin-top: 0.6em;"></div>
@@ -2601,7 +2593,7 @@
         console.log('弹弹 play API 模板', dandanplayApi);
         if (exposeGlobalThis) { window.checkRuntimeVars = checkRuntimeVars; }
     }
-    
+
     function doDanmakuSwitch() {
         console.log('切换' + lsKeys.switch.name);
         const flag = !lsGetItem(lsKeys.switch.id);
@@ -2629,7 +2621,7 @@
         danmakuRemarkEle.innerText = searchName ? '' : '请填写标题';
         const spinnerEle = getByClass(classes.mdlSpinner);
         spinnerEle.classList.remove('hide');
-        
+
         const animaInfo = await fetchSearchEpisodes(searchName);
         spinnerEle.classList.add('hide');
         if (!animaInfo || animaInfo.animes.length < 1) {
@@ -2669,7 +2661,7 @@
         }
         const { _episode_key, seriesOrMovieId } = window.ede.searchDanmakuOpts;
         const episode_info = JSON.parse(localStorage.getItem(_episode_key));
-        const { animeOriginalTitle } = episode_info; 
+        const { animeOriginalTitle } = episode_info;
         if (animeOriginalTitle) {
             e.target.setAttribute(attrKey, '1');
             return searchInputEle.value = animeOriginalTitle;
@@ -2738,7 +2730,7 @@
 
     function doDanmakuEngineSelect(value) {
         let selectedValue = value.id;
-        if (lsCheckSet(lsKeys.engine.id, selectedValue)) { 
+        if (lsCheckSet(lsKeys.engine.id, selectedValue)) {
             console.log(`已更改弹幕引擎为: ${selectedValue}`);
             loadDanmaku(LOAD_TYPE.RELOAD);
         }
@@ -2798,7 +2790,7 @@
             console.log(`${props.key} changed to ${val}, needReload: ${needReload}`);
             if (needReload) {
                 changeFontStylePreview();
-                loadDanmaku(LOAD_TYPE.RELOAD); 
+                loadDanmaku(LOAD_TYPE.RELOAD);
             }
         }
     }
@@ -2806,7 +2798,7 @@
     function onSliderChangeLabel(val, props) {
         if (props.labelId) { getById(props.labelId).innerText = val; }
     }
-    
+
     function doDanmakuFilterKeywordsBtnClick(event) {
         const btn = event.currentTarget;
         if (btn) {
@@ -2887,7 +2879,7 @@
         if (typeof onChange === 'function') { input.addEventListener('change', onChange); }
         // 控制器输入左右超出边界时切换元素
         input.addEventListener('keydown', (event) => {
-            if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && 
+            if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
                     ((input.selectionStart === 0 && event.key === 'ArrowLeft') ||
                         (input.selectionEnd === input.value.length && event.key === 'ArrowRight'))) {
                 event.stopPropagation();
@@ -3040,7 +3032,7 @@
         });
         return checkboxContainer;
     }
-    
+
     function embyCheckbox({ id, name, label, value }, checked = false, onChange) {
         const checkboxLabel = document.createElement('label');
         checkboxLabel.classList.add('emby-checkbox-label');
@@ -3073,7 +3065,7 @@
         props = { ...defaultProps, ...props };
         const textarea = document.createElement('textarea', { is: 'emby-textarea' });
         objectEntries(props).forEach(([key, value]) => {
-            if (typeof value !== 'function' && key !== 'readonly' 
+            if (typeof value !== 'function' && key !== 'readonly'
                 && key !== 'styleResize' && key !== 'value') { textarea.setAttribute(key, value); }
         });
         textarea.className = 'txtOverview emby-textarea';
@@ -3354,7 +3346,7 @@
 
     function initH5VideoAdapter() {
         let _media = document.querySelector(mediaQueryStr);
-        if (_media) { 
+        if (_media) {
             if (_media.id) { // 若是手动创建的<video>
                 videoTimeUpdateInterval(_media, true);
             }
@@ -3376,7 +3368,7 @@
             playbackEventsOn({
                 'timeupdate': (e) => {
                     // conver to seconds from Ticks
-                    const realCurrentTime = playbackManager.currentTime(playbackManager.getCurrentPlayer()) / 1e7;                
+                    const realCurrentTime = playbackManager.currentTime(playbackManager.getCurrentPlayer()) / 1e7;
                     const mediaTime = _media.currentTime;
                     _media.currentTime = realCurrentTime;
                     // playbackRate 同步依赖至少 100ms currentTime 变更
@@ -3454,7 +3446,7 @@
             initListener();
             initCss();
         }
-        window.ede.debugUsedItemId = e.detail.params.id ? e.detail.params.id : '';
+        window.ede.itemId = e.detail.params.id ? e.detail.params.id : '';
     });
     document.addEventListener('viewbeforehide', e => e.detail.type === 'video-osd' && beforeDestroy());
 
