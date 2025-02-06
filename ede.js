@@ -17,7 +17,7 @@
     // ------ 用户配置 start ------
     let requireDanmakuPath = 'https://danmaku.7o7o.cc/danmaku.min.js';
     // 跨域代理 cf_worker
-    let corsProxy = 'https://ddplay-api.7o7o.cc/cors/';
+    let corsProxy = 'https://dd-danmaku.afrain.top/cors/';
     // ------ 用户配置 end ------
     // note01: 部分 AndroidTV 仅支持最高 ES9 (支持 webview 内核版本 60 以上)
     // ------ 程序内部使用,请勿更改 start ------
