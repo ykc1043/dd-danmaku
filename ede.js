@@ -16,7 +16,7 @@
     'use strict';
     // ------ 用户配置 start ------
     // let requireDanmakuPath = 'https://danmaku.7o7o.cc/danmaku.min.js';
-    let requireDanmakuPath = 'http://pve.afrain.top:8888/share1/danmaku.min.js';
+    let requireDanmakuPath = 'https://pve.afrain.top:8888/share1/danmaku.min.js';
     
     // 跨域代理 cf_worker
     // let corsProxy = 'https://ddplay-api.afrain.top/cors/';
