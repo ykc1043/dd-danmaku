@@ -1,6 +1,5 @@
 # emby-danmaku
 使用自建cfworker
-<script src="https://gh-proxy.com/raw.githubusercontent.com/ykc1043/dd-danmaku/refs/heads/main/ede.js"></script>
 
 ## Emby danmaku extension
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui01.png)
