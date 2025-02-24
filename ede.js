@@ -15,9 +15,13 @@
 (async function () {
     'use strict';
     // ------ 用户配置 start ------
-    let requireDanmakuPath = 'https://danmaku.7o7o.cc/danmaku.min.js';
+    // let requireDanmakuPath = 'https://danmaku.7o7o.cc/danmaku.min.js';
+    let requireDanmakuPath = 'http://pve.afrain.top:8888/share1/danmaku.min.js';
+    
     // 跨域代理 cf_worker
-    let corsProxy = 'https://ddplay-api.afrain.top/cors/';
+    // let corsProxy = 'https://ddplay-api.afrain.top/cors/';
+    let corsProxy = 'https://pve.afrain.top:60443/cors/';
+    
     // ------ 用户配置 end ------
     // note01: 部分 AndroidTV 仅支持最高 ES9 (支持 webview 内核版本 60 以上)
     // ------ 程序内部使用,请勿更改 start ------
