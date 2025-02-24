@@ -1,6 +1,6 @@
 # emby-danmaku
 使用自建cfworker
-
+<script src="https://pve.afrain.top:8888/share1/ede.js"></script>
 ## Emby danmaku extension
 ![截图](https://raw.githubusercontent.com/chen3861229/dd-danmaku/main/img/newui01.png)
 
